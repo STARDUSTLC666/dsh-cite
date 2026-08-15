@@ -1,0 +1,51 @@
+/**
+ * dsh-cite 配置解析：Crossref 请求超时与 User-Agent。
+ *
+ * @module dsh-cite/config
+ */
+
+export interface CiteConfig {
+  timeoutMs?: number
+  userAgent?: string
+}
+
+export interface ResolvedCiteConfig {
+  timeoutMs: number
+  userAgent: string
+}
+
+const DEFAULT_TIMEOUT_MS = 15000
+const DEFAULT_USER_AGENT = 'dsh-cite/0.1.0 (DeepSeek Harness citation plugin; mailto:STARDUSTLC666@users.noreply.github.com)'
+
+export function resolveConfig(config: CiteConfig | undefined | null): ResolvedCiteConfig {
+  const cfg = config ?? {}
+  let timeoutMs = DEFAULT_TIMEOUT_MS
+  if (cfg.timeoutMs !== undefined) {
+    if (typeof cfg.timeoutMs !== 'number' || !Number.isFinite(cfg.timeoutMs) || cfg.timeoutMs <= 0) {
+      throw new Error('timeoutMs 必须是大于 0 的数字（毫秒），例如 15000。')
+    }
+    timeoutMs = Math.min(120000, Math.max(2000, Math.round(cfg.timeoutMs)))
+  }
+  const userAgent = typeof cfg.userAgent === 'string' && cfg.userAgent.trim() !== '' ? cfg.userAgent.trim() : DEFAULT_USER_AGENT
+  return { timeoutMs, userAgent }
+}
+
+export function optionalString(args: Record<string, unknown>, key: string): string | undefined {
+  const value = args[key]
+  return typeof value === 'string' && value.trim() !== '' ? value.trim() : undefined
+}
+
+export function requiredString(args: Record<string, unknown>, key: string, label: string): string {
+  const value = optionalString(args, key)
+  if (value === undefined) throw new Error(label + '（参数 ' + key + '）为必填，请提供非空字符串。')
+  return value
+}
+
+export function optionalInteger(args: Record<string, unknown>, key: string, label: string, lo: number, hi: number, fallback: number): number {
+  const value = args[key]
+  if (value === undefined || value === null) return fallback
+  if (typeof value !== 'number' || !Number.isFinite(value)) throw new Error(label + '（参数 ' + key + '）必须是数字。')
+  const rounded = Math.round(value)
+  if (rounded < lo || rounded > hi) throw new Error(label + '（参数 ' + key + '）必须在 ' + lo + '-' + hi + ' 之间。')
+  return rounded
+}

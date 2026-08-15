@@ -1,0 +1,63 @@
+{
+  "name": "dsh-cite",
+  "version": "0.1.0",
+  "description": "DSH 参考文献工具插件：cite_lookup/cite_format/cite_bibtex/cite_check 四工具，Crossref 元数据查询，GB/T 7714 / APA / MLA / Chicago 格式化，零运行时依赖。",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "README.md",
+    "README.en.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepare": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "pnpm run build && node --test \"test/*.test.mjs\"",
+    "prepublishOnly": "pnpm run build"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "plugin",
+    "citation",
+    "crossref",
+    "gb-t-7714",
+    "apa",
+    "mla",
+    "chicago"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.6.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/STARDUSTLC666/dsh-cite.git"
+  },
+  "bugs": {
+    "url": "https://github.com/STARDUSTLC666/dsh-cite/issues"
+  },
+  "homepage": "https://github.com/STARDUSTLC666/dsh-cite#readme",
+  "author": "stardustlc",
+  "packageManager": "pnpm@11.7.0"
+}

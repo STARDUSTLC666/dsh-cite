@@ -1,0 +1,14 @@
+# dsh-cite 组合包补丁：把参考文献工具插件行插入 profile。
+#
+# 示例（用户 profile 的 cordis.patch.yml）：
+#   - id: cite
+#     name: 'dsh-cite'
+#     config:
+#       timeoutMs: 15000     # Crossref 请求超时（默认 15 秒）
+#       userAgent: ''        # 自定义 User-Agent（默认 dsh-cite/0.1.0）
+#
+- insert:
+    - id: cite
+      name: 'dsh-cite'
+      config:
+        timeoutMs: 15000

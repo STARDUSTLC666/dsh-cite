@@ -40,7 +40,8 @@
     "gb-t-7714",
     "apa",
     "mla",
-    "chicago"
+    "chicago",
+    "dsh-plugin"
   ],
   "license": "MIT",
   "engines": {

@@ -56,6 +56,7 @@ const workSchema = {
     containerTitle: { type: 'string' },
     publisher: { type: 'string' },
     year: { type: 'integer' },
+    language: { type: 'string' },
     volume: { type: 'string' },
     issue: { type: 'string' },
     page: { type: 'string' },

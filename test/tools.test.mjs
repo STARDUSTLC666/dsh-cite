@@ -6,7 +6,7 @@ import { buildCiteTools, resolveConfig } from '../lib/index.js'
 import { apply } from '../lib/index.js'
 
 const work = {"doi":"10.1038/nature12345","type":"journal-article","title":"Deep learning for citation","authors":[{"given":"Ada","family":"Lovelace","name":""},{"given":"Grace","family":"Hopper","name":""}],"containerTitle":"Nature","publisher":"Nature Publishing","year":2024,"volume":"600","issue":"12","page":"1-9","url":"https://doi.org/10.1038/nature12345","isbn":""};
-const crossrefMessage = {"message":{"DOI":"10.1038/nature12345","type":"journal-article","title":["Deep learning for citation"],"author":[{"given":"Ada","family":"Lovelace"},{"given":"Grace","family":"Hopper"}],"container-title":["Nature"],"publisher":"Nature Publishing","volume":"600","issue":"12","page":"1-9","URL":"https://doi.org/10.1038/nature12345","issued":{"date-parts":[[2024]]}}};
+const crossrefMessage = {"message":{"DOI":"10.1038/nature12345","type":"journal-article","title":["Deep learning for citation"],"author":[{"given":"Ada","family":"Lovelace"},{"given":"Grace","family":"Hopper"}],"container-title":["Nature"],"publisher":"Nature Publishing","volume":"600","issue":"12","page":"1-9","URL":"https://doi.org/10.1038/nature12345","language":"en","issued":{"date-parts":[[2024]]}}};
 
 const cfg = resolveConfig({ timeoutMs: 3000 })
 function fakeFetch() {
@@ -62,6 +62,7 @@ test('lookupDoi 校验格式并解析 Crossref', async () => {
   const result = await lookupDoi('https://doi.org/10.1038/nature12345', cfg, fn)
   assert.equal(result.title, 'Deep learning for citation')
   assert.equal(result.year, 2024)
+  assert.equal(result.language, 'en')
 })
 
 test('cite_lookup 按 DOI 与 query 检索', async () => {

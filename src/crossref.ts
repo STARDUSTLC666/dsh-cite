@@ -20,6 +20,7 @@ export interface Work {
   containerTitle: string
   publisher: string
   year: number
+  language: string
   volume: string
   issue: string
   page: string
@@ -78,6 +79,7 @@ function normalizeWork(raw: Record<string, unknown>): Work {
     containerTitle: firstText(raw['container-title']),
     publisher: typeof raw.publisher === 'string' ? raw.publisher.trim() : '',
     year: year || 0,
+    language: typeof raw.language === 'string' ? raw.language.trim().toLowerCase() : '',
     volume: typeof raw.volume === 'string' ? raw.volume.trim() : '',
     issue: typeof raw.issue === 'string' ? raw.issue.trim() : '',
     page: typeof raw.page === 'string' ? raw.page.trim() : '',

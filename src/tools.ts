@@ -96,6 +96,22 @@ const checkSchema = {
   additionalProperties: true,
 }
 
+/** 以固定并发度执行异步任务并保持原顺序。 */
+async function mapWithConcurrency<T, R>(items: T[], concurrency: number, fn: (item: T, index: number) => Promise<R>): Promise<R[]> {
+  const results = new Array<R>(items.length)
+  let next = 0
+  const workers = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+    while (true) {
+      const index = next
+      next += 1
+      if (index >= items.length) return
+      results[index] = await fn(items[index]!, index)
+    }
+  })
+  await Promise.all(workers)
+  return results
+}
+
 function workLabel(work: Work): string {
   const title = work.title !== '' ? work.title : '(无标题)'
   return title + '（' + (work.year > 0 ? work.year + ', ' : '') + (work.containerTitle !== '' ? work.containerTitle : work.publisher) + '）'
@@ -203,15 +219,14 @@ export function buildCiteTools(cfg: ResolvedCiteConfig, fetchImpl?: FetchLike): 
       const text = requiredString(args, 'text', '待检查文本')
       const maxChecks = optionalInteger(args, 'maxChecks', '校验数量', 1, 50, 10)
       const dois = extractDois(text).slice(0, maxChecks)
-      const results: Array<Record<string, unknown>> = []
-      for (const doi of dois) {
+      const results = await mapWithConcurrency(dois, 3, async (doi) => {
         try {
           const work = await lookupDoi(doi, cfg, fetchImpl)
-          results.push({ doi, ok: true, title: work.title, url: work.url })
+          return { doi, ok: true, title: work.title, url: work.url }
         } catch (error) {
-          results.push({ doi, ok: false, title: '', url: '', error: error instanceof Error ? error.message : String(error) })
+          return { doi, ok: false, title: '', url: '', error: error instanceof Error ? error.message : String(error) }
         }
-      }
+      })
       return { count: results.length, results }
     },
     timeoutMs: cfg.timeoutMs * 3 + 5000,

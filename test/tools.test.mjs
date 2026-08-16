@@ -104,6 +104,25 @@ test('cite_check 提取并校验 DOI', async () => {
   assert.equal(value.results[1].ok, false)
 })
 
+test('cite_check 并发校验且保持顺序', async () => {
+  let active = 0
+  let maxActive = 0
+  const fn = async () => {
+    active += 1
+    maxActive = Math.max(maxActive, active)
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 10))
+    active -= 1
+    return new Response(JSON.stringify(crossrefMessage), { status: 200, headers: { 'content-type': 'application/json' } })
+  }
+  const tool = buildCiteTools(cfg, fn).find(t => t.name === 'cite_check')
+  const textInput = ['10.1000/a', '10.1000/b', '10.1000/c', '10.1000/d', '10.1000/e', '10.1000/f'].join(' ')
+  const value = await tool.execute({ text: textInput, maxChecks: 6 }, {})
+  assert.equal(value.count, 6)
+  assert.deepEqual(value.results.map((item) => item.doi), ['10.1000/a', '10.1000/b', '10.1000/c', '10.1000/d', '10.1000/e', '10.1000/f'])
+  assert.ok(maxActive <= 3, 'maxActive=' + maxActive)
+  assert.ok(maxActive > 1, 'expected parallel checks, maxActive=' + maxActive)
+})
+
 test('apply 注册 4 个工具且 dispose 清理', () => {
   const names = []
   const listeners = {}

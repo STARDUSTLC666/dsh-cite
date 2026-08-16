@@ -11,7 +11,7 @@ DeepSeek Harness 参考文献工具插件：通过 Crossref API 查询文献元�
 | `cite_lookup` | 查文献元数据（DOI 精确查询 / 题录检索） | `doi` 或 `query` 至少一个；`limit` 1-10 默认 5 |
 | `cite_format` | 生成规范引文 | `doi` 必填；`style`：gb-t-7714 / apa / mla / chicago |
 | `cite_bibtex` | 生成 BibTeX 条目 | `doi` 必填；`key` 可选 |
-| `cite_check` | 从文本提取 DOI 并校验是否存在 | `text` 必填；`maxChecks` 1-50 默认 10 |
+| `cite_check` | 从文本提取 DOI 并并发校验是否存在（并发 3，保持输入顺序） | `text` 必填；`maxChecks` 1-50 默认 10 |
 
 ## 安装
 
@@ -38,7 +38,8 @@ Agent：
 - id: cite
   name: 'dsh-cite'
   config:
-    timeoutMs: 15000   # Crossref 请求超时
+    timeoutMs: 15000   # Crossref 请求超时（也可用 DSH_CITE_TIMEOUT_MS）
+    # userAgent: ...   # 自定义 User-Agent（也可用 DSH_CITE_USER_AGENT）
     userAgent: ''      # 自定义 UA（建议带上可联系邮箱）
 ```
 
@@ -51,7 +52,7 @@ Agent：
 ## 开发
 
 ```bash
-pnpm test       # 构建 + 14 个测试
+pnpm test       # 构建 + 18 个测试
 ```
 
 MIT

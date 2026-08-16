@@ -15,7 +15,7 @@ export interface ResolvedCiteConfig {
 }
 
 const DEFAULT_TIMEOUT_MS = 15000
-const DEFAULT_USER_AGENT = 'dsh-cite/0.1.0 (DeepSeek Harness citation plugin; mailto:STARDUSTLC666@users.noreply.github.com)'
+const DEFAULT_USER_AGENT = 'dsh-cite/0.2.0 (DeepSeek Harness citation plugin; mailto:STARDUSTLC666@users.noreply.github.com)'
 export const CITE_TIMEOUT_ENV = 'DSH_CITE_TIMEOUT_MS'
 export const CITE_USER_AGENT_ENV = 'DSH_CITE_USER_AGENT'
 

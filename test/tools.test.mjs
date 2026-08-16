@@ -65,12 +65,16 @@ test('lookupDoi 校验格式并解析 Crossref', async () => {
 })
 
 test('cite_lookup 按 DOI 与 query 检索', async () => {
-  const { fn } = fakeFetch()
+  const { fn, calls } = fakeFetch()
   const tools = buildCiteTools(cfg, fn)
   const byDoi = await tools.find(t => t.name === 'cite_lookup').execute({ doi: '10.1038/nature12345' }, {})
   assert.equal(byDoi.count, 1)
   const byQuery = await tools.find(t => t.name === 'cite_lookup').execute({ query: 'Deep learning citation', limit: 3 }, {})
   assert.equal(byQuery.works.length, 1)
+  const byDoiText = await tools.find(t => t.name === 'cite_lookup').execute({ query: 'See https://doi.org/10.1038/nature12345 for details' }, {})
+  assert.equal(byDoiText.count, 1)
+  assert.equal(byDoiText.matchedDoi, '10.1038/nature12345')
+  assert.ok(calls.some((url) => url.includes('10.1038%2Fnature12345')))
 })
 
 test('cite_format 输出四种格式', async () => {

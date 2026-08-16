@@ -123,6 +123,11 @@ export function buildCiteTools(cfg: ResolvedCiteConfig, fetchImpl?: FetchLike): 
         const work = await lookupDoi(doi, cfg, fetchImpl)
         return { count: 1, works: [work] }
       }
+      const queryDoi = extractDois(query!)[0]
+      if (queryDoi !== undefined) {
+        const work = await lookupDoi(queryDoi, cfg, fetchImpl)
+        return { count: 1, works: [work], matchedDoi: queryDoi }
+      }
       const limit = optionalInteger(args, 'limit', '返回条数', 1, 10, 5)
       const works = await searchWorks(query!, limit, cfg, fetchImpl)
       if (works.length === 0) throw new Error('Crossref 没有找到匹配文献，请尝试更精确的标题/作者。')

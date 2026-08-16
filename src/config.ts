@@ -16,8 +16,10 @@ export interface ResolvedCiteConfig {
 
 const DEFAULT_TIMEOUT_MS = 15000
 const DEFAULT_USER_AGENT = 'dsh-cite/0.1.0 (DeepSeek Harness citation plugin; mailto:STARDUSTLC666@users.noreply.github.com)'
+export const CITE_TIMEOUT_ENV = 'DSH_CITE_TIMEOUT_MS'
+export const CITE_USER_AGENT_ENV = 'DSH_CITE_USER_AGENT'
 
-export function resolveConfig(config: CiteConfig | undefined | null): ResolvedCiteConfig {
+export function resolveConfig(config: CiteConfig | undefined | null, env: NodeJS.ProcessEnv = process.env): ResolvedCiteConfig {
   const cfg = config ?? {}
   let timeoutMs = DEFAULT_TIMEOUT_MS
   if (cfg.timeoutMs !== undefined) {
@@ -25,8 +27,12 @@ export function resolveConfig(config: CiteConfig | undefined | null): ResolvedCi
       throw new Error('timeoutMs 必须是大于 0 的数字（毫秒），例如 15000。')
     }
     timeoutMs = Math.min(120000, Math.max(2000, Math.round(cfg.timeoutMs)))
+  } else if (env[CITE_TIMEOUT_ENV]?.trim()) {
+    const parsed = Number(env[CITE_TIMEOUT_ENV]!.trim())
+    if (!Number.isFinite(parsed) || parsed <= 0) throw new Error(CITE_TIMEOUT_ENV + ' 必须是大于 0 的数字（毫秒）。')
+    timeoutMs = Math.min(120000, Math.max(2000, Math.round(parsed)))
   }
-  const userAgent = typeof cfg.userAgent === 'string' && cfg.userAgent.trim() !== '' ? cfg.userAgent.trim() : DEFAULT_USER_AGENT
+  const userAgent = typeof cfg.userAgent === 'string' && cfg.userAgent.trim() !== '' ? cfg.userAgent.trim() : (env[CITE_USER_AGENT_ENV]?.trim() || DEFAULT_USER_AGENT)
   return { timeoutMs, userAgent }
 }
 

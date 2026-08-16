@@ -191,6 +191,12 @@ function escapeLatex(value: string): string {
   return value.replace(/([{}])/g, '\\$1').replace(/&/g, '\\&').replace(/%/g, '\\%').replace(/\$/g, '\\$')
 }
 
+/** BibTeX 引用键只允许安全字符，空格/逗号/花括号等替换为下划线。 */
+function sanitizeBibtexKey(value: string): string {
+  const cleaned = value.replace(/[^A-Za-z0-9_.:\/-]+/g, '_').replace(/^_+|_+$/g, '')
+  return cleaned === '' ? 'work' : cleaned
+}
+
 function bibtexType(work: Work): string {
   switch (work.type) {
     case 'journal-article': return 'article'
@@ -206,7 +212,7 @@ function bibtexType(work: Work): string {
 export function buildBibtex(work: Work, key?: string): string {
   const first = work.authors[0]
   const firstWord = titleOf(work).split(/[^\p{L}\p{N}]+/u).find((part) => part !== '') ?? 'work'
-  const baseKey = key !== undefined && key.trim() !== '' ? key.trim() : ((first?.family ?? first?.name ?? 'author') + yearText(work) + firstWord).toLowerCase()
+  const baseKey = key !== undefined && key.trim() !== '' ? sanitizeBibtexKey(key.trim()) : ((first?.family ?? first?.name ?? 'author') + yearText(work) + firstWord).toLowerCase()
   const type = bibtexType(work)
   const fields: string[] = []
   const authors = work.authors.map((author) => fullName(author)).join(' and ')

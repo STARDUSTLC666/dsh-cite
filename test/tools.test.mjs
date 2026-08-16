@@ -42,6 +42,11 @@ test('BibTeX 生成', () => {
   assert.match(bib, /doi=\{10\.1038\/nature12345\}/)
 })
 
+test('BibTeX 自定义 key 清洗非法字符', () => {
+  assert.match(buildBibtex(work, 'my key, v2'), /@article\{my_key_v2,/)
+  assert.match(buildBibtex(work, '   '), /@article\{lovelace2024deep/)
+})
+
 test('readStyle 默认与非法值', () => {
   assert.equal(readStyle(undefined), 'gb-t-7714')
   assert.throws(() => readStyle('harvard'), /style 只支持/)

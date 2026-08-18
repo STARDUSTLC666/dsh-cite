@@ -30,7 +30,7 @@ function initials(given: string): string {
 
 function apaName(author: CiteAuthor): string {
   const family = author.family !== '' ? author.family : (author.name !== '' ? author.name : author.given)
-  const initialsText = author.given !== '' ? initials(author.given) : (author.name !== '' ? initials(author.name.split(/[\s-]+/)[0] ?? '') : '')
+  const initialsText = author.given !== '' ? initials(author.given) : ''
   return initialsText !== '' ? family + ', ' + initialsText : family
 }
 
@@ -53,7 +53,8 @@ function apaAuthors(authors: CiteAuthor[]): string {
   const names = authors.map(apaName)
   if (names.length === 1) return names[0]!
   if (names.length === 2) return names[0] + ', & ' + names[1]
-  return names.slice(0, 19).join(', ') + ', ...'
+  if (names.length <= 20) return names.slice(0, -1).join(', ') + ', & ' + names[names.length - 1]
+  return names.slice(0, 19).join(', ') + ', ... ' + names[names.length - 1]
 }
 
 function mlaAuthors(authors: CiteAuthor[]): string {
@@ -188,7 +189,21 @@ export function buildCitation(work: Work, style: CiteStyle, lang = 'zh'): string
 }
 
 function escapeLatex(value: string): string {
-  return value.replace(/([{}])/g, '\\$1').replace(/&/g, '\\&').replace(/%/g, '\\%').replace(/\$/g, '\\$')
+  return value.replace(/[\\{}&%$#_~^]/g, (ch) => {
+    switch (ch) {
+      case '\\': return '\\textbackslash{}'
+      case '{': return '\\{'
+      case '}': return '\\}'
+      case '&': return '\\&'
+      case '%': return '\\%'
+      case '$': return '\\$'
+      case '#': return '\\#'
+      case '_': return '\\_'
+      case '~': return '\\textasciitilde{}'
+      case '^': return '\\textasciicircum{}'
+      default: return ch
+    }
+  })
 }
 
 /** BibTeX 引用键只允许安全字符，空格/逗号/花括号等替换为下划线。 */

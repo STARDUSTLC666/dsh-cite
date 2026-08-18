@@ -156,7 +156,7 @@ export function extractDois(text: string): string[] {
   const seen = new Set<string>()
   const result: string[] = []
   for (const match of text.match(pattern) ?? []) {
-    const clean = match.replace(/[.,;]+$/, '').trim()
+    const clean = match.replace(/[.,;:)\]}'">]+$/, '').trim()
     if (seen.has(clean.toLowerCase())) continue
     seen.add(clean.toLowerCase())
     result.push(clean)

@@ -12,6 +12,7 @@ import { resolveConfig, type CiteConfig } from './config.js'
 import { buildCiteTools, type CiteToolDefinition } from './tools.js'
 
 /** cordis 服务注入：apply 里要用 ctx.tools。 */
+export const name = 'cite'
 export const inject = ['tools']
 
 export interface CitePluginContext {

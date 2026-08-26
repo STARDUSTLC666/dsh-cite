@@ -232,5 +232,48 @@ export function buildCiteTools(cfg: ResolvedCiteConfig, fetchImpl?: FetchLike): 
     timeoutMs: cfg.timeoutMs * 3 + 5000,
   }
 
-  return [citeLookup, citeFormat, citeBibtex, citeCheck]
+  const citeHealth: CiteToolDefinition = {
+    name: 'cite_health',
+    description: 'dsh-cite 自检：向 Crossref API 发一个最小请求验证连通性（rows=1），报告延迟。遇到问题时先运行本工具定位。',
+    parameters: compileParameters({}),
+    output: {
+      schema: { type: 'object', additionalProperties: true },
+      render: (_args, value) => {
+        const rec = (value ?? {}) as Record<string, unknown>
+        const rawChecks = Array.isArray(rec.checks) ? rec.checks : []
+        const checks = rawChecks.map((item) => (item ?? {}) as Record<string, unknown>)
+        const lines = ['dsh-cite 自检' + (rec.ok === true ? '：正常。' : '：发现问题。')]
+        for (const c of checks) {
+          lines.push('- ' + c.name + '：' + (c.ok === true ? '✅' : '❌ ' + String(c.detail ?? '')))
+        }
+        return [{ type: 'text', text: lines.join('\n') }]
+      },
+    },
+    async execute() {
+      const checks: Array<Record<string, unknown>> = []
+      let ok = true
+      const startedAt = Date.now()
+      try {
+        const fetcher = fetchImpl ?? (globalThis.fetch as unknown as FetchLike)
+        const response = await fetcher('https://api.crossref.org/works?rows=1&select=DOI', {
+          headers: { 'user-agent': cfg.userAgent },
+          signal: AbortSignal.timeout(Math.min(cfg.timeoutMs, 15000)),
+        })
+        if (response.ok) {
+          checks.push({ name: 'Crossref API', ok: true, detail: 'HTTP ' + response.status + '，' + (Date.now() - startedAt) + 'ms' })
+        } else {
+          ok = false
+          checks.push({ name: 'Crossref API', ok: false, detail: 'HTTP ' + response.status })
+        }
+      } catch (error) {
+        ok = false
+        checks.push({ name: 'Crossref API', ok: false, detail: (error instanceof Error ? error.message : String(error)) + '（网络需要特殊代理时请配置系统代理后重启）' })
+      }
+      checks.push({ name: '请求配置', ok: true, detail: 'timeoutMs=' + cfg.timeoutMs + '，UA 已配置' })
+      return { ok, plugin: 'dsh-cite', checks }
+    },
+    timeoutMs: Math.min(cfg.timeoutMs + 5000, 30000),
+  }
+
+  return [citeLookup, citeFormat, citeBibtex, citeCheck, citeHealth]
 }

@@ -1,6 +1,6 @@
 {
   "name": "dsh-cite",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "DSH 参考文献工具插件：cite_lookup/cite_format/cite_bibtex/cite_check 四工具，Crossref 元数据查询（含 DOI 精确解析与并发校验），GB/T 7714 / APA / MLA / Chicago 格式化，零运行时依赖。",
   "type": "module",
   "main": "lib/index.js",

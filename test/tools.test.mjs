@@ -128,7 +128,7 @@ test('apply 注册 4 个工具且 dispose 清理', () => {
   const listeners = {}
   const ctx = { tools: { register(def) { names.push(def.name); return () => names.splice(names.indexOf(def.name), 1) } }, on(e, l) { listeners[e] = l } }
   apply(ctx, {})
-  assert.deepEqual(names, ['cite_lookup', 'cite_format', 'cite_bibtex', 'cite_check'])
+  assert.deepEqual(names, ['cite_lookup', 'cite_format', 'cite_bibtex', 'cite_check', 'cite_health'])
   listeners.dispose()
   assert.deepEqual(names, [])
 })

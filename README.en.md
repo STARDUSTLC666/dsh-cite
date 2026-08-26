@@ -13,6 +13,10 @@ A DeepSeek Harness plugin for bibliographic references: query Crossref and forma
 | `cite_bibtex` | Generate a BibTeX entry | `doi`; `key` optional |
 | `cite_check` | Extract DOIs from text and validate them | `text`; `maxChecks` 1-50, default 10 |
 
+## Compatibility
+
+Verified against `@deepseek-ai/dsh@0.1.1-rc.2` on 2026-08-26. Built for the cordis patch-bundle plugin model (`cordis.patch.yml` + `dsh.bundle.patch`). No runtime imports of `@deepseek-ai/*` internals.
+
 ## Install
 
 ```bash
@@ -20,3 +24,15 @@ dsh plugin --profile web add dsh-cite
 ```
 
 MIT
+
+## Uninstall
+
+```bash
+dsh plugin --profile web remove dsh-cite
+```
+
+Then restart the web service. To clean up fully, also remove the plugin entry from your profile `cordis.patch.yml` if you overrode it.
+
+## License
+
+MIT (see [LICENSE](LICENSE))

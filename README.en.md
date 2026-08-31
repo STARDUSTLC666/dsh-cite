@@ -1,5 +1,7 @@
 # dsh-cite
 
+![npm](https://img.shields.io/npm/v/dsh-cite) ![downloads](https://img.shields.io/npm/dm/dsh-cite) ![license](https://img.shields.io/github/license/STARDUSTLC666/dsh-cite) ![stars](https://img.shields.io/github/stars/STARDUSTLC666/dsh-cite?style=social)
+
 > Give it a DOI, get a proper citation — GB/T 7714 / APA / MLA / Chicago / BibTeX.
 
 A DeepSeek Harness plugin for bibliographic references: query Crossref and format citations. Four tools, zero runtime dependencies.

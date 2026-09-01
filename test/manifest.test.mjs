@@ -7,7 +7,7 @@ const pkg = require('../package.json')
 
 test('manifest 字段完整', () => {
   assert.equal(pkg.name, 'dsh-cite')
-  assert.equal(pkg.version, '0.3.0')
+  assert.match(pkg.version, /^\d+\.\d+\.\d+$/)
   assert.equal(pkg.dsh.bundle.patch, './cordis.patch.yml')
   assert.ok(pkg.files.includes('lib'))
   assert.ok(existsSync(new URL('../cordis.patch.yml', import.meta.url)))

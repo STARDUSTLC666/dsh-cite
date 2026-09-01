@@ -47,6 +47,14 @@ test('BibTeX 自定义 key 清洗非法字符', () => {
   assert.match(buildBibtex(work, '   '), /@article\{lovelace2024deep/)
 })
 
+test('BibTeX 自动生成 key：机构作者与含空格姓氏', () => {
+  const org = { ...work, authors: [{ given: '', family: '', name: 'World Health Organization' }] }
+  assert.match(buildBibtex(org), /@\w+\{world_health_organization2024deep,/)
+  const spaced = { ...work, authors: [{ given: 'Ludwig', family: 'van der Berg', name: '' }] }
+  const keyLine = buildBibtex(spaced).split('\n')[0]
+  assert.equal(keyLine, '@article{van_der_berg2024deep,')
+})
+
 test('readStyle 默认与非法值', () => {
   assert.equal(readStyle(undefined), 'gb-t-7714')
   assert.throws(() => readStyle('harvard'), /style 只支持/)
@@ -63,6 +71,13 @@ test('lookupDoi 校验格式并解析 Crossref', async () => {
   assert.equal(result.title, 'Deep learning for citation')
   assert.equal(result.year, 2024)
   assert.equal(result.language, 'en')
+})
+
+test('lookupDoi 兼容旧式 dx.doi.org 链接', async () => {
+  const { fn, calls } = fakeFetch()
+  const result = await lookupDoi('http://dx.doi.org/10.1038/nature12345', cfg, fn)
+  assert.equal(result.doi, '10.1038/nature12345')
+  assert.ok(calls[0].includes('10.1038%2Fnature12345'))
 })
 
 test('cite_lookup 按 DOI 与 query 检索', async () => {
@@ -123,7 +138,7 @@ test('cite_check 并发校验且保持顺序', async () => {
   assert.ok(maxActive > 1, 'expected parallel checks, maxActive=' + maxActive)
 })
 
-test('apply 注册 4 个工具且 dispose 清理', () => {
+test('apply 注册 5 个工具（含 cite_health）且 dispose 清理', () => {
   const names = []
   const listeners = {}
   const ctx = { tools: { register(def) { names.push(def.name); return () => names.splice(names.indexOf(def.name), 1) } }, on(e, l) { listeners[e] = l } }

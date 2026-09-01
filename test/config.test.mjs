@@ -1,6 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { CITE_TIMEOUT_ENV, CITE_USER_AGENT_ENV, resolveConfig } from '../lib/index.js'
+import { readFileSync } from 'node:fs'
+import { CITE_TIMEOUT_ENV, CITE_USER_AGENT_ENV, DEFAULT_USER_AGENT, resolveConfig } from '../lib/index.js'
+
+test('默认 User-Agent 版本号与 package.json 一致', () => {
+  const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
+  assert.ok(DEFAULT_USER_AGENT.startsWith('dsh-cite/' + pkg.version + ' '), DEFAULT_USER_AGENT)
+})
 
 test('DSH_CITE_TIMEOUT_MS / DSH_CITE_USER_AGENT 环境变量回退', () => {
   const cfg = resolveConfig({}, { [CITE_TIMEOUT_ENV]: ' 25000 ', [CITE_USER_AGENT_ENV]: ' my-agent ' })

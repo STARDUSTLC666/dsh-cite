@@ -138,14 +138,14 @@ function buildApa(work: Work): string {
     if (work.volume !== '') text += ', ' + work.volume
     if (work.issue !== '') text += '(' + work.issue + ')'
     if (work.page !== '') text += ', ' + work.page
-    text += '. '
-    text += work.doi !== '' ? 'https://doi.org/' + work.doi : work.url
-    return text
+    const tail = work.doi !== '' ? 'https://doi.org/' + work.doi : work.url
+    if (tail !== '') return text + '. ' + tail
+    return text + '.'
   }
   if (work.type === 'book' || work.type === 'monograph' || work.type === 'edited-book') {
-    return authors + ' (' + year + '). ' + title + '. ' + (work.publisher !== '' ? work.publisher + '.' : '')
+    return authors + ' (' + year + '). ' + title + '.' + (work.publisher !== '' ? ' ' + work.publisher + '.' : '')
   }
-  return authors + ' (' + year + '). ' + title + '. ' + (work.url !== '' ? work.url : '')
+  return authors + ' (' + year + '). ' + title + '.' + (work.url !== '' ? ' ' + work.url : '')
 }
 
 /** 生成 MLA 9 参考文献条目。 */
@@ -227,7 +227,7 @@ function bibtexType(work: Work): string {
 export function buildBibtex(work: Work, key?: string): string {
   const first = work.authors[0]
   const firstWord = titleOf(work).split(/[^\p{L}\p{N}]+/u).find((part) => part !== '') ?? 'work'
-  const baseKey = key !== undefined && key.trim() !== '' ? sanitizeBibtexKey(key.trim()) : ((first?.family ?? first?.name ?? 'author') + yearText(work) + firstWord).toLowerCase()
+  const baseKey = key !== undefined && key.trim() !== '' ? sanitizeBibtexKey(key.trim()) : sanitizeBibtexKey(((first?.family || first?.name || 'author') + yearText(work) + firstWord).toLowerCase())
   const type = bibtexType(work)
   const fields: string[] = []
   const authors = work.authors.map((author) => fullName(author)).join(' and ')

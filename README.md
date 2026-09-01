@@ -4,7 +4,7 @@
 
 > 给一个 DOI，还你规范参考文献——GB/T 7714 / APA / MLA / Chicago / BibTeX。
 
-DeepSeek Harness 参考文献工具插件：通过 Crossref API 查询文献元数据并格式化引用。四个工具、零运行时依赖、全平台通用。
+DeepSeek Harness 参考文献工具插件：通过 Crossref API 查询文献元数据并格式化引用。五个工具（含 `cite_health` 自检）、零运行时依赖、全平台通用。
 
 ## 工具
 
@@ -14,6 +14,7 @@ DeepSeek Harness 参考文献工具插件：通过 Crossref API 查询文献元�
 | `cite_format` | 生成规范引文 | `doi` 必填；`style`：gb-t-7714 / apa / mla / chicago |
 | `cite_bibtex` | 生成 BibTeX 条目 | `doi` 必填；`key` 可选 |
 | `cite_check` | 从文本提取 DOI 并并发校验是否存在（并发 3，保持输入顺序） | `text` 必填；`maxChecks` 1-50 默认 10 |
+| `cite_health` | 自检：探测 Crossref 连通性并报告延迟 | 无 |
 
 ## 兼容性
 

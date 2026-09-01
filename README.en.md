@@ -4,7 +4,7 @@
 
 > Give it a DOI, get a proper citation — GB/T 7714 / APA / MLA / Chicago / BibTeX.
 
-A DeepSeek Harness plugin for bibliographic references: query Crossref and format citations. Four tools, zero runtime dependencies.
+A DeepSeek Harness plugin for bibliographic references: query Crossref and format citations. Five tools (including the `cite_health` self-check), zero runtime dependencies.
 
 ## Tools
 
@@ -14,6 +14,7 @@ A DeepSeek Harness plugin for bibliographic references: query Crossref and forma
 | `cite_format` | Generate a formatted citation | `doi`; `style`: gb-t-7714 / apa / mla / chicago |
 | `cite_bibtex` | Generate a BibTeX entry | `doi`; `key` optional |
 | `cite_check` | Extract DOIs from text and validate them | `text`; `maxChecks` 1-50, default 10 |
+| `cite_health` | Self-check: probe Crossref connectivity and report latency | none |
 
 ## Compatibility
 
@@ -24,8 +25,6 @@ Verified against `@deepseek-ai/dsh@0.1.2-alpha.2` on 2026-08-31. Built for the c
 ```bash
 dsh plugin --profile web add dsh-cite
 ```
-
-MIT
 
 ## Uninstall
 

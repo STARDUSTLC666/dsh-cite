@@ -97,11 +97,12 @@ const checkSchema = {
 }
 
 /** 以固定并发度执行异步任务并保持原顺序。 */
-async function mapWithConcurrency<T, R>(items: T[], concurrency: number, fn: (item: T, index: number) => Promise<R>): Promise<R[]> {
+async function mapWithConcurrency<T, R>(items: T[], concurrency: number, fn: (item: T, index: number) => Promise<R>, signal?: AbortSignal): Promise<R[]> {
   const results = new Array<R>(items.length)
   let next = 0
   const workers = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
     while (true) {
+      signal?.throwIfAborted()
       const index = next
       next += 1
       if (index >= items.length) return
@@ -111,6 +112,15 @@ async function mapWithConcurrency<T, R>(items: T[], concurrency: number, fn: (it
   await Promise.all(workers)
   return results
 }
+
+function executionSignal(exec: unknown): AbortSignal | undefined {
+  if (typeof exec !== 'object' || exec === null) return undefined
+  const signal = (exec as { signal?: unknown }).signal
+  return signal instanceof AbortSignal ? signal : undefined
+}
+
+const CHECK_CONCURRENCY = 3
+const MAX_CHECKS = 50
 
 function workLabel(work: Work): string {
   const title = work.title !== '' ? work.title : '(无标题)'
@@ -131,22 +141,22 @@ export function buildCiteTools(cfg: ResolvedCiteConfig, fetchImpl?: FetchLike): 
       const works = Array.isArray(rec.works) ? rec.works as Work[] : []
       return [{ type: 'text', text: works.map((work, index) => (index + 1) + '. ' + workLabel(work)).join('\n') }]
     } },
-    async execute(rawArgs: unknown) {
+    async execute(rawArgs: unknown, exec: unknown) {
       const args = (rawArgs ?? {}) as Record<string, unknown>
       const doi = optionalString(args, 'doi')
       const query = optionalString(args, 'query')
       if (doi === undefined && query === undefined) throw new Error('cite_lookup 需要 doi 或 query 参数（至少一个）。')
       if (doi !== undefined) {
-        const work = await lookupDoi(doi, cfg, fetchImpl)
+        const work = await lookupDoi(doi, cfg, fetchImpl, executionSignal(exec))
         return { count: 1, works: [work] }
       }
       const queryDoi = extractDois(query!)[0]
       if (queryDoi !== undefined) {
-        const work = await lookupDoi(queryDoi, cfg, fetchImpl)
+        const work = await lookupDoi(queryDoi, cfg, fetchImpl, executionSignal(exec))
         return { count: 1, works: [work], matchedDoi: queryDoi }
       }
       const limit = optionalInteger(args, 'limit', '返回条数', 1, 10, 5)
-      const works = await searchWorks(query!, limit, cfg, fetchImpl)
+      const works = await searchWorks(query!, limit, cfg, fetchImpl, executionSignal(exec))
       if (works.length === 0) throw new Error('Crossref 没有找到匹配文献，请尝试更精确的标题/作者。')
       return { count: works.length, works }
     },
@@ -165,12 +175,12 @@ export function buildCiteTools(cfg: ResolvedCiteConfig, fetchImpl?: FetchLike): 
       const rec = (value ?? {}) as Record<string, unknown>
       return [{ type: 'text', text: typeof rec.citation === 'string' ? rec.citation : '' }]
     } },
-    async execute(rawArgs: unknown) {
+    async execute(rawArgs: unknown, exec: unknown) {
       const args = (rawArgs ?? {}) as Record<string, unknown>
       const doi = requiredString(args, 'doi', 'DOI')
       const style = readStyle(args.style)
       const lang = args.lang === 'en' ? 'en' : 'zh'
-      const work = await lookupDoi(doi, cfg, fetchImpl)
+      const work = await lookupDoi(doi, cfg, fetchImpl, executionSignal(exec))
       const citation = buildCitation(work, style, lang)
       return { doi: work.doi || doi, style, citation, work }
     },
@@ -188,13 +198,13 @@ export function buildCiteTools(cfg: ResolvedCiteConfig, fetchImpl?: FetchLike): 
       const rec = (value ?? {}) as Record<string, unknown>
       return [{ type: 'text', text: typeof rec.bibtex === 'string' ? rec.bibtex : '' }]
     } },
-    async execute(rawArgs: unknown) {
+    async execute(rawArgs: unknown, exec: unknown) {
       const args = (rawArgs ?? {}) as Record<string, unknown>
       const doi = requiredString(args, 'doi', 'DOI')
       const key = optionalString(args, 'key')
-      const work = await lookupDoi(doi, cfg, fetchImpl)
+      const work = await lookupDoi(doi, cfg, fetchImpl, executionSignal(exec))
       const bibtex = buildBibtex(work, key)
-      return { doi: work.doi || doi, key, bibtex }
+      return { doi: work.doi || doi, ...(key !== undefined ? { key } : {}), bibtex }
     },
     timeoutMs: cfg.timeoutMs + 2000,
   }
@@ -214,22 +224,24 @@ export function buildCiteTools(cfg: ResolvedCiteConfig, fetchImpl?: FetchLike): 
         return (row.ok === true ? '✅' : '❌') + ' ' + row.doi + (typeof row.title === 'string' && row.title !== '' ? ' — ' + row.title : '')
       }).join('\n') }]
     } },
-    async execute(rawArgs: unknown) {
+    async execute(rawArgs: unknown, exec: unknown) {
       const args = (rawArgs ?? {}) as Record<string, unknown>
       const text = requiredString(args, 'text', '待检查文本')
       const maxChecks = optionalInteger(args, 'maxChecks', '校验数量', 1, 50, 10)
       const dois = extractDois(text).slice(0, maxChecks)
-      const results = await mapWithConcurrency(dois, 3, async (doi) => {
+      const signal = executionSignal(exec)
+      const results = await mapWithConcurrency(dois, CHECK_CONCURRENCY, async (doi) => {
         try {
-          const work = await lookupDoi(doi, cfg, fetchImpl)
+          const work = await lookupDoi(doi, cfg, fetchImpl, signal)
           return { doi, ok: true, title: work.title, url: work.url }
         } catch (error) {
+          signal?.throwIfAborted()
           return { doi, ok: false, title: '', url: '', error: error instanceof Error ? error.message : String(error) }
         }
-      })
+      }, signal)
       return { count: results.length, results }
     },
-    timeoutMs: cfg.timeoutMs * 3 + 5000,
+    timeoutMs: cfg.timeoutMs * Math.ceil(MAX_CHECKS / CHECK_CONCURRENCY) + 5000,
   }
 
   const citeHealth: CiteToolDefinition = {
@@ -249,16 +261,20 @@ export function buildCiteTools(cfg: ResolvedCiteConfig, fetchImpl?: FetchLike): 
         return [{ type: 'text', text: lines.join('\n') }]
       },
     },
-    async execute() {
+    async execute(_rawArgs: unknown, exec: unknown) {
       const checks: Array<Record<string, unknown>> = []
       let ok = true
       const startedAt = Date.now()
+      const signal = executionSignal(exec)
       try {
         const fetcher = fetchImpl ?? (globalThis.fetch as unknown as FetchLike)
         const response = await fetcher('https://api.crossref.org/works?rows=1&select=DOI', {
           headers: { 'user-agent': cfg.userAgent },
-          signal: AbortSignal.timeout(Math.min(cfg.timeoutMs, 15000)),
+          signal: signal === undefined
+            ? AbortSignal.timeout(Math.min(cfg.timeoutMs, 15000))
+            : AbortSignal.any([signal, AbortSignal.timeout(Math.min(cfg.timeoutMs, 15000))]),
         })
+        signal?.throwIfAborted()
         if (response.ok) {
           checks.push({ name: 'Crossref API', ok: true, detail: 'HTTP ' + response.status + '，' + (Date.now() - startedAt) + 'ms' })
         } else {
@@ -266,6 +282,7 @@ export function buildCiteTools(cfg: ResolvedCiteConfig, fetchImpl?: FetchLike): 
           checks.push({ name: 'Crossref API', ok: false, detail: 'HTTP ' + response.status })
         }
       } catch (error) {
+        signal?.throwIfAborted()
         ok = false
         checks.push({ name: 'Crossref API', ok: false, detail: (error instanceof Error ? error.message : String(error)) + '（网络需要特殊代理时请配置系统代理后重启）' })
       }

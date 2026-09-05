@@ -92,17 +92,23 @@ function makeHeaders(cfg: ResolvedCiteConfig): Record<string, string> {
   return { 'user-agent': cfg.userAgent, accept: 'application/json' }
 }
 
+function requestSignal(timeoutMs: number, signal?: AbortSignal): AbortSignal {
+  const timeoutSignal = AbortSignal.timeout(timeoutMs)
+  return signal === undefined ? timeoutSignal : AbortSignal.any([signal, timeoutSignal])
+}
+
 /** 按 DOI 查询 Crossref 并归一化。 */
-export async function lookupDoi(doi: string, cfg: ResolvedCiteConfig, fetchImpl?: FetchLike): Promise<Work> {
+export async function lookupDoi(doi: string, cfg: ResolvedCiteConfig, fetchImpl?: FetchLike, signal?: AbortSignal): Promise<Work> {
   const clean = assertDoi(doi)
   const fetcher = fetchImpl ?? (globalThis.fetch as unknown as FetchLike)
   let response: Response
   try {
     response = await fetcher(CROSSREF_API + encodeURIComponent(clean), {
       headers: makeHeaders(cfg),
-      signal: AbortSignal.timeout(cfg.timeoutMs),
+      signal: requestSignal(cfg.timeoutMs, signal),
     })
   } catch (error) {
+    signal?.throwIfAborted()
     throw new Error('Crossref 请求失败：' + (error instanceof Error ? error.message : String(error)))
   }
   if (!response.ok) {
@@ -123,7 +129,7 @@ export async function lookupDoi(doi: string, cfg: ResolvedCiteConfig, fetchImpl?
 }
 
 /** 按题录文本检索 Crossref，返回归一化结果。 */
-export async function searchWorks(query: string, limit: number, cfg: ResolvedCiteConfig, fetchImpl?: FetchLike): Promise<Work[]> {
+export async function searchWorks(query: string, limit: number, cfg: ResolvedCiteConfig, fetchImpl?: FetchLike, signal?: AbortSignal): Promise<Work[]> {
   const q = query.trim()
   if (q === '') throw new Error('检索词不能为空。')
   const url = CROSSREF_API + '?query.bibliographic=' + encodeURIComponent(q) + '&rows=' + String(limit)
@@ -132,9 +138,10 @@ export async function searchWorks(query: string, limit: number, cfg: ResolvedCit
   try {
     response = await fetcher(url, {
       headers: makeHeaders(cfg),
-      signal: AbortSignal.timeout(cfg.timeoutMs),
+      signal: requestSignal(cfg.timeoutMs, signal),
     })
   } catch (error) {
+    signal?.throwIfAborted()
     throw new Error('Crossref 检索失败：' + (error instanceof Error ? error.message : String(error)))
   }
   if (!response.ok) throw new Error('Crossref 返回 HTTP ' + response.status + '，无法完成检索。')

@@ -14,9 +14,7 @@ export declare const name = "cite";
 export declare const inject: string[];
 export interface CitePluginContext {
     tools: {
-        register(definition: CiteToolDefinition, options?: {
-            prepend?: boolean;
-        }): () => void;
+        register(definition: CiteToolDefinition): () => void;
     };
     on?(event: string, listener: () => void): () => void;
 }

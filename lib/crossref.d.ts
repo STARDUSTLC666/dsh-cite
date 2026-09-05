@@ -30,8 +30,8 @@ export type FetchLike = (url: string, init?: {
 }) => Promise<Response>;
 export declare function assertDoi(value: string): string;
 /** 按 DOI 查询 Crossref 并归一化。 */
-export declare function lookupDoi(doi: string, cfg: ResolvedCiteConfig, fetchImpl?: FetchLike): Promise<Work>;
+export declare function lookupDoi(doi: string, cfg: ResolvedCiteConfig, fetchImpl?: FetchLike, signal?: AbortSignal): Promise<Work>;
 /** 按题录文本检索 Crossref，返回归一化结果。 */
-export declare function searchWorks(query: string, limit: number, cfg: ResolvedCiteConfig, fetchImpl?: FetchLike): Promise<Work[]>;
+export declare function searchWorks(query: string, limit: number, cfg: ResolvedCiteConfig, fetchImpl?: FetchLike, signal?: AbortSignal): Promise<Work[]>;
 /** 从任意文本里提取 DOI。 */
 export declare function extractDois(text: string): string[];

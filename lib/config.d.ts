@@ -11,7 +11,7 @@ export interface ResolvedCiteConfig {
     timeoutMs: number;
     userAgent: string;
 }
-export declare const DEFAULT_USER_AGENT = "dsh-cite/0.3.1 (DeepSeek Harness citation plugin; mailto:STARDUSTLC666@users.noreply.github.com)";
+export declare const DEFAULT_USER_AGENT = "dsh-cite/0.3.2 (DeepSeek Harness citation plugin; mailto:STARDUSTLC666@users.noreply.github.com)";
 export declare const CITE_TIMEOUT_ENV = "DSH_CITE_TIMEOUT_MS";
 export declare const CITE_USER_AGENT_ENV = "DSH_CITE_USER_AGENT";
 export declare function resolveConfig(config: CiteConfig | undefined | null, env?: NodeJS.ProcessEnv): ResolvedCiteConfig;

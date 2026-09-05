@@ -16,7 +16,7 @@ export const name = 'cite'
 export const inject = ['tools']
 
 export interface CitePluginContext {
-  tools: { register(definition: CiteToolDefinition, options?: { prepend?: boolean }): () => void }
+  tools: { register(definition: CiteToolDefinition): () => void }
   on?(event: string, listener: () => void): () => void
 }
 
@@ -31,7 +31,7 @@ export function apply(ctx: CitePluginContext, config?: CiteConfig | null): void 
 
   const disposers: Array<() => void> = []
   for (const definition of buildCiteTools(cfg)) {
-    disposers.push(ctx.tools.register(definition, { prepend: true }))
+    disposers.push(ctx.tools.register(definition))
   }
   if (typeof ctx.on === 'function') {
     ctx.on('dispose', () => {

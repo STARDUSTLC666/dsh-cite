@@ -1,6 +1,6 @@
 {
   "name": "dsh-cite",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "DSH 参考文献插件：Crossref 元数据查询（DOI 精确解析）与 GB/T 7714 / APA / MLA / Chicago 格式化，含去重校验与自检。",
   "type": "module",
   "main": "lib/index.js",

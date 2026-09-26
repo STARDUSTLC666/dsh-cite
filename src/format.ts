@@ -230,8 +230,14 @@ export function buildBibtex(work: Work, key?: string): string {
   const baseKey = key !== undefined && key.trim() !== '' ? sanitizeBibtexKey(key.trim()) : sanitizeBibtexKey(((first?.family || first?.name || 'author') + yearText(work) + firstWord).toLowerCase())
   const type = bibtexType(work)
   const fields: string[] = []
-  const authors = work.authors.map((author) => fullName(author)).join(' and ')
-  if (authors !== '') fields.push('  author={' + escapeLatex(authors) + '}')
+  const authors = work.authors.map((author) => {
+    // BibTeX interprets an unpunctuated personal name as First Last.
+    // Preserve the provider's family/given boundary, including compound surnames.
+    if (author.name !== '') return '{' + escapeLatex(author.name) + '}'
+    if (author.family !== '' && author.given !== '') return escapeLatex(author.family) + ', ' + escapeLatex(author.given)
+    return '{' + escapeLatex(author.family || author.given) + '}'
+  }).join(' and ')
+  if (authors !== '') fields.push('  author={' + authors + '}')
   fields.push('  title={' + escapeLatex(titleOf(work)) + '}')
   if (work.containerTitle !== '') fields.push(type === 'article' ? '  journal={' + escapeLatex(work.containerTitle) + '}' : '  booktitle={' + escapeLatex(work.containerTitle) + '}')
   if (work.year > 0) fields.push('  year={' + work.year + '}')

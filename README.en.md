@@ -1,5 +1,11 @@
 # dsh-cite
 
+## 0.3.4 update (2026-09-27)
+
+Preserves given/family name boundaries and compound surnames in BibTeX. Corporate authors are protected with braces instead of being parsed as personal names.
+
+Validation host: Harness 0.1.7-rc.2 built from official sources, retaining the local tool-scheduler fix. Build and automated checks pass; interactive coverage and external-service limits are recorded in this release round.
+
 ![npm](https://img.shields.io/npm/v/dsh-cite) ![downloads](https://img.shields.io/npm/dm/dsh-cite) ![license](https://img.shields.io/github/license/STARDUSTLC666/dsh-cite) ![stars](https://img.shields.io/github/stars/STARDUSTLC666/dsh-cite?style=social)
 
 > Give it a DOI, get a proper citation — GB/T 7714 / APA / MLA / Chicago / BibTeX.

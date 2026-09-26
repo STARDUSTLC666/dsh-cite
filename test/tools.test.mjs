@@ -40,6 +40,7 @@ test('BibTeX 生成', () => {
   assert.match(bib, /@article\{lovelace2024deep/)
   assert.match(bib, /journal=\{Nature\}/)
   assert.match(bib, /doi=\{10\.1038\/nature12345\}/)
+  assert.match(bib, /author=\{Lovelace, Ada and Hopper, Grace\}/)
 })
 
 test('BibTeX 自定义 key 清洗非法字符', () => {
@@ -50,9 +51,11 @@ test('BibTeX 自定义 key 清洗非法字符', () => {
 test('BibTeX 自动生成 key：机构作者与含空格姓氏', () => {
   const org = { ...work, authors: [{ given: '', family: '', name: 'World Health Organization' }] }
   assert.match(buildBibtex(org), /@\w+\{world_health_organization2024deep,/)
+  assert.match(buildBibtex(org), /author=\{\{World Health Organization\}\}/)
   const spaced = { ...work, authors: [{ given: 'Ludwig', family: 'van der Berg', name: '' }] }
   const keyLine = buildBibtex(spaced).split('\n')[0]
   assert.equal(keyLine, '@article{van_der_berg2024deep,')
+  assert.match(buildBibtex(spaced), /author=\{van der Berg, Ludwig\}/)
 })
 
 test('readStyle 默认与非法值', () => {

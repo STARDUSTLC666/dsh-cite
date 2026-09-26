@@ -1,5 +1,11 @@
 # dsh-cite
 
+## 0.3.4 更新（2026-09-27）
+
+修复 BibTeX 作者姓名顺序，保留复合姓氏；机构作者使用独立括号，避免被拆成人名。
+
+验证宿主：官方源码构建的 Harness 0.1.7-rc.2（保留本地工具调度器修复）。构建与自动测试通过；实际操作和外部服务限制见本轮验收记录。
+
 ![npm](https://img.shields.io/npm/v/dsh-cite) ![downloads](https://img.shields.io/npm/dm/dsh-cite) ![license](https://img.shields.io/github/license/STARDUSTLC666/dsh-cite) ![stars](https://img.shields.io/github/stars/STARDUSTLC666/dsh-cite?style=social)
 
 > 给一个 DOI，还你规范参考文献——GB/T 7714 / APA / MLA / Chicago / BibTeX。

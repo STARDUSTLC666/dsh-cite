@@ -4,7 +4,7 @@
 
 修复 BibTeX 作者姓名顺序，保留复合姓氏；机构作者使用独立括号，避免被拆成人名。
 
-验证宿主：官方源码构建的 Harness 0.1.7-rc.2（保留本地工具调度器修复）。构建与自动测试通过；实际操作和外部服务限制见本轮验收记录。
+验证宿主：官方源码构建的 Harness `0.2.0-rc.1`（commit `407e65c8`）+ Node `24.16.0`（2026-09-28）。25 项插件测试在隔离环境全部通过；同一个宿主里 18 个插件共同加载，注册 5 个工具，工具 schema 与健康检查契约通过。本轮未启用真实端口与外部服务。
 
 ![npm](https://img.shields.io/npm/v/dsh-cite) ![downloads](https://img.shields.io/npm/dm/dsh-cite) ![license](https://img.shields.io/github/license/STARDUSTLC666/dsh-cite) ![stars](https://img.shields.io/github/stars/STARDUSTLC666/dsh-cite?style=social)
 

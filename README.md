@@ -1,6 +1,6 @@
 # dsh-cite
 
-## 0.3.4 更新（2026-09-27）
+## 0.3.5 更新（2026-09-27）
 
 修复 BibTeX 作者姓名顺序，保留复合姓氏；机构作者使用独立括号，避免被拆成人名。
 
@@ -23,8 +23,6 @@ DeepSeek Harness 参考文献工具插件：通过 Crossref API 查询文献元�
 | `cite_health` | 自检：探测 Crossref 连通性并报告延迟 | 无 |
 
 ## 兼容性
-
-已在官方 `@deepseek-ai/dsh@0.1.5-rc.1`、Node `24.16.0` 上验证（2026-09-11）：18 个组件与 Modlens 同载，工具 schema、技能注册及离线只读调用检查通过。采用 `cordis.patch.yml` + `dsh.bundle.patch` 组合包模型。Node 要求与该版本 Harness 一致：22.19 及以上的 22.x，或 24 及以上。外部服务的实际业务操作需按各组件配置单独验证。
 
 ## 安装
 

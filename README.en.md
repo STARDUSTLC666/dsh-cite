@@ -1,6 +1,6 @@
 # dsh-cite
 
-## 0.3.4 update (2026-09-27)
+## 0.3.5 update (2026-09-27)
 
 Preserves given/family name boundaries and compound surnames in BibTeX. Corporate authors are protected with braces instead of being parsed as personal names.
 
@@ -23,8 +23,6 @@ A DeepSeek Harness plugin for bibliographic references: query Crossref and forma
 | `cite_health` | Self-check: probe Crossref connectivity and report latency | none |
 
 ## Compatibility
-
-Verified with official `@deepseek-ai/dsh@0.1.5-rc.1` and Node `24.16.0` on 2026-09-11: all 18 components load alongside Modlens, with passing tool-schema, skill-registration and offline read-only invocation checks. Uses the `cordis.patch.yml` + `dsh.bundle.patch` bundle model. Node requirements match this Harness release: 22.19 or later within 22.x, or 24 or later. Live external-service workflows require separate configuration and validation.
 
 ## Install
 

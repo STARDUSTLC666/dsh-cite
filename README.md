@@ -1,81 +1,44 @@
 # dsh-cite
 
-## 0.3.5 更新（2026-09-27）
+[English](README.en.md)
 
-修复 BibTeX 作者姓名顺序，保留复合姓氏；机构作者使用独立括号，避免被拆成人名。
+查询 DOI 和文献元数据，生成参考文献与 BibTeX。
 
-验证宿主：官方源码构建的 Harness `0.2.0-rc.1`（commit `407e65c8`）+ Node `24.16.0`（2026-09-28）。25 项插件测试在隔离环境全部通过；同一个宿主里 18 个插件共同加载，注册 5 个工具，工具 schema 与健康检查契约通过。本轮未启用真实端口与外部服务。
+[![npm](https://img.shields.io/npm/v/dsh-cite)](https://www.npmjs.com/package/dsh-cite) [![downloads](https://img.shields.io/npm/dm/dsh-cite)](https://www.npmjs.com/package/dsh-cite)
 
-![npm](https://img.shields.io/npm/v/dsh-cite) ![downloads](https://img.shields.io/npm/dm/dsh-cite) ![license](https://img.shields.io/github/license/STARDUSTLC666/dsh-cite) ![stars](https://img.shields.io/github/stars/STARDUSTLC666/dsh-cite?style=social)
+## 功能
 
-> 给一个 DOI，还你规范参考文献——GB/T 7714 / APA / MLA / Chicago / BibTeX。
-
-DeepSeek Harness 参考文献工具插件：通过 Crossref API 查询文献元数据并格式化引用。五个工具（含 `cite_health` 自检）、零运行时依赖、全平台通用。
-
-## 工具
-
-| 工具 | 作用 | 关键参数 |
-| :-- | :-- | :-- |
-| `cite_lookup` | 查文献元数据（DOI 精确查询 / 题录检索） | `doi` 或 `query` 至少一个；`limit` 1-10 默认 5 |
-| `cite_format` | 生成规范引文 | `doi` 必填；`style`：gb-t-7714 / apa / mla / chicago |
-| `cite_bibtex` | 生成 BibTeX 条目 | `doi` 必填；`key` 可选 |
-| `cite_check` | 从文本提取 DOI 并并发校验是否存在（并发 3，保持输入顺序） | `text` 必填；`maxChecks` 1-50 默认 10 |
-| `cite_health` | 自检：探测 Crossref 连通性并报告延迟 | 无 |
-
-## 兼容性
+- 按 DOI 精确查询，或检索文献题录。
+- 格式化为 GB/T 7714、APA、MLA 或 Chicago。
+- 生成 BibTeX，并检查文本中的 DOI。
 
 ## 安装
 
-```bash
-dsh plugin --profile web add dsh-cite
-```
-
-## 卸载
+桌面版可在「插件」面板按包名 `dsh-cite` 安装。已配置 dsh 命令时也可使用：
 
 ```bash
-dsh plugin --profile web remove dsh-cite
+dsh plugin --profile desktop add dsh-cite
 ```
 
-卸载后重启 Web 服务。如需彻底清理，可再手动删除自己 profile `cordis.patch.yml` 中覆盖的插件行。
+网页版把命令中的 `desktop` 改为 `web`。安装后重启 DSH。
 
+## 开始使用
 
-## 示例
+安装后可说：“把这些 DOI 整理成 APA 参考文献，并生成 BibTeX。”
 
-```text
-用户：给我 10.1038/nature12345 的 GB/T 7714 引用
-Agent：
-  cite_format { doi: "10.1038/nature12345", style: "gb-t-7714" }
-  → LeCun Y, Bengio Y, Hinton G. Deep learning[J]. Nature, 2015, 521(7553): 436-444.
+## 依赖与配置
 
-用户：检查这段参考文献的 DOI 是否有效
-Agent：
-  cite_check { text: "..." }
-```
+通过 Crossref 查询元数据，需要网络连接；不需要额外账号密钥。
 
-## 配置
+详细配置、工具参数与排错见[使用说明](docs/USAGE.md)。从源码独立开发时，Node 要求以 [package.json](package.json) 为准。
 
-```yaml
-- id: cite
-  name: 'dsh-cite'
-  config:
-    timeoutMs: 15000   # Crossref 请求超时（也可用 DSH_CITE_TIMEOUT_MS）
-    # userAgent: ...   # 自定义 User-Agent（也可用 DSH_CITE_USER_AGENT）
-    userAgent: ''      # 自定义 UA（建议带上可联系邮箱）
-```
+## 文档
 
-## 说明
+- [使用与排错](docs/USAGE.md)
+- [更新记录](CHANGELOG.md)
+- [验证范围与历史记录](docs/VALIDATION.md)
+- [问题反馈与功能建议](https://github.com/STARDUSTLC666/dsh-cite/issues)
 
-- 数据源：Crossref REST API，无需 API key
-- 引文为纯文本输出；格式按常见模板生成，正式投稿前请核对目标期刊的细节要求
-- 不采集、不上传任何本地文献数据
-
-## 开发
-
-```bash
-pnpm test       # 构建 + 18 个测试
-```
-
-MIT
 ## License
 
-MIT（见 [LICENSE](LICENSE)）
+[MIT](LICENSE)

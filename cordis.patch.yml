@@ -5,7 +5,7 @@
 #     name: 'dsh-cite'
 #     config:
 #       timeoutMs: 15000     # Crossref 请求超时（默认 15 秒）
-#       userAgent: ''        # 自定义 User-Agent（默认 dsh-cite/0.1.0）
+#       userAgent: ''        # 留空使用 dsh-cite/当前包版本
 #
 - insert:
     - id: cite

@@ -4,6 +4,12 @@
 
 These English notes preserve the earlier translations. The main changelog contains the consolidated version history.
 
+## 0.4.0 (2026-10-03)
+
+Adds a Chinese / English citation workbench and `cite_batch` for offline DOI / BibTeX preview, selective import, duplicate review, search and basic citation exports. Explicit Crossref enrichment fills empty fields, retains local differences and supports progress, cancellation and retry. Original input is preserved in full backups; revision checks protect concurrent changes. The existing five tools remain available.
+
+Official RC2 / alpha SDK checks, Windows tests and visible browser flows pass. Native desktop interaction with this new workbench remains unverified; see the [validation record](VALIDATION.md).
+
 ## 0.3.4 (2026-09-27)
 
 Preserves given/family name boundaries and compound surnames in BibTeX. Corporate authors are protected with braces instead of being parsed as personal names.

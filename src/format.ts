@@ -1,5 +1,5 @@
 /**
- * 参考文献格式化：GB/T 7714-2015 / APA 7 / MLA 9 / Chicago note，以及 BibTeX。
+ * 基本参考文献格式：GB/T 7714 / APA / MLA / Chicago note，以及 BibTeX。
  *
  * @module dsh-cite/format
  */
@@ -29,23 +29,25 @@ function initials(given: string): string {
 }
 
 function apaName(author: CiteAuthor): string {
+  if (author.name !== '') return author.name
   const family = author.family !== '' ? author.family : (author.name !== '' ? author.name : author.given)
   const initialsText = author.given !== '' ? initials(author.given) : ''
   return initialsText !== '' ? family + ', ' + initialsText : family
 }
 
 function mlaName(author: CiteAuthor, first: boolean): string {
-  const name = fullName(author)
-  const parts = name.trim().split(/\s+/)
-  if (parts.length < 2) return name
-  if (first) return parts[0] + ', ' + parts.slice(1).join(' ')
-  return parts.slice(1).join(' ') + ' ' + parts[0]
+  // Literal names (including institutions) are not personal names to invert.
+  if (author.name !== '') return author.name
+  if (author.family !== '' && author.given !== '') return first
+    ? author.family + ', ' + author.given
+    : author.given + ' ' + author.family
+  return author.family || author.given
 }
 
-function gbtAuthors(authors: CiteAuthor[]): string {
-  if (authors.length === 0) return '佚名'
+function gbtAuthors(authors: CiteAuthor[], lang: string): string {
+  if (authors.length === 0) return lang === 'en' ? 'Anonymous' : '佚名'
   const names = authors.map((author) => fullName(author))
-  return names.length <= 3 ? names.join(', ') : names.slice(0, 3).join(', ') + ', 等'
+  return names.length <= 3 ? names.join(', ') : names.slice(0, 3).join(', ') + (lang === 'en' ? ', et al.' : ', 等')
 }
 
 function apaAuthors(authors: CiteAuthor[]): string {
@@ -66,8 +68,9 @@ function mlaAuthors(authors: CiteAuthor[]): string {
 
 function chicagoAuthors(authors: CiteAuthor[]): string {
   if (authors.length === 0) return 'Anonymous'
-  if (authors.length <= 3) return authors.map((author) => fullName(author)).join(', ')
-  return fullName(authors[0]!) + ', et al.'
+  const noteName = (author: CiteAuthor) => author.name || (author.given && author.family ? author.given + ' ' + author.family : fullName(author))
+  if (authors.length <= 3) return authors.map(noteName).join(', ')
+  return noteName(authors[0]!) + ', et al.'
 }
 
 function gbtTypeLabel(type: string, work: Work): string {
@@ -103,32 +106,33 @@ function titleOf(work: Work): string {
   return cleanupTitle(work.title !== '' ? work.title : '(无标题)')
 }
 
-/** 生成 GB/T 7714-2015 参考文献条目。 */
+/** 生成基本 GB/T 7714 参考文献条目。 */
 function buildGbt(work: Work, lang: string): string {
-  const authors = gbtAuthors(work.authors)
+  const authors = gbtAuthors(work.authors, lang)
+  const authorLead = authors + (authors.endsWith('.') ? ' ' : '. ')
   const title = titleOf(work)
   const label = gbtTypeLabel(work.type, work)
   if (work.type === 'journal-article' && work.containerTitle !== '') {
     let tail = work.containerTitle + ', ' + yearText(work)
     const vip = volumeIssuePages(work)
     if (vip !== '') tail += ', ' + vip
-    return authors + '. ' + title + label + '. ' + tail + '.'
+    return authorLead + title + label + '. ' + tail + '.'
   }
   if (work.type === 'book' || work.type === 'monograph' || work.type === 'edited-book') {
     let tail = work.publisher !== '' ? work.publisher + ', ' : ''
     tail += yearText(work)
     if (work.isbn !== '') tail += '. ISBN ' + work.isbn
-    return authors + '. ' + title + '[M]. ' + tail + '.'
+    return authorLead + title + '[M]. ' + tail + '.'
   }
   if (work.containerTitle !== '' && work.type === 'proceedings-article') {
-    return authors + '. ' + title + '[C]//' + work.containerTitle + '. ' + yearText(work) + '.'
+    return authorLead + title + '[C]//' + work.containerTitle + '. ' + yearText(work) + '.'
   }
   const urlPart = work.url !== '' ? ' ' + work.url + '.' : ''
   const accessed = new Date().toISOString().slice(0, 10)
-  return authors + '. ' + title + label + '. (' + yearText(work) + ')[' + (lang === 'zh' ? '引用日期 ' : 'cited ') + accessed + '].' + urlPart
+  return authorLead + title + label + '. (' + yearText(work) + ')[' + (lang === 'zh' ? '引用日期 ' : 'cited ') + accessed + '].' + urlPart
 }
 
-/** 生成 APA 7 参考文献条目。 */
+/** 生成基本 APA 参考文献条目。 */
 function buildApa(work: Work): string {
   const authors = apaAuthors(work.authors)
   const title = titleOf(work)
@@ -148,11 +152,11 @@ function buildApa(work: Work): string {
   return authors + ' (' + year + '). ' + title + '.' + (work.url !== '' ? ' ' + work.url : '')
 }
 
-/** 生成 MLA 9 参考文献条目。 */
+/** 生成基本 MLA 参考文献条目。 */
 function buildMla(work: Work): string {
   const authors = mlaAuthors(work.authors)
   const title = titleOf(work)
-  let text = authors + '. "' + title + '." '
+  let text = authors + (authors.endsWith('.') ? ' "' : '. "') + title + '." '
   if (work.containerTitle !== '') text += work.containerTitle + ', '
   if (work.volume !== '') text += 'vol. ' + work.volume + ', '
   if (work.issue !== '') text += 'no. ' + work.issue + ', '
@@ -180,6 +184,7 @@ function buildChicago(work: Work): string {
 
 /** 按样式生成引文。 */
 export function buildCitation(work: Work, style: CiteStyle, lang = 'zh'): string {
+  if (!work.title && lang === 'en') work = { ...work, title: '(Untitled)' }
   switch (style) {
     case 'gb-t-7714': return buildGbt(work, lang)
     case 'apa': return buildApa(work)

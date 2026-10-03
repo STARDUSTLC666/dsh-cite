@@ -1,5 +1,5 @@
 /**
- * 参考文献格式化：GB/T 7714-2015 / APA 7 / MLA 9 / Chicago note，以及 BibTeX。
+ * 基本参考文献格式：GB/T 7714 / APA / MLA / Chicago note，以及 BibTeX。
  *
  * @module dsh-cite/format
  */

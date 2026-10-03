@@ -2,15 +2,16 @@
 
 [中文](README.md)
 
-Look up DOI metadata and produce citations or BibTeX entries.
+Organize DOI lists or BibTeX into a reviewable local library, then export references and BibTeX.
 
 [![npm](https://img.shields.io/npm/v/dsh-cite)](https://www.npmjs.com/package/dsh-cite) [![downloads](https://img.shields.io/npm/dm/dsh-cite)](https://www.npmjs.com/package/dsh-cite)
 
 ## What it does
 
-- Resolve a DOI or search bibliographic metadata.
-- Format GB/T 7714, APA, MLA or Chicago citations.
-- Export BibTeX and validate DOIs found in text.
+- Paste DOI lists or upload `.bib` files. Preview locally before choosing entries to save, with duplicate and missing-field warnings.
+- Explicitly enrich empty fields through Crossref. Keep existing values, inspect differences and retry failed entries.
+- Switch between basic GB/T 7714, APA, MLA and Chicago formats; download BibTeX, reference text or a full backup with original sources.
+- Existing DOI lookup, bibliographic search and DOI-checking tools remain available.
 
 ## Install
 
@@ -24,11 +25,15 @@ For the web version, replace `desktop` with `web`. Restart DSH after installatio
 
 ## Start using it
 
-Ask: “Format these DOIs as APA references and export BibTeX.”
+Open **Settings → Cite**, paste DOIs or upload a `.bib` file, choose **Local preview**, review the entries and **Save selected**. Select saved entries and explicitly request online enrichment when needed. UI text follows DSH's Chinese / English setting; bibliographic content stays in its original language.
+
+Or ask the agent: “Preview these DOIs locally first. Save the entries I select, then export APA references and BibTeX.”
 
 ## Requirements and configuration
 
-Metadata queries use Crossref and require network access. No separate API key is required.
+Local import, deduplication, library access and formatting work offline. Online enrichment and existing lookup tools query Crossref and require network access, with no separate API key. Limits: 256 KiB / 100 entries per batch, 500 saved entries.
+
+Citation output uses the plugin's basic templates; check institution or journal requirements before submission. BibTeX exports contain mapped fields. The full backup preserves original input containing fields not mapped into the workbench.
 
 Detailed configuration, tool arguments and troubleshooting are in the [usage guide](docs/USAGE.en.md). For standalone development, follow the Node requirement in [package.json](package.json).
 

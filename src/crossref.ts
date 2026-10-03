@@ -109,7 +109,8 @@ export async function lookupDoi(doi: string, cfg: ResolvedCiteConfig, fetchImpl?
     })
   } catch (error) {
     signal?.throwIfAborted()
-    throw new Error('Crossref 请求失败：' + (error instanceof Error ? error.message : String(error)))
+    const code = error instanceof Error && typeof (error.cause as any)?.code === 'string' && /^[A-Z0-9_]+$/.test((error.cause as any).code) ? ' (' + (error.cause as any).code + ')' : ''
+    throw new Error('Crossref 请求失败：' + (error instanceof Error ? error.message : String(error)) + code)
   }
   if (!response.ok) {
     if (response.status === 404) throw new Error('DOI 在 Crossref 中不存在：' + clean)

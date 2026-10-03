@@ -7,18 +7,75 @@ settings:
 importers:
 
   .:
+    dependencies:
+      '@citation-js/core':
+        specifier: 0.9.0
+        version: 0.9.0
+      '@citation-js/plugin-bibtex':
+        specifier: 0.9.0
+        version: 0.9.0(@citation-js/core@0.9.0)
+      proper-lockfile:
+        specifier: 4.1.2
+        version: 4.1.2
     devDependencies:
       '@types/node':
         specifier: ^24.0.0
         version: 24.13.3
+      '@types/proper-lockfile':
+        specifier: 4.1.4
+        version: 4.1.4
       typescript:
         specifier: ^5.6.0
         version: 5.9.3
 
 packages:
 
+  '@citation-js/core@0.9.0':
+    resolution: {integrity: sha512-IIIfDFirx8B7eYiYIg412If3WVJAefJUS7IsAnkW3YSuThHK4fW9Ibog6wCqmT6pfXW1VM9wfGPFvO2J5k859A==}
+    engines: {node: '>=22.12.0'}
+
+  '@citation-js/date@0.5.1':
+    resolution: {integrity: sha512-1iDKAZ4ie48PVhovsOXQ+C6o55dWJloXqtznnnKy6CltJBQLIuLLuUqa8zlIvma0ZigjVjgDUhnVaNU1MErtZw==}
+    engines: {node: '>=10.0.0'}
+
+  '@citation-js/name@0.4.2':
+    resolution: {integrity: sha512-brSPsjs2fOVzSnARLKu0qncn6suWjHVQtrqSUrnqyaRH95r/Ad4wPF5EsoWr+Dx8HzkCGb/ogmoAzfCsqlTwTQ==}
+    engines: {node: '>=6'}
+
+  '@citation-js/plugin-bibtex@0.9.0':
+    resolution: {integrity: sha512-9n8EVP/kq+v7VuoWVI+p8SRE3KikQYd2c78NSRq9btC4b3XzuBA3qFI3uF6xyxbNLPtY7+Y4BQDayta2yrl1zQ==}
+    engines: {node: '>=22.12.0'}
+    peerDependencies:
+      '@citation-js/core': ^0.9.0
+
   '@types/node@24.13.3':
     resolution: {integrity: sha512-Dh8vAsV36ig5wa9OX4pXvMc9D3Veibfw2wix0CUwYODLD8nkj9UsLjASr49nPg+2eKzxhBV+v7L8pXvT4e639Q==}
+
+  '@types/proper-lockfile@4.1.4':
+    resolution: {integrity: sha512-uo2ABllncSqg9F1D4nugVl9v93RmjxF6LJzQLMLDdPaXCUIDPeOJ21Gbqi43xNKzBi/WQ0Q0dICqufzQbMjipQ==}
+
+  '@types/retry@0.12.5':
+    resolution: {integrity: sha512-3xSjTp3v03X/lSQLkczaN9UIEwJMoMCA1+Nb5HfbJEQWogdeQIyVtTvxPXDQjZ5zws8rFQfVfRdz03ARihPJgw==}
+
+  graceful-fs@4.2.11:
+    resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
+
+  moo@0.5.3:
+    resolution: {integrity: sha512-m2fmM2dDm7GZQsY7KK2cme8agi+AAljILjQnof7p1ZMDe6dQ4bdnSMx0cPppudoeNv5hEFQirN6u+O4fDE0IWA==}
+
+  proper-lockfile@4.1.2:
+    resolution: {integrity: sha512-TjNPblN4BwAWMXU8s9AEz4JmQxnD1NNL7bNOY/AKUzyamc379FWASUhc/K1pL2noVb+XmZKLL68cjzLsiOAMaA==}
+
+  retry@0.12.0:
+    resolution: {integrity: sha512-9LkiTwjUh6rT555DtE9rTX+BKByPfrMzEAtnlEtdEwr3Nkffwiihqe2bWADg+OQRjt9gl6ICdmB/ZFDCGAtSow==}
+    engines: {node: '>= 4'}
+
+  signal-exit@3.0.7:
+    resolution: {integrity: sha512-wnD2ZE+l+SPC/uoS0vXeE9L1+0wuaMqKlfz9AMUo38JsyLSBWSFcHR1Rri62LZc12vLr1gb3jl7iwQhgwpAbGQ==}
+
+  sync-fetch-undici@0.7.1:
+    resolution: {integrity: sha512-t/rJBTRr3/WCs/04MnLStgGGFac1Ge6WDugNxO+KoMqtfmWENMPJbtAmGqIWnwsXi+B7Uh0P0ea2QRkKIZTIPg==}
+    engines: {node: '>=22.12.0'}
 
   typescript@5.9.3:
     resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
@@ -28,12 +85,59 @@ packages:
   undici-types@7.18.2:
     resolution: {integrity: sha512-AsuCzffGHJybSaRrmr5eHr81mwJU3kjw6M+uprWvCXiNeN9SOGwQ3Jn8jb8m3Z6izVgknn1R0FTCEAP2QrLY/w==}
 
+  whatwg-mimetype@5.0.0:
+    resolution: {integrity: sha512-sXcNcHOC51uPGF0P/D4NVtrkjSU2fNsm9iog4ZvZJsL3rjoDAzXZhkm2MWt1y+PUdggKAYVoMAIYcs78wJ51Cw==}
+    engines: {node: '>=20'}
+
 snapshots:
+
+  '@citation-js/core@0.9.0':
+    dependencies:
+      '@citation-js/date': 0.5.1
+      '@citation-js/name': 0.4.2
+      sync-fetch-undici: 0.7.1
+
+  '@citation-js/date@0.5.1': {}
+
+  '@citation-js/name@0.4.2': {}
+
+  '@citation-js/plugin-bibtex@0.9.0(@citation-js/core@0.9.0)':
+    dependencies:
+      '@citation-js/core': 0.9.0
+      '@citation-js/date': 0.5.1
+      '@citation-js/name': 0.4.2
+      moo: 0.5.3
 
   '@types/node@24.13.3':
     dependencies:
       undici-types: 7.18.2
 
+  '@types/proper-lockfile@4.1.4':
+    dependencies:
+      '@types/retry': 0.12.5
+
+  '@types/retry@0.12.5': {}
+
+  graceful-fs@4.2.11: {}
+
+  moo@0.5.3: {}
+
+  proper-lockfile@4.1.2:
+    dependencies:
+      graceful-fs: 4.2.11
+      retry: 0.12.0
+      signal-exit: 3.0.7
+
+  retry@0.12.0: {}
+
+  signal-exit@3.0.7: {}
+
+  sync-fetch-undici@0.7.1:
+    dependencies:
+      whatwg-mimetype: 5.0.0
+
   typescript@5.9.3: {}
 
   undici-types@7.18.2: {}
+
+  whatwg-mimetype@5.0.0: {}

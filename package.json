@@ -1,7 +1,7 @@
 {
   "name": "dsh-cite",
-  "version": "0.3.5",
-  "description": "查询 DOI 和文献元数据，生成参考文献与 BibTeX。",
+  "version": "0.4.0",
+  "description": "批量导入 DOI / BibTeX，预览去重、补全文献元数据并导出引文。",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -10,6 +10,7 @@
       "types": "./lib/index.d.ts",
       "default": "./lib/index.js"
     },
+    "./client": "./lib/client.js",
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./package.json": "./package.json"
   },
@@ -22,12 +23,13 @@
     "CHANGELOG.md"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && node scripts/build-client.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "pnpm run build && node --test \"test/*.test.mjs\"",
     "prepublishOnly": "pnpm run build"
   },
   "dsh": {
+    "client": { "inject": ["@deepseek-ai/dsh-client-ui-settings"], "platform": "web" },
     "bundle": {
       "patch": "./cordis.patch.yml"
     }
@@ -50,6 +52,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
+    "@types/proper-lockfile": "4.1.4",
     "typescript": "^5.6.0"
   },
   "repository": {
@@ -61,5 +64,10 @@
   },
   "homepage": "https://github.com/STARDUSTLC666/dsh-cite#readme",
   "author": "stardustlc",
-  "packageManager": "pnpm@11.7.0"
+  "packageManager": "pnpm@11.7.0",
+  "dependencies": {
+    "@citation-js/core": "0.9.0",
+    "@citation-js/plugin-bibtex": "0.9.0",
+    "proper-lockfile": "4.1.2"
+  }
 }

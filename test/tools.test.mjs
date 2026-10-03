@@ -32,7 +32,7 @@ test('GB/T 7714 引文格式', () => {
 test('APA / MLA / Chicago 引文格式', () => {
   assert.match(buildCitation(work, 'apa'), /Lovelace, A\.\, & Hopper, G\. \(2024\)/)
   assert.match(buildCitation(work, 'mla'), /Lovelace, Ada, and Grace Hopper/)
-  assert.match(buildCitation(work, 'chicago'), /Lovelace Ada, Hopper Grace, "Deep learning for citation", Nature/)
+  assert.match(buildCitation(work, 'chicago'), /Ada Lovelace, Grace Hopper, "Deep learning for citation", Nature/)
 })
 
 test('BibTeX 生成', () => {
@@ -141,12 +141,12 @@ test('cite_check 并发校验且保持顺序', async () => {
   assert.ok(maxActive > 1, 'expected parallel checks, maxActive=' + maxActive)
 })
 
-test('apply 注册 5 个工具（含 cite_health）且 dispose 清理', () => {
+test('apply 注册 6 个工具（含 cite_health / cite_batch）且 dispose 清理', () => {
   const names = []
   const listeners = {}
   const ctx = { tools: { register(def) { names.push(def.name); return () => names.splice(names.indexOf(def.name), 1) } }, on(e, l) { listeners[e] = l } }
   apply(ctx, {})
-  assert.deepEqual(names, ['cite_lookup', 'cite_format', 'cite_bibtex', 'cite_check', 'cite_health'])
+  assert.deepEqual(names, ['cite_lookup', 'cite_format', 'cite_bibtex', 'cite_check', 'cite_health', 'cite_batch'])
   listeners.dispose()
   assert.deepEqual(names, [])
 })

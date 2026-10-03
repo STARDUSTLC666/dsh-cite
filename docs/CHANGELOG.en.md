@@ -4,6 +4,10 @@
 
 These English notes preserve the earlier translations. The main changelog contains the consolidated version history.
 
+## 0.4.1 (2026-10-03)
+
+Fixes re-importing exported BibTeX containing publisher lists. Publisher names and original sources remain intact. All 41 Windows tests and re-importing the actual browser download pass.
+
 ## 0.4.0 (2026-10-03)
 
 Adds a Chinese / English citation workbench and `cite_batch` for offline DOI / BibTeX preview, selective import, duplicate review, search and basic citation exports. Explicit Crossref enrichment fills empty fields, retains local differences and supports progress, cancellation and retry. Original input is preserved in full backups; revision checks protect concurrent changes. The existing five tools remain available.

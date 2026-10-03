@@ -2,14 +2,17 @@ import { parentPort, workerData } from 'node:worker_threads'
 import { Cite, type CSL } from '@citation-js/core'
 import '@citation-js/plugin-bibtex'
 import { assertDoi, type Work } from './crossref.js'
-import { MAX_BATCH, normalizeWork, workWarnings, type ImportRow } from './citation-model.js'
+import { MAX_BATCH, normalizeWork, plainText, workWarnings, type ImportRow } from './citation-model.js'
 
 const types: Record<string, string> = { 'article-journal': 'journal-article', book: 'book', chapter: 'book-chapter', 'paper-conference': 'proceedings-article', thesis: 'dissertation', report: 'report', dataset: 'dataset', patent: 'patent', standard: 'standard' }
+// Citation.js treats BibTeX's publisher "and" separator as a list. The local
+// Work model is plain text; preserve these names and retain the original source.
+const cslText = (value: unknown): string => Array.isArray(value) ? value.map(plainText).join(' and ') : plainText(value)
 function workOf(csl: CSL): Work {
   return normalizeWork({
     doi: csl.DOI, type: types[csl.type] || 'other', title: csl.title,
     authors: (csl.author || []).map(a => { const family = [a['non-dropping-particle'], a.family, a.suffix].filter(Boolean).join(' '); const given = [a.given, a['dropping-particle']].filter(Boolean).join(' '); return a.literal || !given ? { name: a.literal || family, family: '', given: '' } : { name: '', family, given } }),
-    containerTitle: csl['container-title'], publisher: csl.publisher, year: Number(csl.issued?.['date-parts']?.[0]?.[0] || 0), language: csl.language, volume: csl.volume, issue: csl.issue, page: csl.page, url: csl.URL, isbn: csl.ISBN,
+    containerTitle: cslText(csl['container-title']), publisher: cslText(csl.publisher), year: Number(csl.issued?.['date-parts']?.[0]?.[0] || 0), language: csl.language, volume: csl.volume, issue: csl.issue, page: csl.page, url: csl.URL, isbn: csl.ISBN,
   })
 }
 try {

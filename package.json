@@ -1,6 +1,6 @@
 {
   "name": "dsh-cite",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "批量导入 DOI / BibTeX，预览去重、补全文献元数据并导出引文。",
   "type": "module",
   "main": "lib/index.js",

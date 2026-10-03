@@ -107,6 +107,15 @@ test('Tool cancellation before parsing performs no network request or file write
   await assert.rejects(buildBatchTool(w).execute({ action: 'preview', kind: 'doi', text: '10.1000/a' }, { signal: controller.signal }), /Stop now/)
   await assert.rejects(access(w.store.file)); w.dispose(); await assert.rejects(w.list(), /卸载/)
 })
+test('Exported records with multiple publisher names can be imported again', async t => {
+  const w = await workbench(t), text = '@article{one,title={Export sample},author={Smith, Jane},journal={Reference Review},publisher={Springer Science and Business Media LLC},doi={10.1000/roundtrip},year={2024}}'
+  const state = await save(w, text, 'bibtex')
+  assert.equal(state.entries[0].work.publisher, 'Springer Science and Business Media LLC')
+  const exported = await w.export('bibtex')
+  const rows = await parseCitationInput({ kind: 'bibtex', text: exported.content })
+  assert.equal(rows.length, 1); assert.equal(rows[0].error, undefined)
+  assert.deepEqual(rows[0].work, state.entries[0].work)
+})
 test('Literal authors and compound surnames retain their boundaries in citation text', async () => {
   const rows = await parseCitationInput({ kind: 'bibtex', text: '@report{group,title={Group report},author={{World Health Organization}},year={2024}}\n@article{person,title={Name example},author={de la Cruz, Maria and van der Waals, Johannes},year={2025}}' })
   const institution = rows[0].work, people = rows[1].work

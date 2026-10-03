@@ -2,6 +2,8 @@
 
 [English](README.en.md)
 
+![dsh-cite 鲸鱼娘插件封面](https://raw.githubusercontent.com/STARDUSTLC666/dsh-cite/master/assets/cover-whale-girl.png)
+
 把 DOI 列表或 BibTeX 整理成可核对的本地文献库，再导出参考文献与 BibTeX。
 
 [![npm](https://img.shields.io/npm/v/dsh-cite)](https://www.npmjs.com/package/dsh-cite) [![downloads](https://img.shields.io/npm/dm/dsh-cite)](https://www.npmjs.com/package/dsh-cite)

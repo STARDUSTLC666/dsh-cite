@@ -2,6 +2,8 @@
 
 [中文](README.md)
 
+![dsh-cite whale girl plugin cover](https://raw.githubusercontent.com/STARDUSTLC666/dsh-cite/master/assets/cover-whale-girl.png)
+
 Organize DOI lists or BibTeX into a reviewable local library, then export references and BibTeX.
 
 [![npm](https://img.shields.io/npm/v/dsh-cite)](https://www.npmjs.com/package/dsh-cite) [![downloads](https://img.shields.io/npm/dm/dsh-cite)](https://www.npmjs.com/package/dsh-cite)

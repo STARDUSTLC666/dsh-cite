@@ -6,7 +6,7 @@
 
 把 DOI 列表或 BibTeX 整理成可核对的本地文献库，再导出参考文献与 BibTeX。
 
-[![npm](https://img.shields.io/npm/v/dsh-cite)](https://www.npmjs.com/package/dsh-cite) [![downloads](https://img.shields.io/npm/dm/dsh-cite)](https://www.npmjs.com/package/dsh-cite)
+[![npm](https://img.shields.io/npm/v/dsh-cite)](https://www.npmjs.com/package/dsh-cite) [![downloads](https://raw.githubusercontent.com/STARDUSTLC666/dsh-suite/npm-downloads/assets/dsh-cite-downloads.svg)](https://www.npmjs.com/package/dsh-cite)
 
 ## 功能
 

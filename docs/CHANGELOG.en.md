@@ -4,6 +4,10 @@
 
 These English notes preserve the earlier translations. The main changelog contains the consolidated version history.
 
+## 0.4.2 (2026-10-05)
+
+- Preserve balanced parentheses inside DOIs while removing surrounding prose punctuation. Crossref response parsing respects cancellation and timeouts.
+
 ## 0.4.1 (2026-10-03)
 
 Fixes re-importing exported BibTeX containing publisher lists. Publisher names and original sources remain intact. All 41 Windows tests and re-importing the actual browser download pass.

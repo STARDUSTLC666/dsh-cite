@@ -1,6 +1,6 @@
 {
   "name": "dsh-cite",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "批量导入 DOI / BibTeX，预览去重、补全文献元数据并导出引文。",
   "type": "module",
   "main": "lib/index.js",
@@ -29,7 +29,12 @@
     "prepublishOnly": "pnpm run build"
   },
   "dsh": {
-    "client": { "inject": ["@deepseek-ai/dsh-client-ui-settings"], "platform": "web" },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-settings"
+      ],
+      "platform": "web"
+    },
     "bundle": {
       "patch": "./cordis.patch.yml"
     }

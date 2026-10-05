@@ -1,5 +1,6 @@
 /** English UI messages; bibliographic content and original source text stay unchanged. */
 export function englishCitationError(raw: string): string {
+  if (/^Crossref.*超时/.test(raw)) return 'Crossref timed out. Retry later; your local entries were preserved.'
   if (/^Crossref 请求失败：/.test(raw)) return raw.replace(/^Crossref 请求失败：/, 'Crossref request failed: ')
   if (/^DOI 在 Crossref 中不存在：/.test(raw)) return raw.replace(/^DOI 在 Crossref 中不存在：/, 'DOI not found in Crossref: ')
   if (/^Crossref 返回 HTTP/.test(raw)) return 'Crossref returned HTTP ' + (/HTTP (\d+)/.exec(raw)?.[1] || 'error') + '. Check network access or retry later.'

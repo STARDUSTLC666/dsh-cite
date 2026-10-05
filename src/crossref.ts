@@ -97,18 +97,30 @@ function requestSignal(timeoutMs: number, signal?: AbortSignal): AbortSignal {
   return signal === undefined ? timeoutSignal : AbortSignal.any([signal, timeoutSignal])
 }
 
+function withAbort<T>(value: Promise<T>, signal: AbortSignal): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const abort = () => reject(signal.reason)
+    signal.addEventListener('abort', abort, { once: true })
+    value.then(result => { signal.removeEventListener('abort', abort); resolve(result) }, error => { signal.removeEventListener('abort', abort); reject(error) })
+    if (signal.aborted) abort()
+  })
+}
+
 /** 按 DOI 查询 Crossref 并归一化。 */
 export async function lookupDoi(doi: string, cfg: ResolvedCiteConfig, fetchImpl?: FetchLike, signal?: AbortSignal): Promise<Work> {
   const clean = assertDoi(doi)
+  signal?.throwIfAborted()
+  const deadline = requestSignal(cfg.timeoutMs, signal)
   const fetcher = fetchImpl ?? (globalThis.fetch as unknown as FetchLike)
   let response: Response
   try {
-    response = await fetcher(CROSSREF_API + encodeURIComponent(clean), {
+    response = await withAbort(fetcher(CROSSREF_API + encodeURIComponent(clean), {
       headers: makeHeaders(cfg),
-      signal: requestSignal(cfg.timeoutMs, signal),
-    })
+      signal: deadline,
+    }), deadline)
   } catch (error) {
     signal?.throwIfAborted()
+    if (deadline.aborted) throw new Error('Crossref 请求超时，请稍后重试；本地文献已保留。')
     const code = error instanceof Error && typeof (error.cause as any)?.code === 'string' && /^[A-Z0-9_]+$/.test((error.cause as any).code) ? ' (' + (error.cause as any).code + ')' : ''
     throw new Error('Crossref 请求失败：' + (error instanceof Error ? error.message : String(error)) + code)
   }
@@ -118,8 +130,10 @@ export async function lookupDoi(doi: string, cfg: ResolvedCiteConfig, fetchImpl?
   }
   let payload: unknown
   try {
-    payload = await response.json()
+    payload = await withAbort(response.json(), deadline)
   } catch {
+    signal?.throwIfAborted()
+    if (deadline.aborted) throw new Error('Crossref 响应读取超时，请稍后重试；本地文献已保留。')
     throw new Error('Crossref 响应不是合法 JSON。')
   }
   const message = record(payload).message
@@ -132,24 +146,29 @@ export async function lookupDoi(doi: string, cfg: ResolvedCiteConfig, fetchImpl?
 /** 按题录文本检索 Crossref，返回归一化结果。 */
 export async function searchWorks(query: string, limit: number, cfg: ResolvedCiteConfig, fetchImpl?: FetchLike, signal?: AbortSignal): Promise<Work[]> {
   const q = query.trim()
+  signal?.throwIfAborted()
+  const deadline = requestSignal(cfg.timeoutMs, signal)
   if (q === '') throw new Error('检索词不能为空。')
   const url = CROSSREF_API + '?query.bibliographic=' + encodeURIComponent(q) + '&rows=' + String(limit)
   const fetcher = fetchImpl ?? (globalThis.fetch as unknown as FetchLike)
   let response: Response
   try {
-    response = await fetcher(url, {
+    response = await withAbort(fetcher(url, {
       headers: makeHeaders(cfg),
-      signal: requestSignal(cfg.timeoutMs, signal),
-    })
+      signal: deadline,
+    }), deadline)
   } catch (error) {
     signal?.throwIfAborted()
+    if (deadline.aborted) throw new Error('Crossref 请求超时，请稍后重试；本地文献已保留。')
     throw new Error('Crossref 检索失败：' + (error instanceof Error ? error.message : String(error)))
   }
   if (!response.ok) throw new Error('Crossref 返回 HTTP ' + response.status + '，无法完成检索。')
   let payload: unknown
   try {
-    payload = await response.json()
+    payload = await withAbort(response.json(), deadline)
   } catch {
+    signal?.throwIfAborted()
+    if (deadline.aborted) throw new Error('Crossref 响应读取超时，请稍后重试；本地文献已保留。')
     throw new Error('Crossref 响应不是合法 JSON。')
   }
   const items = record(payload).message
@@ -164,7 +183,8 @@ export function extractDois(text: string): string[] {
   const seen = new Set<string>()
   const result: string[] = []
   for (const match of text.match(pattern) ?? []) {
-    const clean = match.replace(/[.,;:)\]}'">]+$/, '').trim()
+    let clean = match.replace(/[.,;:\]}'">]+$/, '').trim()
+    while (clean.endsWith(')') && (clean.match(/\)/g)?.length ?? 0) > (clean.match(/\(/g)?.length ?? 0)) clean = clean.slice(0, -1)
     if (seen.has(clean.toLowerCase())) continue
     seen.add(clean.toLowerCase())
     result.push(clean)

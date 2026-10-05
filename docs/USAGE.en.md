@@ -2,6 +2,10 @@
 
 [Overview](../README.en.md) · [Changelog](../CHANGELOG.md) · [Validation](VALIDATION.md)
 
+## Current improvements
+
+DOIs with balanced parentheses can be queried directly. Transport or parsing timeouts are explicit, and cancellation stops waiting. Offline library import and external Crossref lookup are verified separately.
+
 ## Citation workbench
 
 1. Open **Settings → Cite**. Paste one DOI per line, paste BibTeX, or upload a `.bib` file.

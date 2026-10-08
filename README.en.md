@@ -8,6 +8,8 @@ Organize DOI lists or BibTeX into a reviewable local library, then export refere
 
 [![npm](https://img.shields.io/npm/v/dsh-cite)](https://www.npmjs.com/package/dsh-cite) [![downloads](https://raw.githubusercontent.com/STARDUSTLC666/dsh-suite/npm-downloads/assets/dsh-cite-downloads.svg)](https://www.npmjs.com/package/dsh-cite)
 
+Feedback and contributions are welcome: report [issues](https://github.com/STARDUSTLC666/dsh-cite/issues) or submit [pull requests](https://github.com/STARDUSTLC666/dsh-cite/pulls).
+
 ## What it does
 
 - Paste DOI lists or upload `.bib` files. Preview locally before choosing entries to save, with duplicate and missing-field warnings.

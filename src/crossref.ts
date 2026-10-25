@@ -5,6 +5,7 @@
  */
 
 import { type ResolvedCiteConfig } from './config.js'
+import { providerText } from './citation-text.js'
 
 export interface CiteAuthor {
   given: string
@@ -31,7 +32,7 @@ export interface Work {
 export type FetchLike = (url: string, init?: { headers?: Record<string, string>; signal?: AbortSignal }) => Promise<Response>
 
 const CROSSREF_API = 'https://api.crossref.org/works/'
-const DOI_PATTERN = /^10\.\d{4,9}\/[-._;()/:A-Za-z0-9]+$/i
+const DOI_PATTERN = /^10\.\d{4,9}\/[^\s{}\\\u0000-\u001f\u007f]+$/i
 
 export function assertDoi(value: string): string {
   const doi = value.trim().replace(/^https?:\/\/(dx\.)?doi\.org\//i, '').replace(/^doi:\s*/i, '')
@@ -74,10 +75,10 @@ function normalizeWork(raw: Record<string, unknown>): Work {
   return {
     doi,
     type: typeof raw.type === 'string' ? raw.type : 'other',
-    title: firstText(raw.title),
+    title: providerText(firstText(raw.title)),
     authors,
-    containerTitle: firstText(raw['container-title']),
-    publisher: typeof raw.publisher === 'string' ? raw.publisher.trim() : '',
+    containerTitle: providerText(firstText(raw['container-title'])),
+    publisher: typeof raw.publisher === 'string' ? providerText(raw.publisher) : '',
     year: year || 0,
     language: typeof raw.language === 'string' ? raw.language.trim().toLowerCase() : '',
     volume: typeof raw.volume === 'string' ? raw.volume.trim() : '',
@@ -179,7 +180,7 @@ export async function searchWorks(query: string, limit: number, cfg: ResolvedCit
 
 /** 从任意文本里提取 DOI。 */
 export function extractDois(text: string): string[] {
-  const pattern = /\b10\.\d{4,9}\/[-._;()/:A-Za-z0-9]+/gi
+  const pattern = /\b10\.\d{4,9}\/[-._;()/:A-Za-z0-9<>]+/gi
   const seen = new Set<string>()
   const result: string[] = []
   for (const match of text.match(pattern) ?? []) {

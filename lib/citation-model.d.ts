@@ -1,4 +1,5 @@
 import { type Work } from './crossref.js';
+export { plainText } from './citation-text.js';
 export declare const MAX_INPUT_BYTES: number;
 export declare const MAX_BATCH = 100;
 export declare const MAX_LIBRARY = 500;
@@ -47,8 +48,6 @@ export interface CitationLibrary {
     entries: LibraryEntry[];
     sources: SourceRecord[];
 }
-/** Never render provider/BibTeX markup as HTML. Keep the original source separately. */
-export declare function plainText(value: unknown): string;
 export declare function normalizeWork(value: unknown): Work;
 export declare function workWarnings(work: Work): string[];
 export declare function candidateKey(work: Work): string;

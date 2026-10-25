@@ -1,4 +1,6 @@
 import { assertDoi, type Work } from './crossref.js'
+import { literalText, plainText } from './citation-text.js'
+export { plainText } from './citation-text.js'
 
 export const MAX_INPUT_BYTES = 256 * 1024
 export const MAX_BATCH = 100
@@ -13,25 +15,15 @@ export interface LibraryEntry {
 }
 export interface CitationLibrary { version: 1; revision: number; entries: LibraryEntry[]; sources: SourceRecord[] }
 
-/** Never render provider/BibTeX markup as HTML. Keep the original source separately. */
-export function plainText(value: unknown): string {
-  if (value === undefined || value === null) return ''
-  if (typeof value !== 'string' && typeof value !== 'number') throw new Error('文献字段不是文本。')
-  const text = String(value)
-  if (text.length > 16384) throw new Error('单个文献字段过长，请拆分或检查原始数据。')
-  return text.replace(/<[^>]*>/g, '').replace(/&(?:amp|lt|gt|quot|apos|nbsp);/g, token => ({ '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&apos;': "'", '&nbsp;': ' ' }[token]!))
-    .replace(/&#(x[0-9a-f]+|\d+);/gi, (_, code: string) => { const n = code[0].toLowerCase() === 'x' ? parseInt(code.slice(1), 16) : Number(code); return n > 0 && n <= 0x10ffff && !(n >= 0xd800 && n <= 0xdfff) ? String.fromCodePoint(n) : '�' })
-    .replace(/\s+/g, ' ').trim()
-}
 export function normalizeWork(value: unknown): Work {
   if (!value || typeof value !== 'object') throw new Error('文献记录无效。')
   const raw = value as Record<string, unknown>, authors = raw.authors ?? []
   if (!Array.isArray(authors) || authors.length > 2000) throw new Error('作者列表无效或超过 2000 人。')
   const work: Work = {
-    doi: plainText(raw.doi), type: plainText(raw.type) || 'other', title: plainText(raw.title),
+    doi: literalText(raw.doi), type: plainText(raw.type) || 'other', title: plainText(raw.title),
     authors: authors.map(a => { if (!a || typeof a !== 'object') throw new Error('作者记录无效。'); return { given: plainText(a.given), family: plainText(a.family), name: plainText(a.name) } }).filter(a => a.given || a.family || a.name),
     containerTitle: plainText(raw.containerTitle), publisher: plainText(raw.publisher), year: typeof raw.year === 'number' && Number.isInteger(raw.year) && raw.year > 0 && raw.year <= 9999 ? raw.year : 0,
-    language: plainText(raw.language), volume: plainText(raw.volume), issue: plainText(raw.issue), page: plainText(raw.page), url: plainText(raw.url), isbn: plainText(raw.isbn),
+    language: plainText(raw.language), volume: plainText(raw.volume), issue: plainText(raw.issue), page: plainText(raw.page), url: literalText(raw.url), isbn: plainText(raw.isbn),
   }
   if (work.doi) work.doi = assertDoi(work.doi).toLowerCase()
   return work

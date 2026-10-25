@@ -2,6 +2,10 @@
 
 [返回简介](../README.md) · [更新记录](../CHANGELOG.md) · [验证记录](VALIDATION.md)
 
+## 标识符保真
+
+BibTeX 导入、导出保留 URL 与 DOI；数学比较符不作为任意 HTML 删除。Crossref 的已知 JATS 格式单独处理，避免影响原始标识符。
+
 ## 本次改进
 
 可直接查询带成对括号的 DOI。网络或响应读取超时会给出明确错误；取消后不继续等待。文献库离线导入与外部 Crossref 检索分别验收。

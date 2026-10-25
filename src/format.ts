@@ -251,6 +251,7 @@ export function buildBibtex(work: Work, key?: string): string {
   if (work.page !== '') fields.push('  pages={' + work.page + '}')
   if (work.publisher !== '') fields.push('  publisher={' + escapeLatex(work.publisher) + '}')
   if (work.doi !== '') fields.push('  doi={' + work.doi + '}')
-  if (work.url !== '') fields.push('  url={' + escapeLatex(work.url) + '}')
+  // BibTeX/biblatex URL fields are verbatim, unlike titles and personal names.
+  if (work.url !== '') fields.push('  url={' + work.url.replaceAll('{', '%7B').replaceAll('}', '%7D') + '}')
   return '@' + type + '{' + baseKey + ',\n' + fields.join(',\n') + '\n}'
 }

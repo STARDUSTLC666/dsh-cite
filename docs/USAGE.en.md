@@ -2,6 +2,10 @@
 
 [Overview](../README.en.md) · [Changelog](../CHANGELOG.md) · [Validation](VALIDATION.md)
 
+## Identifier fidelity
+
+BibTeX import/export retains URLs and DOIs. Mathematical comparisons are not treated as arbitrary HTML. Known Crossref JATS formatting is handled separately from raw identifiers.
+
 ## Current improvements
 
 DOIs with balanced parentheses can be queried directly. Transport or parsing timeouts are explicit, and cancellation stops waiting. Offline library import and external Crossref lookup are verified separately.

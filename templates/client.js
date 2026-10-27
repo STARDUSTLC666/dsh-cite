@@ -34,6 +34,9 @@ const [activeTab,setActiveTab]=useState('library'),[citationError,setCitationErr
             const busyRef = useRef(false), fileRef = useRef(null), dirtyRef = useRef(dirty);
             dirtyRef.current = dirty;
             const t = (zh, en) => lang === 'en' ? en : zh, running = job?.state === 'running', locked = busy || running;
+// Update protection: dsh-cite
+__stardustUpdatesGuard(React, "dsh-cite", { dirty, busy: locked, retainOnClose: true });
+
             const warning = code => ({ missing_title: t('缺少标题', 'Missing title'), missing_authors: t('缺少作者', 'Missing authors'), missing_year: t('缺少年份', 'Missing year'), missing_doi: t('没有 DOI，无法在线补全', 'No DOI for online lookup'), long_citation_key: t('引用键过长，导出将使用短键', 'Long citation key; export uses a shorter key') }[code] || code);
             const fieldName = key => ({ title: t('标题', 'Title'), authors: t('作者', 'Authors'), year: t('年份', 'Year'), containerTitle: t('期刊 / 文集', 'Journal / collection'), publisher: t('出版社', 'Publisher'), type: t('文献类型', 'Type'), volume: t('卷', 'Volume'), issue: t('期', 'Issue'), page: t('页码', 'Pages'), language: t('语言', 'Language'), url: 'URL', isbn: 'ISBN' }[key] || key);
             useEffect(() => { const update = () => { activeLang = String(locale?.getSnapshot?.().active || '').startsWith('en') ? 'en' : 'zh'; setLang(activeLang); }; update(); return locale?.subscribe?.(update); }, [locale]);

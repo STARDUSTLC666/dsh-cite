@@ -1,6 +1,6 @@
 {
   "name": "dsh-cite",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "description": "批量导入 DOI / BibTeX，预览去重、补全文献元数据并导出引文。",
   "type": "module",
   "main": "lib/index.js",
@@ -23,19 +23,19 @@
     "CHANGELOG.md"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json && node scripts/build-client.mjs",
+    "build": "tsc -p tsconfig.json && node scripts/build-client.mjs && node scripts/build-updates.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "pnpm run build && node --test \"test/*.test.mjs\"",
     "prepublishOnly": "pnpm run build"
   },
   "dsh": {
     "client": {
+      "platform": "web",
       "inject": [
         "@deepseek-ai/dsh-client-ui-settings",
         "@deepseek-ai/dsh-client-ui-layout",
         "@deepseek-ai/dsh-client-ui-sidebar"
-      ],
-      "platform": "web"
+      ]
     },
     "bundle": {
       "patch": "./cordis.patch.yml"
@@ -55,7 +55,8 @@
   ],
   "license": "MIT",
   "engines": {
-    "node": "^22.19.0 || >=24.0.0"
+    "node": "^22.19.0 || >=24.0.0",
+    "dsh": ">=0.2.1-rc.3"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
@@ -75,6 +76,7 @@
   "dependencies": {
     "@citation-js/core": "0.9.0",
     "@citation-js/plugin-bibtex": "0.9.0",
-    "proper-lockfile": "4.1.2"
+    "proper-lockfile": "4.1.2",
+    "@stardustlc/dsh-updates": "0.1.0"
   }
 }

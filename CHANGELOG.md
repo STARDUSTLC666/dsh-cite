@@ -4,6 +4,12 @@
 
 [历史英文记录](docs/CHANGELOG.en.md)
 
+## 0.7.0 (2026-10-26)
+
+- Add this plugin’s own update controls and independent preferences. Automatic installation stays off until explicitly enabled.
+- Confirm manual installs, preserve local sources and disabled state, pause for tasks or unsaved changes, and use native DSH recovery without forced restarts.
+- Require the public DSH 0.2.1-rc.3 update APIs; Suite components remain managed through Suite.
+
 ## 0.6.1（2026-10-26）
 
 - 文献正文与标识符分开规范化：保留数学比较符、SICI DOI 和 URL 中的特殊字符。只在明确的元数据入口处理已知格式标签，BibTeX 导出可再次导入。

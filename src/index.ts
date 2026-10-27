@@ -1,3 +1,4 @@
+import { registerUpdates } from '@stardustlc/dsh-updates'
 /**
  * dsh-cite —— 参考文献工具插件（node 半身，配置走 cordis.patch.yml）。
  *
@@ -23,6 +24,8 @@ export interface CitePluginContext {
 }
 
 export function apply(ctx: CitePluginContext, config?: CiteConfig | null): void {
+  registerUpdates(ctx, { name: "dsh-cite" })
+
   let cfg
   try {
     cfg = resolveConfig(config)

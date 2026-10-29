@@ -6,7 +6,9 @@
 
 Turn DOI lists or BibTeX into a reviewable local library. Preview imports, remove duplicates, enrich metadata with Crossref and export citations or BibTeX, retaining original sources for verification.
 
-[![npm](https://img.shields.io/npm/v/dsh-cite)](https://www.npmjs.com/package/dsh-cite) [![downloads](https://raw.githubusercontent.com/STARDUSTLC666/dsh-suite/npm-downloads/assets/dsh-cite-downloads.svg)](https://www.npmjs.com/package/dsh-cite)
+[![npm](https://img.shields.io/npm/v/dsh-cite)](https://www.npmjs.com/package/dsh-cite) [![downloads](https://raw.githubusercontent.com/STARDUSTLC666/dsh-suite/npm-downloads/assets/dsh-cite-downloads.svg)](https://www.npmjs.com/package/dsh-cite) [![total downloads](https://raw.githubusercontent.com/STARDUSTLC666/dsh-suite/npm-downloads/assets/dsh-cite-total-downloads.svg)](https://www.npmjs.com/package/dsh-cite)
+
+[Download statistics](https://github.com/STARDUSTLC666/dsh-suite/blob/npm-downloads/README.md)
 
 Feedback and contributions are welcome: report [issues](https://github.com/STARDUSTLC666/dsh-cite/issues) or submit [pull requests](https://github.com/STARDUSTLC666/dsh-cite/pulls).
 
@@ -31,9 +33,10 @@ For the web version, replace `desktop` with `web`. Restart DSH after installatio
 
 ## Start using it
 
-Open **Settings → Cite**, paste DOIs or upload a `.bib` file, choose **Local preview**, review the entries and **Save selected**. Select saved entries and explicitly request online enrichment when needed. UI text follows DSH's Chinese / English setting; bibliographic content stays in its original language.
-
-Or ask the agent: “Preview these DOIs locally first. Save the entries I select, then export APA references and BibTeX.”
+1. Open Citations in the sidebar and prepare DOI entries or a BibTeX file.
+2. Preview the import locally; inspect entries, duplicates and fields before saving selected references.
+3. Select entries and explicitly request Crossref enrichment when needed, then review the returned fields.
+4. Select references, export a bibliography or BibTeX, and download a library backup when needed.
 
 ## Requirements and configuration
 

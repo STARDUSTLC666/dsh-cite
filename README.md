@@ -6,7 +6,9 @@
 
 把 DOI 列表或 BibTeX 整理成可核对的本地文献库。支持导入预览、去重、Crossref 补全、引文与 BibTeX 导出，并保留原始来源用于核查。
 
-[![npm](https://img.shields.io/npm/v/dsh-cite)](https://www.npmjs.com/package/dsh-cite) [![downloads](https://raw.githubusercontent.com/STARDUSTLC666/dsh-suite/npm-downloads/assets/dsh-cite-downloads.svg)](https://www.npmjs.com/package/dsh-cite)
+[![npm](https://img.shields.io/npm/v/dsh-cite)](https://www.npmjs.com/package/dsh-cite) [![downloads](https://raw.githubusercontent.com/STARDUSTLC666/dsh-suite/npm-downloads/assets/dsh-cite-downloads.svg)](https://www.npmjs.com/package/dsh-cite) [![total downloads](https://raw.githubusercontent.com/STARDUSTLC666/dsh-suite/npm-downloads/assets/dsh-cite-total-downloads.svg)](https://www.npmjs.com/package/dsh-cite)
+
+[下载统计说明](https://github.com/STARDUSTLC666/dsh-suite/blob/npm-downloads/README.md)
 
 欢迎使用，遇到问题或有改进建议，请提交 [issues](https://github.com/STARDUSTLC666/dsh-cite/issues) 和 [PR](https://github.com/STARDUSTLC666/dsh-cite/pulls)。
 
@@ -31,9 +33,10 @@ dsh plugin --profile desktop add dsh-cite
 
 ## 开始使用
 
-打开「设置 → Cite」，粘贴 DOI 或上传 `.bib`，点击「本地预览」，核对后「保存所选」。需要联网查询时再选择文献并点击「从 Crossref 在线补全所选项」。界面跟随 DSH 的中文 / English 设置，文献内容保持原文。
-
-也可对 Agent 说：“先本地预览这些 DOI，把我选中的条目保存到文献库，再导出 APA 参考文献和 BibTeX。”
+1. 从左侧栏打开“引文库”，准备 DOI 列表或 BibTeX 文件。
+2. 先做本地导入预览，检查条目、重复项和字段，再保存选中的文献。
+3. 需要联网补全时，选择条目后主动执行 Crossref 补全，核对返回字段。
+4. 选择要引用的文献，导出参考文献或 BibTeX，并按需要下载文献库备份。
 
 ## 依赖与配置
 

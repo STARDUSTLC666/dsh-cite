@@ -1,6 +1,6 @@
 {
   "name": "dsh-cite",
-  "version": "0.7.4",
+  "version": "0.7.5",
   "description": "DSH 文献工作台：DOI / BibTeX 导入预览、去重、Crossref 补全、引文导出与来源备份。欢迎提交 issues 和 PR。",
   "type": "module",
   "main": "lib/index.js",

@@ -1,7 +1,7 @@
 {
   "name": "dsh-cite",
-  "version": "0.7.3",
-  "description": "批量导入 DOI / BibTeX，预览去重、补全文献元数据并导出引文。",
+  "version": "0.7.4",
+  "description": "DSH 文献工作台：DOI / BibTeX 导入预览、去重、Crossref 补全、引文导出与来源备份。欢迎提交 issues 和 PR。",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",

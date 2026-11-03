@@ -1,5 +1,10 @@
 # 更新记录
 
+## 0.7.7 (2026-10-30)
+
+- 引文工作台：「引文与下载」页新增导出前检查（可切换全部 / 仅所选范围，显示范围条数、引文格式、缺标题 / 作者 / 年份条目数与完整备份范围），下载按钮改为工作台按钮并在空库时给出说明；冲突提示改用工作台状态组件并只保留一条恢复路径，冲突期间「保存所选」禁用并说明原因；补全进度条补上标签和除零保护，键盘聚焦轮廓改用主题强调色。
+- Pre-export checks with explicit scope, conflict recovery that cannot resubmit a stale revision, labelled progress and theme-based focus rings in the reference workbench.
+
 ## 0.7.6 (2026-10-30)
 
 - 原生插件列表与详情新增专门生成的鲸鱼娘图标：大头像、独立功能符号、透明留白，适合 30 / 36 px 显示；原封面保留。

@@ -14,6 +14,16 @@ Update the plugin, restart DSH and open its native sidebar panel (or More if it 
 
 The UI follows host language and theme without translating user content. Narrow master/detail views have a Back action; editors adapt their columns to available space. Destructive actions require confirmation and edits are protected.
 
+## 导出前检查与冲突 / Export checks and conflicts
+
+「引文与下载」页先显示导出前检查，再给下载链接：可切换「全部文献 / 仅所选」，列出当前范围的条数、引文格式、缺标题 / 作者 / 年份的条目数，并说明完整备份始终包含全库与原始输入。条数与缺失字段来自本地文献库，切换范围立即重算；空库时下载位置给出说明而不是无效按钮。
+
+The downloads tab shows a pre-export check before the links: switch between the entire library and the current selection, read the entry count, citation style, counts of entries missing title/authors/year, and the note that full backup always covers the whole library with original sources. Counts come from the local library and recompute when the scope changes; an empty library explains itself instead of showing inert buttons.
+
+并发保存冲突以错误状态呈现，说明库已在别处更新、当前输入仍保留，并只提供「重新预览当前输入」一条恢复路径；冲突期间「保存所选」禁用并说明原因，不会重复提交同一个过期修订。
+
+A concurrent-save conflict is shown as an error status that names what happened, keeps the input, and offers one recovery path (preview the current input again). Saving stays disabled with a stated reason, so the same stale revision cannot be resubmitted.
+
 ## 源码 / Source
 
 编辑 templates/client.js、templates/panels/*.js 与 templates/workbench-ui.js，运行 pnpm run build。lib/client.js 是确定性产物，请随源码提交。公共组件的规范源位于 dsh-suite/ui/workbench-ui.js，Suite 的同步脚本显式分发副本；单个仓库可独立构建和安装。

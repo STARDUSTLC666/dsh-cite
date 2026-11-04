@@ -37,3 +37,9 @@ Edit the template sources and run pnpm run build. Commit generated lib/client.js
 邮件使用受控 AgentMail HTTP 服务，日历使用受控 CalDAV 协议传输；插件处理器、存储、校验和原生宿主均实际运行。未使用真实邮箱、真实日历账号或付费模型。RSS 访问 Node.js 官方公开来源。PPT 实际生成并渲染 PPTX、下载 ZIP；两个视频插件实际运行官方引擎并播放 MP4。
 
 这些是 Web 共用界面的验收结果，不代表已验收 Electron 专属菜单、系统权限、真实账号、全部外部来源或所有可选模型/引擎。Docker、Slack、钉钉继续按用户约定搁置。
+
+## 仅使用模型工具 / Tools without a sidebar panel
+
+在 cite 行的 config 中设置 `hideWorkbench: true`，保存配置并刷新界面，可隐藏原生侧栏入口和主面板。默认 false。设置页、更新页脚、cite 工具、本地文献库和导出接口保留；不需要修改已安装的 package.json。
+
+Set `hideWorkbench: true` in the cite row's config and refresh the client. It hides the sidebar/main workbench while preserving Settings, update controls, model tools and stored references. The default is false.

@@ -8,11 +8,13 @@ import { createRequire } from 'node:module'
 export interface CiteConfig {
   timeoutMs?: number
   userAgent?: string
+  hideWorkbench?: boolean
 }
 
 export interface ResolvedCiteConfig {
   timeoutMs: number
   userAgent: string
+  hideWorkbench: boolean
 }
 
 const DEFAULT_TIMEOUT_MS = 15000
@@ -35,7 +37,8 @@ export function resolveConfig(config: CiteConfig | undefined | null, env: NodeJS
     timeoutMs = Math.min(120000, Math.max(2000, Math.round(parsed)))
   }
   const userAgent = typeof cfg.userAgent === 'string' && cfg.userAgent.trim() !== '' ? cfg.userAgent.trim() : (env[CITE_USER_AGENT_ENV]?.trim() || DEFAULT_USER_AGENT)
-  return { timeoutMs, userAgent }
+  if (cfg.hideWorkbench !== undefined && typeof cfg.hideWorkbench !== 'boolean') throw new Error('hideWorkbench 必须是 true 或 false。')
+  return { timeoutMs, userAgent, hideWorkbench: cfg.hideWorkbench === true }
 }
 
 export function optionalString(args: Record<string, unknown>, key: string): string | undefined {

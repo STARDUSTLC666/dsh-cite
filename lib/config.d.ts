@@ -1,10 +1,12 @@
 export interface CiteConfig {
     timeoutMs?: number;
     userAgent?: string;
+    hideWorkbench?: boolean;
 }
 export interface ResolvedCiteConfig {
     timeoutMs: number;
     userAgent: string;
+    hideWorkbench: boolean;
 }
 export declare const DEFAULT_USER_AGENT: string;
 export declare const CITE_TIMEOUT_ENV = "DSH_CITE_TIMEOUT_MS";

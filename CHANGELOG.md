@@ -1,5 +1,13 @@
 # 更新记录
 
+## 0.7.9 (2026-11-04)
+
+- 同步共享界面：嵌入设置时继承宿主底色，输入框跟随主题，空状态保持可读宽度；新版 DSH 可显示插件设置图标。
+- Align embedded surfaces, themed inputs, readable empty states and optional native settings icons.
+- 新增 hideWorkbench 选项，保留工具、设置与更新控制。
+- Add hideWorkbench while retaining tools, Settings and update controls.
+
+
 ## 0.7.8 (2026-10-30)
 
 - 引文工作台：「引文与下载」页新增导出前检查（可切换全部 / 仅所选范围，显示范围条数、引文格式、缺标题 / 作者 / 年份条目数与完整备份范围），下载按钮改为工作台按钮并在空库时给出说明；冲突提示改用工作台状态组件并只保留一条恢复路径，冲突期间「保存所选」禁用并说明原因；补全进度条补上标签和除零保护，键盘聚焦轮廓改用主题强调色。

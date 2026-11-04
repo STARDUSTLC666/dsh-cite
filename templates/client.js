@@ -134,7 +134,16 @@ const referenceId=activeId && referenceEntries.some(entry=>entry.id===activeId)?
             locale = ctx.get?.('locale') || ctx.locale;
         }
         catch { } const label=()=>String(locale?.getSnapshot?.().active || activeLang).startsWith('en')?'Reference library':'引文库';
-        W.register(ctx,{id:'dsh-cite.workbench',label,icon:'book',component:Workbench,inject:()=>({locale}),order:64});
+        ctx.effect(() => {
+          let live = true; const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 5000);
+          fetch(new URL('api/dsh-cite/preferences', document.baseURI), { credentials: 'same-origin', signal: controller.signal })
+            .then(response => { if (!response.ok) throw new Error('Unavailable preferences'); return response.json(); })
+            .then(value => { if (live && value.hideWorkbench !== true) W.register(ctx,{id:'dsh-cite.workbench',label,icon:'book',component:Workbench,inject:()=>({locale}),order:64}); })
+            .catch(() => { if (live) W.register(ctx,{id:'dsh-cite.workbench',label,icon:'book',component:Workbench,inject:()=>({locale}),order:64}); })
+            .finally(() => clearTimeout(timer));
+          return () => { live = false; clearTimeout(timer); controller.abort(); };
+        }, 'dsh-cite: workbench visibility');
 ctx.slots.inject('settings.section', () => ctx.slots.register({ name: 'settings.section', id: 'dsh-cite', order: 64, label, inject: () => ({ locale }) }, Workbench)); }
         return { inject: ['slots', 'locale'], apply };
     } });

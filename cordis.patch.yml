@@ -6,6 +6,7 @@
 #     config:
 #       timeoutMs: 15000     # Crossref 请求超时（默认 15 秒）
 #       userAgent: ''        # 留空使用 dsh-cite/当前包版本
+#       hideWorkbench: false # true 隐藏侧栏入口；工具、设置及更新页脚保留
 #
 - insert:
     - id: cite

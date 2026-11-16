@@ -8,12 +8,15 @@
 
 **[安装使用](#安装) · [使用流程](#开始使用) · [完整说明](https://github.com/STARDUSTLC666/dsh-cite/blob/master/docs/REFERENCE.zh.md)**
 
-<picture>
-  <source media="(prefers-color-scheme: dark) and (max-width: 640px)" srcset="https://raw.githubusercontent.com/STARDUSTLC666/dsh-cite/master/docs/assets/intro/workflow-zh-mobile-dark.svg">
-  <source media="(max-width: 640px)" srcset="https://raw.githubusercontent.com/STARDUSTLC666/dsh-cite/master/docs/assets/intro/workflow-zh-mobile-light.svg">
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/STARDUSTLC666/dsh-cite/master/docs/assets/intro/workflow-zh-dark.svg">
-  <img src="https://raw.githubusercontent.com/STARDUSTLC666/dsh-cite/master/docs/assets/intro/workflow-zh-light.svg" alt="把零散 DOI 和 BibTeX 整理成可用的文献库。 · 流程示意" width="100%">
-</picture>
+## 界面截图
+
+[![三栏文献库显示文献列表、引文预览和 BibTeX](docs/assets/screenshots/library-zh.jpg)](docs/assets/screenshots/library-zh.jpg)
+
+| 导入预览与去重 | DOI 核查 |
+| --- | --- |
+| [![导入预览标出库内重复和同批重复的 DOI](docs/assets/screenshots/import-zh.jpg)](docs/assets/screenshots/import-zh.jpg) | [![Crossref 返回三条公开 DOI 的核查结果](docs/assets/screenshots/doi-check-zh.jpg)](docs/assets/screenshots/doi-check-zh.jpg) |
+
+*截图来自 Harness Web `0.2.2-rc.3` 中运行的 `dsh-cite 0.8.0`。*
 
 ## 功能
 
@@ -33,6 +36,13 @@ dsh plugin --profile desktop add dsh-cite
 网页版把 `desktop` 改为 `web`；安装后重启对应的 DSH。宿主要求以包声明 `>=0.2.2-rc.3` 为准。
 
 ## 开始使用
+
+<picture>
+  <source media="(prefers-color-scheme: dark) and (max-width: 640px)" srcset="https://raw.githubusercontent.com/STARDUSTLC666/dsh-cite/master/docs/assets/intro/workflow-zh-mobile-dark.svg">
+  <source media="(max-width: 640px)" srcset="https://raw.githubusercontent.com/STARDUSTLC666/dsh-cite/master/docs/assets/intro/workflow-zh-mobile-light.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/STARDUSTLC666/dsh-cite/master/docs/assets/intro/workflow-zh-dark.svg">
+  <img src="https://raw.githubusercontent.com/STARDUSTLC666/dsh-cite/master/docs/assets/intro/workflow-zh-light.svg" alt="把零散 DOI 和 BibTeX 整理成可用的文献库。 · 流程示意" width="100%">
+</picture>
 
 1. 从左侧栏打开“引文库”，准备 DOI 列表或 BibTeX 文件。
 2. 先做本地导入预览，检查条目、重复项和字段，再保存选中的文献。

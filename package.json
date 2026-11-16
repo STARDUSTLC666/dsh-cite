@@ -1,7 +1,7 @@
 {
   "name": "dsh-cite",
-  "version": "0.7.10",
-  "description": "DSH 文献工作台：DOI / BibTeX 导入预览、去重、Crossref 补全、引文导出与来源备份。欢迎提交 issues 和 PR。",
+  "version": "0.8.0",
+  "description": "DeepSeek Harness 引文工作台。支持 DOI / BibTeX 导入去重、Crossref 核查与补全、引文导出和原始来源备份。",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",

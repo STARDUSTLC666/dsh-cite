@@ -102,6 +102,30 @@ test('Carrier origin checks and Desktop origin support guard every mutation', as
   assert.equal((await w.fetch(request({ origin: 'http://127.0.0.1:62041', host: '127.0.0.1:62041', 'sec-fetch-site': 'same-origin' }))).status, 200)
   assert.equal((await w.fetch(request({ origin: 'dsh-app://app', 'sec-fetch-site': 'cross-site' }))).status, 200)
 })
+test('Workbench DOI check uses the guarded browser route and leaves the library untouched', async t => {
+  const seen = []
+  const w = await workbench(t, async input => {
+    const doi = decodeURIComponent(new URL(input).pathname.slice('/works/'.length))
+    seen.push(doi)
+    return doi === '10.1000/found' ? payload(doi) : new Response(null, { status: 404 })
+  })
+  const body = JSON.stringify({ action: 'check', text: 'Draft text: 10.1000/found, 10.1000/missing and 10.1000/found.' })
+  const send = headers => w.fetch(new Request('http://127.0.0.1/api/dsh-cite/library', {
+    method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body,
+  }))
+  assert.equal((await send({})).status, 403)
+  assert.deepEqual(seen, [])
+  const response = await send({ 'x-dsh-cite': '1' })
+  assert.equal(response.status, 200)
+  const { value } = await response.json()
+  assert.equal(value.count, 2)
+  assert.deepEqual(value.results.map(row => [row.doi, row.ok]), [['10.1000/found', true], ['10.1000/missing', false]])
+  assert.equal(value.results[0].title, 'Provider title')
+  assert.match(value.results[1].errorEn, /DOI not found in Crossref/)
+  assert.deepEqual(seen, ['10.1000/found', '10.1000/missing'])
+  assert.equal((await w.list()).revision, 0)
+  await assert.rejects(access(w.store.file))
+})
 test('Tool cancellation before parsing performs no network request or file write', async t => {
   const w = await workbench(t), controller = new AbortController(); controller.abort(new Error('Stop now'))
   await assert.rejects(buildBatchTool(w).execute({ action: 'preview', kind: 'doi', text: '10.1000/a' }, { signal: controller.signal }), /Stop now/)

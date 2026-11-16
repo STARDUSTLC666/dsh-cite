@@ -2,7 +2,7 @@
 
 # Cite
 
-**把零散 DOI 和 BibTeX 整理成可用的文献库。**
+**在 DeepSeek Harness 中整理文献、核查 DOI 并导出引文。**
 
 [![npm](https://img.shields.io/npm/v/dsh-cite)](https://www.npmjs.com/package/dsh-cite) [![downloads](https://raw.githubusercontent.com/STARDUSTLC666/dsh-suite/npm-downloads/assets/dsh-cite-downloads.svg)](https://www.npmjs.com/package/dsh-cite) [![total downloads](https://raw.githubusercontent.com/STARDUSTLC666/dsh-suite/npm-downloads/assets/dsh-cite-total-downloads.svg)](https://www.npmjs.com/package/dsh-cite)
 
@@ -17,9 +17,10 @@
 
 ## 功能
 
-- 导入前查看重复项与缺失字段。
-- 主动从 Crossref 补全，核对差异后保留。
-- 导出引用文本、BibTeX 或包含来源的完整备份。
+- 在三栏文献库筛选、搜索和查看文献，复制引文或 BibTeX。
+- 导入 DOI 列表或 BibTeX 前，在本地预览重复项与缺失字段。
+- 通过 Crossref 核查文稿中的 DOI，或补全已存文献的空字段并查看差异。
+- 导出所选文献或全库引文，下载包含原始来源的完整备份。
 
 ## 安装
 

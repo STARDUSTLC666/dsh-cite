@@ -120,7 +120,22 @@ function executionSignal(exec: unknown): AbortSignal | undefined {
 }
 
 const CHECK_CONCURRENCY = 3
-const MAX_CHECKS = 50
+export const MAX_DOI_CHECKS = 50
+
+export async function checkDois(text: string, cfg: ResolvedCiteConfig, limit: number, fetchImpl?: FetchLike, signal?: AbortSignal) {
+  signal?.throwIfAborted()
+  const dois = extractDois(text).slice(0, limit)
+  const results = await mapWithConcurrency(dois, CHECK_CONCURRENCY, async (doi) => {
+    try {
+      const work = await lookupDoi(doi, cfg, fetchImpl, signal)
+      return { doi, ok: true, title: work.title, url: work.url }
+    } catch (error) {
+      signal?.throwIfAborted()
+      return { doi, ok: false, title: '', url: '', error: error instanceof Error ? error.message : String(error) }
+    }
+  }, signal)
+  return { count: results.length, results }
+}
 
 function workLabel(work: Work): string {
   const title = work.title !== '' ? work.title : '(无标题)'
@@ -227,21 +242,10 @@ export function buildCiteTools(cfg: ResolvedCiteConfig, fetchImpl?: FetchLike): 
     async execute(rawArgs: unknown, exec: unknown) {
       const args = (rawArgs ?? {}) as Record<string, unknown>
       const text = requiredString(args, 'text', '待检查文本')
-      const maxChecks = optionalInteger(args, 'maxChecks', '校验数量', 1, 50, 10)
-      const dois = extractDois(text).slice(0, maxChecks)
-      const signal = executionSignal(exec)
-      const results = await mapWithConcurrency(dois, CHECK_CONCURRENCY, async (doi) => {
-        try {
-          const work = await lookupDoi(doi, cfg, fetchImpl, signal)
-          return { doi, ok: true, title: work.title, url: work.url }
-        } catch (error) {
-          signal?.throwIfAborted()
-          return { doi, ok: false, title: '', url: '', error: error instanceof Error ? error.message : String(error) }
-        }
-      }, signal)
-      return { count: results.length, results }
+      const maxChecks = optionalInteger(args, 'maxChecks', '校验数量', 1, MAX_DOI_CHECKS, 10)
+      return checkDois(text, cfg, maxChecks, fetchImpl, executionSignal(exec))
     },
-    timeoutMs: cfg.timeoutMs * Math.ceil(MAX_CHECKS / CHECK_CONCURRENCY) + 5000,
+    timeoutMs: cfg.timeoutMs * Math.ceil(MAX_DOI_CHECKS / CHECK_CONCURRENCY) + 5000,
   }
 
   const citeHealth: CiteToolDefinition = {

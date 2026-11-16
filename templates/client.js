@@ -1,149 +1,337 @@
 // Editable browser entry. Build with node scripts/build-client.mjs.
-window.__ModuleLoader__.load({ id: 'dsh-cite', factory: require => {
-        const React = require('react'), { useState, useEffect, useRef } = React, h = React.createElement, route = 'api/dsh-cite/library';
-        const W = createWorkbenchUI(React);
-        let activeLang = 'zh', cache = { kind: 'doi', text: '', label: '', preview: null, chosen: [], selected: [], style: 'gb-t-7714', dirty: false, job: null };
-        const css = `.dcw{font:14px/1.65 system-ui,sans-serif;color:var(--fg,#203b42);min-width:0;padding:8px}.dcw *{box-sizing:border-box}.dcw h2{font-size:23px;margin:0}.dcw h3{font-size:17px;margin:0 0 10px}.dcw p{margin:8px 0}.dcw .muted{color:var(--fg-muted,#677881);font-size:13px}.dcw .bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:12px 0}.dcw button,.dcw .button{font:inherit;color:inherit;border:1px solid var(--border,#c5d5d4);border-radius:8px;padding:8px 12px;background:var(--bg-surface,#fff);text-decoration:none;cursor:pointer;white-space:normal}.dcw button.primary{background:#27695b;border-color:#27695b;color:white}.dcw button:disabled{opacity:.45;cursor:default}.dcw label{display:block;margin:10px 0 4px}.dcw input:not([type=checkbox]),.dcw textarea,.dcw select{font:inherit;color:inherit;width:100%;border:1px solid var(--border,#bfd1d0);border-radius:8px;background:var(--bg,#fff);padding:9px}.dcw input[type=checkbox]{accent-color:#27695b;width:18px;height:18px;flex-shrink:0}.dcw textarea{resize:vertical;min-height:140px}.dcw .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.dcw .card{border:1px solid var(--border,#c5d5d4);border-radius:12px;padding:14px;margin:12px 0;min-width:0;background:var(--bg-surface,#fff)}.dcw .notice{border-radius:8px;padding:10px;background:#eef5ed;color:#2a604a;overflow-wrap:anywhere}.dcw .error{background:#fff0ea;color:#943b27}.dcw .entry{padding:12px 0;border-top:1px solid var(--border,#d3dedd);overflow-wrap:anywhere}.dcw .entry:first-child{border-top:0}.dcw .choose{display:flex;align-items:flex-start;gap:10px;margin:0;cursor:pointer}.dcw .choose input{margin-top:4px}.dcw .choose>span{min-width:0}.dcw .tag{display:inline-block;margin:4px 5px 0 0;padding:2px 6px;border-radius:5px;font-size:12px;background:var(--bg-muted,#edf2f1)}.dcw .warn{color:#a65318}.dcw pre{font:13px/1.6 system-ui,sans-serif;white-space:pre-wrap;overflow-wrap:anywhere;max-height:220px;overflow:auto;margin:8px 0}.dcw details{margin-top:10px}.dcw summary{cursor:pointer}.dcw dl{display:grid;grid-template-columns:auto 1fr;gap:5px 14px}.dcw dt{font-weight:600}.dcw dd{margin:0;overflow-wrap:anywhere}.dcw progress{width:100%;height:12px}[role=dialog]:has(.dcw){width:min(1200px,calc(100vw - 40px))!important;max-width:1200px!important}@media(max-width:800px){.dcw{padding:3px}.dcw .grid{grid-template-columns:1fr}[role=dialog]:has(.dcw){width:100%!important;max-width:100%!important;flex-direction:column!important}[role=dialog]:has(.dcw)>nav+div{min-width:0;width:100%}[role=dialog]:has(.dcw)>nav+div>div:has(.dcw){padding:12px!important;min-width:0}[role=dialog]:has(.dcw) nav{width:100%!important;flex-basis:auto!important;border-right:0;max-height:170px;overflow:auto}[role=dialog]:has(.dcw) nav>div:has(>button){display:flex;flex-direction:row!important;flex-wrap:wrap;gap:4px}}`;
-        async function api(body) {
-            const r = await fetch(new URL(route, document.baseURI), { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json', 'x-dsh-cite': '1' }, body: JSON.stringify(body) });
-            let data;
-            try {
-                data = await r.json();
-            }
-            catch {
-                throw new Error(activeLang === 'en' ? 'Could not read the library response. Check whether DSH restarted, then retry.' : '无法读取文献库响应，请检查 DSH 是否已重启。');
-            }
-            if (!r.ok || !data.ok) {
-                const e = new Error(activeLang === 'en' ? data.messageEn || 'The operation could not be completed. Check the input or refresh and retry.' : data.message || '操作未完成');
-                e.status = r.status;
-                throw e;
-            }
-            return data.value;
-        }
-        function download(kind, style, lang, ids) { const u = new URL(route, document.baseURI); u.searchParams.set('kind', kind); if (style)
-            u.searchParams.set('style', style); if (lang)
-            u.searchParams.set('lang', lang); if (ids?.length)
-            u.searchParams.set('ids', ids.join(',')); return u.href; }
-        const authors = work => work.authors.map(a => a.name || [a.family, a.given].filter(Boolean).join(' ')).join(', ');
-        const valueText = v => Array.isArray(v) ? v.map(a => typeof a === 'object' ? a.name || [a.family, a.given].filter(Boolean).join(' ') : String(a)).join(', ') : String(v ?? '');
-        function Workbench({locale,workbench=false}={}) {
-const [activeTab,setActiveTab]=useState('library'),[citationError,setCitationError]=useState(''); const controlId=React.useId();
-            const [lang, setLang] = useState('zh'), [kind, setKind] = useState(cache.kind), [text, setText] = useState(cache.text), [label, setLabel] = useState(cache.label);
-            const [preview, setPreview] = useState(cache.preview), [chosen, setChosen] = useState(cache.chosen), [selected, setSelected] = useState(cache.selected), [style, setStyle] = useState(cache.style), [dirty, setDirty] = useState(cache.dirty);
-            const [library, setLibrary] = useState({ revision: 0, entries: [], sources: [] }), [job, setJob] = useState(cache.job), [busy, setBusy] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState(''), [conflict, setConflict] = useState(false), [search, setSearch] = useState(''), [limit, setLimit] = useState(50), [activeId, setActiveId] = useState(''), [citation, setCitation] = useState(''), [exportScope, setExportScope] = useState(selected.length ? 'selected' : 'all');
-            const busyRef = useRef(false), fileRef = useRef(null), dirtyRef = useRef(dirty);
-            dirtyRef.current = dirty;
-            const t = (zh, en) => lang === 'en' ? en : zh, running = job?.state === 'running', locked = busy || running;
-// Update protection: dsh-cite
-__stardustUpdatesGuard(React, "dsh-cite", { dirty, busy: locked, retainOnClose: true });
+window.__ModuleLoader__.load({
+  id: 'dsh-cite',
+  factory: require => {
+    const React = require('react');
+    const { useEffect, useMemo, useRef, useState } = React;
+    const h = React.createElement;
+    const W = createWorkbenchUI(React);
 
-            const warning = code => ({ missing_title: t('缺少标题', 'Missing title'), missing_authors: t('缺少作者', 'Missing authors'), missing_year: t('缺少年份', 'Missing year'), missing_doi: t('没有 DOI，无法在线补全', 'No DOI for online lookup'), long_citation_key: t('引用键过长，导出将使用短键', 'Long citation key; export uses a shorter key') }[code] || code);
-            const fieldName = key => ({ title: t('标题', 'Title'), authors: t('作者', 'Authors'), year: t('年份', 'Year'), containerTitle: t('期刊 / 文集', 'Journal / collection'), publisher: t('出版社', 'Publisher'), type: t('文献类型', 'Type'), volume: t('卷', 'Volume'), issue: t('期', 'Issue'), page: t('页码', 'Pages'), language: t('语言', 'Language'), url: 'URL', isbn: 'ISBN' }[key] || key);
-            useEffect(() => { const update = () => { activeLang = String(locale?.getSnapshot?.().active || '').startsWith('en') ? 'en' : 'zh'; setLang(activeLang); }; update(); return locale?.subscribe?.(update); }, [locale]);
-            useEffect(() => { cache = { kind, text, label, preview, chosen, selected, style, dirty, job }; }, [kind, text, label, preview, chosen, selected, style, dirty, job]);
-            useEffect(() => { const warn = e => { if (dirtyRef.current) {
-                e.preventDefault();
-                e.returnValue = '';
-            } }; window.addEventListener('beforeunload', warn); return () => window.removeEventListener('beforeunload', warn); }, []);
-            async function refresh() { const state = await api({ action: 'list' }); setLibrary(state); setSelected(old => old.filter(id => state.entries.some(e => e.id === id))); setJob(old => state.jobs.find(j => j.id === old?.id) || state.jobs.find(j => j.state === 'running') || state.jobs.at(-1) || null); }
-            useEffect(() => { refresh().catch(e => setError(e.message)); }, []);
-            useEffect(() => {
-                if (!running)
-                    return;
-                let live = true, polling = false;
-                const timer = setInterval(async () => { if (polling)
-                    return; polling = true; try {
-                    const next = await api({ action: 'job', job: job.id });
-                    if (!live)
-                        return;
-                    if (next.state !== 'running') {
-                        await refresh();
-                        if (live)
-                            setJob(next);
-                    }
-                    else
-                        setJob(next);
-                }
-                catch (e) {
-                    if (live) {
-                        setError(e.message);
-                        setJob(null);
-                    }
-                }
-                finally {
-                    polling = false;
-                } }, 1000);
-                return () => { live = false; clearInterval(timer); };
-            }, [job?.id, running]);
-            const referenceEntries=library.entries.filter(entry=>[entry.work.title,authors(entry.work),entry.work.doi,entry.work.year].join(' ').toLowerCase().includes(search.toLowerCase()));
-const referenceId=activeId && referenceEntries.some(entry=>entry.id===activeId)?activeId:referenceEntries[0]?.id;
-            useEffect(() => { let live = true; setCitation(''); setCitationError(''); if (referenceId)
-                api({ action: 'export', kind: 'references', ids: [referenceId], style, lang }).then(v => { if (live)
-                    setCitation(v.content); }).catch(e => { if (live)
-                    setCitationError(e.message); }); return () => { live = false; }; }, [referenceId, style, lang, library.revision]);
-            async function perform(fn) { if (busyRef.current)
-                return; busyRef.current = true; setBusy(true); setError(''); setNotice(''); try {
-                await fn();
-            }
-            catch (e) {
-                setError(e.message);
-                if (e.status === 409)
-                    setConflict(true);
-            }
-            finally {
-                busyRef.current = false;
-                setBusy(false);
-            } }
-            function changeInput(set, value) { set(value); setDirty(true); setPreview(null); setChosen([]); setConflict(false); }
-            async function parse() { const p = await api({ action: 'preview', kind, text, label }); setPreview(p); setChosen(p.rows.filter(r => r.selectedDefault).map(r => r.index)); setConflict(false); }
-            async function save() { const oldIds = new Set(library.entries.map(e => e.id)), state = await api({ action: 'import', preview: preview.id, selection: chosen }); setLibrary(state); const imported=state.entries.filter(e=>!oldIds.has(e.id)).map(e=>e.id);setSelected(imported);setActiveId(imported[0]||'');setSearch('');setLimit(50); setPreview(null); setChosen([]); setDirty(false); setConflict(false); setActiveTab('library'); setNotice(t('已保存 ' + chosen.length + ' 条。原始输入也已保留在完整备份中。', 'Saved entries: ' + chosen.length + '. Original input is preserved in the full backup.')); }
-            async function upload() { const file = fileRef.current?.files?.[0]; if (!file)
-                return; await perform(async () => { if (!/\.bib$/i.test(file.name))
-                throw new Error(t('请选择 .bib 文件。', 'Choose a .bib file.')); if (file.size > 256 * 1024)
-                throw new Error(t('文件超过 256 KiB，请拆分导入。', 'File exceeds 256 KiB. Split it before importing.')); const content = await file.text(); setKind('bibtex'); setText(content); setLabel(file.name); setPreview(null); setChosen([]); setDirty(true); setConflict(false); setNotice(t('文件已读取，点击“本地预览”检查后再保存。', 'File loaded. Choose Local preview before saving.')); }); fileRef.current.value = ''; }
-            function toggle(values, value, set) { set(values.includes(value) ? values.filter(v => v !== value) : [...values, value]); }
-            const filtered = library.entries.filter(e => [e.work.title, authors(e.work), e.work.doi, e.work.year].join(' ').toLowerCase().includes(search.toLowerCase())), visible = filtered.slice(0, limit);
-            // Export scope is explicit: the checks below describe exactly what the download links will contain.
-            const scopeEntries = exportScope === 'selected' ? library.entries.filter(entry => selected.includes(entry.id)) : library.entries;
-            const scopeMissing = { title: scopeEntries.filter(entry => !entry.work.title).length, authors: scopeEntries.filter(entry => !authors(entry.work)).length, year: scopeEntries.filter(entry => !entry.work.year).length };
-            const downloadLink = (format, zh, en) => scopeEntries.length ? h('a', { className: 'w-button', href: download(format, style, lang, format === 'backup' || exportScope === 'all' ? undefined : selected), download: '' }, t(zh, en)) : h('span', { className: 'w-muted' }, t('当前范围没有可下载的文献。', 'Nothing to download in this scope.'));
-            return h(W.Page,{workbench,title:t('引文库','Reference library'),subtitle:t('整理文献、核对来源并导出引文。','Organize references, inspect sources and export citations.'),className:'dcw cite-workbench',actions:h(React.Fragment,null,
- h(W.Button,{variant:'primary',icon:'plus',onClick:()=>setActiveTab('import')},t('导入文献','Import references')),h(W.Button,{icon:'download',onClick:()=>setActiveTab('export')},t('下载与备份','Downloads and backup')))},
- h('style',null,css),h('style',null,CITE_WORKBENCH_CSS),h(W.Status,{tone:'error'},conflict ? null : error),h(W.Status,{tone:'error'},citationError),h(W.Status,{tone:'success'},notice),conflict ? h(W.Status, { tone: 'error' }, h('div', null, h('p', null, t('库已在别处更新。当前输入仍保留，请重新预览当前输入再保存。', 'The library changed elsewhere. Your input is retained; preview the current input again before saving.')), h('div', { className: 'w-toolbar' }, h(W.Button, { icon: 'refresh', disabled: locked || !text.trim(), title: text.trim() ? undefined : t('先粘贴 DOI 或 BibTeX 输入。', 'Paste DOI or BibTeX input first.'), onClick: () => perform(async () => { await refresh(); await parse(); }) }, t('重新预览当前输入', 'Preview current input again'))))) : null,
- h(W.Tabs,{label:t('引文工作台视图','Reference workbench views'),value:activeTab,onChange:setActiveTab,items:[{id:'library',label:t('文献库','Library')},{id:'import',label:t('导入与预览','Import and preview')},{id:'export',label:t('引文与下载','Citations and downloads')}]},
- activeTab === 'import' ? h('div',{className:'cite-form-view'},h('div', null, h('div', { className: 'card' }, h('h3', null, t('导入与本地预览', 'Import and local preview')), h('label', { htmlFor: controlId+'-kind' }, t('输入类型', 'Input type')), h('select', { id: controlId+'-kind', value: kind, disabled: locked, onChange: e => changeInput(setKind, e.target.value) }, h('option', { value: 'doi' }, t('DOI 列表（每行一条）', 'DOI list (one per line)')), h('option', { value: 'bibtex' }, 'BibTeX / BibLaTeX')), h('label', { htmlFor: controlId+'-input' }, t('DOI / BibTeX 输入', 'DOI / BibTeX input')), h('textarea', { id: controlId+'-input', rows: 8, value: text, disabled: locked, spellCheck: false, onChange: e => changeInput(setText, e.target.value), placeholder: kind === 'doi' ? '10.1038/nature12345\nhttps://doi.org/10.1145/3368089.3409749' : '@article{key,\n  title={Your title},\n  author={Family, Given},\n  year={2026}\n}' }), h('label', { htmlFor: controlId+'-source' }, t('来源名称（可选）', 'Source name (optional)')), h('input', { id: controlId+'-source', value: label, maxLength: 160, disabled: locked, onChange: e => changeInput(setLabel, e.target.value) }), h('input', { ref: fileRef, type: 'file', accept: '.bib', style: { display: 'none' }, onChange: upload }), h('div', { className: 'w-toolbar' }, h(W.Button, { icon: 'upload', disabled: locked, onClick: () => fileRef.current.click() }, t('上传 .bib', 'Upload .bib')), h(W.Button, { variant: 'primary', icon: 'search', disabled: locked || !text.trim(), title: text.trim() ? undefined : t('先粘贴 DOI 或 BibTeX 输入。', 'Paste DOI or BibTeX input first.'), onClick: () => perform(parse) }, t('本地预览', 'Local preview'))), h('p', { className: 'muted' }, t('最多 256 KiB / 100 条；库最多 500 条。预览、去重和格式切换都不联网。上传仅读取文件，不改写原文件。', 'Up to 256 KiB / 100 entries per import; 500 in the library. Preview, deduplication and formatting are offline. Upload reads your file without changing it.')), dirty && h('p', { className: 'muted' }, t('当前输入尚未保存到文献库。关闭设置后输入仍保留。', 'Current input has not been saved. It is retained when you close settings.'))), preview && h('div', { className: 'card' }, h('h3', null, t('预览：选择要保存的文献', 'Preview: choose entries to save')), h('p', { className: 'muted' }, preview.label + ' · ' + t('已选 ', 'Selected ') + chosen.length + '/' + preview.rows.length), preview.rows.map(r => h('div', { className: 'entry', key: r.index }, h('label', { className: 'choose' }, h('input', { type: 'checkbox', checked: chosen.includes(r.index), disabled: locked || !!r.error || !!r.duplicate, 'aria-label': t('保存预览条目 ', 'Save preview entry ') + (r.index + 1), onChange: () => toggle(chosen, r.index, setChosen) }), h('span', null, h('strong', null, (r.index + 1) + '. ' + (r.work?.title || r.work?.doi || r.key)), r.work && h('div', { className: 'muted' }, [authors(r.work), r.work.year || '', r.work.doi].filter(Boolean).join(' · ')), r.duplicate && h('span', { className: 'tag warn' }, r.duplicate === 'library' ? t('DOI 已在库中，跳过', 'DOI already saved; skipped') : t('同批 DOI 重复，跳过', 'Repeated DOI in this batch; skipped')), r.candidate && h('span', { className: 'tag warn' }, t('可能重复，请核对后决定', 'Possible duplicate; review before selecting')), r.warnings.map(w => h('span', { key: w, className: 'tag warn' }, warning(w))), r.error && h('p', { className: 'notice error' }, t(r.error, r.errorEn || 'Invalid reference. Check the original input.')))))), h('div', { className: 'w-toolbar' }, h(W.Button, { variant: 'primary', icon: 'check', disabled: locked || conflict || !chosen.length, title: conflict ? t('库已更新，请重新预览后再保存。', 'The library changed; preview again before saving.') : !chosen.length ? t('先勾选要保存的条目。', 'Select entries to save first.') : undefined, onClick: () => perform(save) }, t('保存所选 ', 'Save selected ') + chosen.length), h(W.Button, { disabled: locked, onClick: () => { setPreview(null); setChosen([]); } }, t('返回输入', 'Back to input')))))) : activeTab === 'export' ? h('div',{className:'cite-form-view'},h('div', { className: 'card' },
- h('h3', null, t('导出前检查', 'Before you export')),
- h('fieldset', { className: 'cite-scope' }, h('legend', null, t('导出范围', 'Export scope')),
-  h('label', null, h('input', { type: 'radio', name: controlId + '-scope', checked: exportScope === 'all', disabled: locked, onChange: () => setExportScope('all') }), h('span', null, t('全部文献', 'Entire library') + ' · ' + library.entries.length + t(' 条', ' references'))),
-  h('label', null, h('input', { type: 'radio', name: controlId + '-scope', checked: exportScope === 'selected', disabled: locked || !selected.length, onChange: () => setExportScope('selected') }), h('span', null, t('仅所选', 'Selected only') + ' · ' + selected.length + t(' 条', ' references'))),
-  !selected.length ? h('p', { className: 'muted' }, t('在“文献库”里勾选条目后，可以选择只导出所选。', 'Select entries in Library to export a subset.')) : null),
- h('label', { htmlFor: controlId + '-style' }, t('引文格式（基本格式）', 'Citation style (basic)')),
- h('select', { id: controlId + '-style', value: style, onChange: e => setStyle(e.target.value) }, ['gb-t-7714', 'apa', 'mla', 'chicago'].map((value, i) => h('option', { value, key: value }, ['GB/T 7714', 'APA', 'MLA', 'Chicago'][i]))),
- h('ul', { className: 'cite-checks' },
-  h('li', null, t('范围：', 'Scope: ') + (exportScope === 'selected' ? t('所选 ', 'selected ') : t('全库 ', 'entire library ')) + scopeEntries.length + t(' 条文献', ' references')),
-  h('li', null, t('引文格式：', 'Citation style: ') + ({ 'gb-t-7714': 'GB/T 7714', apa: 'APA', mla: 'MLA', chicago: 'Chicago' }[style] || style)),
-  h('li', null, t('完整备份：始终包含全库与原始输入，不受范围影响。', 'Full backup: always the entire library with original sources, regardless of scope.'))),
- (scopeMissing.title || scopeMissing.authors || scopeMissing.year) ? h(W.Status, null, t('当前范围内有 ', 'In this scope: ') + scopeMissing.title + t(' 条缺标题、', ' without a title, ') + scopeMissing.authors + t(' 条缺作者、', ' without authors, ') + scopeMissing.year + t(' 条缺年份；导出仍会生成，提交前建议在文献库补全或从 Crossref 在线补全。', ' without a year. The export still works; fill the gaps in Library, optionally with Crossref enrichment, before submitting.')) : null,
- citation && h('pre', { 'aria-label': t('引文预览', 'Reference preview') }, citation),
- h('p', { className: 'muted' }, t('沿用原插件的四种基本格式；提交论文前请核对学校或期刊要求。上方可预览单条引文。', 'Uses the existing four basic styles. Check your institution or journal requirements before submission. Use an entry above to preview its reference.')),
- h('div', { className: 'w-toolbar' }, downloadLink('bibtex', '下载 BibTeX', 'Download BibTeX'), downloadLink('references', '下载参考文献文本', 'Download reference text'), downloadLink('backup', '完整备份（含原始来源）', 'Full backup (with original sources)')),
- h('p', { className: 'muted' }, t('完整备份始终包含全库及原始输入，不受选择范围影响。导出 BibTeX 使用互不重复的引用键；保留的原始来源用于核对未映射字段。', 'Full backup always includes the entire library and original input. BibTeX exports use unique citation keys. Original sources preserve fields that are not mapped into this workbench.'))),job && h('div', { className: job.state === 'failed' ? 'card notice error' : 'card', role: job.state === 'failed' ? 'alert' : 'status' }, h('h3', null, t('补全进度', 'Enrichment progress')), h('progress', { max: job.total || 1, value: job.completed, 'aria-label': t('补全进度', 'Enrichment progress') }), h('p', null, ({ running: t('查询中', 'Looking up'), done: t('已完成', 'Completed'), failed: t('未保存本次补全', 'Enrichment was not saved'), cancelled: t('已取消，原文献保留', 'Cancelled; saved entries preserved') }[job.state]) + ' · ' + job.completed + '/' + job.total), job.state === 'done' && h('p', null, t('已检查并保存 ', 'Entries checked and saved: ') + job.saved + t(' 条；失败 ', '; failed: ') + job.results.filter(r => !r.ok).length), job.message && h('p', { className: 'notice error' }, t(job.message, job.messageEn || 'The job could not be completed; saved entries are preserved.')), running && h(W.Button, { variant: 'ghost', disabled: busy, onClick: () => perform(async () => { await api({ action: 'cancel', job: job.id }); }) }, t('取消本次补全', 'Cancel enrichment')), h('details', null, h('summary', null, t('查看每条结果', 'Show individual results')), job.results.map(r => h('div', { className: 'entry', key: r.id }, h('strong', null, r.doi || t('没有 DOI', 'No DOI')), h('p', null, r.ok ? t('补全字段：', 'Fields filled: ') + (r.filled.length ? r.filled.map(fieldName).join(', ') : t('无需补全', 'none needed')) : t(r.error, r.errorEn || 'Lookup failed. Check the DOI or retry.')), r.conflicts?.length > 0 && h('p', { className: 'warn' }, t('有 ', 'Differences: ') + r.conflicts.length + t(' 项差异；请查看文献详情。', '; see entry details.'))))))) :
- h(CiteLibrary,{library,filtered,visible,selected,setSelected,search,setSearch,limit,setLimit,activeId,setActiveId,citation,style,setStyle,t,fieldName,warning,locked,refresh,perform,enrich:ids=>perform(async()=>setJob(await api({action:'enrich',ids,revision:library.revision}))),jobProgress:job && h('div', { className: job.state === 'failed' ? 'card notice error' : 'card', role: job.state === 'failed' ? 'alert' : 'status' }, h('h3', null, t('补全进度', 'Enrichment progress')), h('progress', { max: job.total || 1, value: job.completed, 'aria-label': t('补全进度', 'Enrichment progress') }), h('p', null, ({ running: t('查询中', 'Looking up'), done: t('已完成', 'Completed'), failed: t('未保存本次补全', 'Enrichment was not saved'), cancelled: t('已取消，原文献保留', 'Cancelled; saved entries preserved') }[job.state]) + ' · ' + job.completed + '/' + job.total), job.state === 'done' && h('p', null, t('已检查并保存 ', 'Entries checked and saved: ') + job.saved + t(' 条；失败 ', '; failed: ') + job.results.filter(r => !r.ok).length), job.message && h('p', { className: 'notice error' }, t(job.message, job.messageEn || 'The job could not be completed; saved entries are preserved.')), running && h(W.Button, { variant: 'ghost', disabled: busy, onClick: () => perform(async () => { await api({ action: 'cancel', job: job.id }); }) }, t('取消本次补全', 'Cancel enrichment')), h('details', null, h('summary', null, t('查看每条结果', 'Show individual results')), job.results.map(r => h('div', { className: 'entry', key: r.id }, h('strong', null, r.doi || t('没有 DOI', 'No DOI')), h('p', null, r.ok ? t('补全字段：', 'Fields filled: ') + (r.filled.length ? r.filled.map(fieldName).join(', ') : t('无需补全', 'none needed')) : t(r.error, r.errorEn || 'Lookup failed. Check the DOI or retry.')), r.conflicts?.length > 0 && h('p', { className: 'warn' }, t('有 ', 'Differences: ') + r.conflicts.length + t(' 项差异；请查看文献详情。', '; see entry details.')))))),onImport:()=>setActiveTab('import')})));
+    let primitives;
+    try {
+      primitives = require('@deepseek-ai/dsh-client-ui-primitives');
+    } catch {
+      // The shared styles and standard form controls support partial hosts.
+    }
+
+    const route = 'api/dsh-cite/library';
+    const emptyLibrary = { revision: 0, entries: [], sources: [] };
+    const pageSize = 50;
+    let draft = {
+      kind: 'doi', text: '', label: '', preview: null, chosen: [],
+      selected: [], style: 'gb-t-7714', dirty: false, conflict: false,
+    };
+
+    function language(locale) {
+      return String(locale?.getSnapshot?.().active || '').startsWith('en') ? 'en' : 'zh';
+    }
+
+    async function api(body, lang, signal) {
+      const response = await fetch(new URL(route, document.baseURI), {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'content-type': 'application/json', 'x-dsh-cite': '1' },
+        body: JSON.stringify(body),
+        signal,
+      });
+      let data;
+      try {
+        data = await response.json();
+      } catch {
+        signal?.throwIfAborted();
+        throw new Error(lang === 'en'
+          ? 'Could not read the library response. Check whether DSH restarted, then retry.'
+          : '无法读取文献库响应，请检查 DSH 是否已重启。');
+      }
+      if (!response.ok || !data.ok) {
+        const error = new Error(lang === 'en'
+          ? data.messageEn || 'The operation could not be completed. Check the input or refresh and retry.'
+          : data.message || '操作未完成。');
+        error.status = response.status;
+        throw error;
+      }
+      return data.value;
+    }
+
+    function download(kind, style, lang, ids) {
+      const url = new URL(route, document.baseURI);
+      url.searchParams.set('kind', kind);
+      url.searchParams.set('style', style);
+      url.searchParams.set('lang', lang);
+      if (ids?.length) url.searchParams.set('ids', ids.join(','));
+      return url.href;
+    }
+
+    function Workbench({ locale, workbench = false } = {}) {
+      const [lang, setLang] = useState(() => language(locale));
+      const [activeTab, setActiveTab] = useState('library');
+      const [library, setLibrary] = useState(null);
+      const [job, setJob] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [busy, setBusy] = useState(false);
+      const [error, setError] = useState('');
+      const [notice, setNotice] = useState('');
+      const [search, setSearch] = useState('');
+      const [filter, setFilter] = useState('all');
+      const [limit, setLimit] = useState(pageSize);
+      const [activeId, setActiveId] = useState('');
+      const [exportScope, setExportScope] = useState(() => draft.selected.length ? 'selected' : 'all');
+      const [checkText, setCheckText] = useState('');
+      const [checkReport, setCheckReport] = useState(null);
+      const [form, setForm] = useState(draft);
+      const { kind, text, label, preview, chosen, selected, style, dirty, conflict } = form;
+
+      const busyRef = useRef(false);
+      const dirtyRef = useRef(dirty);
+      const t = (zh, en) => lang === 'en' ? en : zh;
+      const jobId = job?.id;
+      const running = job?.state === 'running';
+      const locked = loading || busy || running;
+
+      const updateForm = values => setForm(old => ({ ...old, ...values }));
+      const setSelected = ids => updateForm({ selected: ids });
+      const setStyle = value => updateForm({ style: value });
+
+      // Update protection: dsh-cite
+      __stardustUpdatesGuard(React, "dsh-cite", { dirty, busy: locked, retainOnClose: true });
+
+      useEffect(() => {
+        const update = () => setLang(language(locale));
+        update();
+        return locale?.subscribe?.(update);
+      }, [locale]);
+      useEffect(() => {
+        draft = form;
+        dirtyRef.current = dirty;
+      }, [form, dirty]);
+      useEffect(() => {
+        function warn(event) {
+          if (!dirtyRef.current) return;
+          event.preventDefault();
+          event.returnValue = '';
         }
-        function apply(ctx) { let locale; try {
-            locale = ctx.get?.('locale') || ctx.locale;
+        window.addEventListener('beforeunload', warn);
+        return () => window.removeEventListener('beforeunload', warn);
+      }, []);
+
+      async function refresh(signal) {
+        const state = await api({ action: 'list' }, lang, signal);
+        if (signal?.aborted) return;
+        const ids = new Set(state.entries.map(entry => entry.id));
+        setLibrary(state);
+        setForm(old => ({ ...old, selected: old.selected.filter(id => ids.has(id)) }));
+        setJob(old => state.jobs.find(item => item.state === 'running')
+          || state.jobs.find(item => item.id === old?.id)
+          || state.jobs.at(-1) || null);
+      }
+
+      useEffect(() => {
+        const controller = new AbortController();
+        refresh(controller.signal)
+          .catch(err => { if (!controller.signal.aborted) setError(err.message); })
+          .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+        return () => controller.abort();
+      }, []);
+      useEffect(() => {
+        if (!running) return;
+        const controller = new AbortController();
+        let polling = false;
+        const timer = setInterval(async () => {
+          if (polling) return;
+          polling = true;
+          try {
+            const next = await api({ action: 'job', job: jobId }, lang, controller.signal);
+            if (controller.signal.aborted) return;
+            if (next.state !== 'running') {
+              // Keep the job's real result visible even if the library refresh fails.
+              await refresh(controller.signal).catch(err => {
+                if (!controller.signal.aborted) setError(err.message);
+              });
+            }
+            if (!controller.signal.aborted) setJob(next);
+          } catch (err) {
+            if (!controller.signal.aborted) {
+              setError(err.message);
+              setJob(null);
+            }
+          } finally {
+            polling = false;
+          }
+        }, 1000);
+        return () => { clearInterval(timer); controller.abort(); };
+      }, [jobId, running, lang]);
+
+      async function perform(action, importing = false) {
+        if (busyRef.current) return;
+        busyRef.current = true;
+        setBusy(true);
+        setError('');
+        setNotice('');
+        try {
+          await action();
+        } catch (err) {
+          if (importing && err.status === 409) updateForm({ conflict: true });
+          else setError(err.message);
+        } finally {
+          busyRef.current = false;
+          setBusy(false);
         }
-        catch { } const label=()=>String(locale?.getSnapshot?.().active || activeLang).startsWith('en')?'Reference library':'引文库';
-        ctx.effect(() => {
-          let live = true; const controller = new AbortController();
-          const timer = setTimeout(() => controller.abort(), 5000);
-          fetch(new URL('api/dsh-cite/preferences', document.baseURI), { credentials: 'same-origin', signal: controller.signal })
-            .then(response => { if (!response.ok) throw new Error('Unavailable preferences'); return response.json(); })
-            .then(value => { if (live && value.hideWorkbench !== true) W.register(ctx,{id:'dsh-cite.workbench',label,icon:'book',component:Workbench,inject:()=>({locale}),order:64}); })
-            .catch(() => { if (live) W.register(ctx,{id:'dsh-cite.workbench',label,icon:'book',component:Workbench,inject:()=>({locale}),order:64}); })
-            .finally(() => clearTimeout(timer));
-          return () => { live = false; clearTimeout(timer); controller.abort(); };
-        }, 'dsh-cite: workbench visibility');
-ctx.slots.inject('settings.section', () => ctx.slots.register({ name: 'settings.section', id: 'dsh-cite', order: 64, label, inject: () => ({ locale }) }, Workbench)); }
-        return { inject: ['slots', 'locale'], apply };
-    } });
+      }
+
+      function changeImport(values) {
+        updateForm({ ...values, dirty: true, preview: null, chosen: [], conflict: false });
+        setError('');
+        setNotice('');
+      }
+
+      async function parse() {
+        const result = await api({ action: 'preview', kind, text, label }, lang);
+        updateForm({
+          preview: result,
+          chosen: result.rows.filter(row => row.selectedDefault).map(row => row.index),
+          conflict: false,
+        });
+      }
+
+      const { entries, sources, revision } = library || emptyLibrary;
+      async function save() {
+        const oldIds = new Set(entries.map(entry => entry.id));
+        const result = await api({ action: 'import', preview: preview.id, selection: chosen }, lang);
+        const imported = result.entries.filter(entry => !oldIds.has(entry.id)).map(entry => entry.id);
+        setLibrary(result);
+        updateForm({ preview: null, chosen: [], selected: imported, dirty: false, conflict: false });
+        setActiveId(imported[0] || '');
+        setFilter('all');
+        setSearch('');
+        const firstImported = result.entries.findIndex(entry => entry.id === imported[0]);
+        setLimit(Math.max(pageSize, Math.ceil((firstImported + 1) / pageSize) * pageSize));
+        setActiveTab('library');
+        setNotice(t('已保存 ' + chosen.length + ' 条文献，原始输入已纳入完整备份。',
+          'Saved ' + chosen.length + ' references. The full backup includes the original input.'));
+      }
+
+      function enrich(ids) {
+        return perform(async () => setJob(await api({ action: 'enrich', ids, revision }, lang)));
+      }
+
+      async function upload(event) {
+        const input = event.currentTarget;
+        const file = input.files?.[0];
+        input.value = '';
+        if (!file) return;
+        await perform(async () => {
+          if (!/\.bib$/i.test(file.name)) throw new Error(t('请选择 .bib 文件。', 'Choose a .bib file.'));
+          if (file.size > 256 * 1024) throw new Error(t('文件超过 256 KiB，请拆分导入。', 'File exceeds 256 KiB. Split it before importing.'));
+          changeImport({ kind: 'bibtex', text: await file.text(), label: file.name.slice(0, 160) });
+        });
+      }
+
+      async function copy(value, format) {
+        try {
+          await navigator.clipboard.writeText(value);
+          setError('');
+          setNotice(t('已复制' + format + '。', 'Copied ' + format + '.'));
+        } catch {
+          setNotice('');
+          setError(t('无法访问剪贴板，请从预览中手动复制。', 'Clipboard access is unavailable. Copy from the preview.'));
+        }
+      }
+
+      const tabs = [
+        { id: 'library', label: t('引文库', 'Library'), count: library ? entries.length : undefined },
+        { id: 'import', label: t('导入预览', 'Import') },
+        { id: 'check', label: t('DOI 核查', 'DOI check') },
+        { id: 'export', label: t('导出备份', 'Export') },
+      ];
+      const onImport = () => setActiveTab('import');
+
+      let panel;
+      switch (activeTab) {
+        case 'import':
+          panel = h(CiteImport, {
+            t, locked, kind, text, label, preview, chosen, dirty, conflict, changeImport, upload,
+            onPreview: () => perform(parse),
+            onRetry: () => perform(async () => { await refresh(); await parse(); }),
+            onSave: () => perform(save, true),
+            onChoose: indices => updateForm({ chosen: indices }),
+            onBack: () => updateForm({ preview: null, chosen: [], conflict: false }),
+          });
+          break;
+        case 'check':
+          panel = h(CiteCheck, {
+            t, lang, text: checkText, report: checkReport, onReport: setCheckReport,
+            onChange: value => { setCheckText(value); setCheckReport(null); },
+          });
+          break;
+        case 'export':
+          panel = h(CiteExport, {
+            t, lang, entries, selected, style, setStyle, revision, scope: exportScope, onScope: setExportScope,
+          });
+          break;
+        default:
+          panel = h(CiteLibrary, {
+            t, lang, entries, sources, revision, loading, loaded: !!library, locked, selected, setSelected, style, setStyle,
+            filter, search, limit, activeId, setActiveId, onImport, enrich, copy,
+            onSearch: value => { setSearch(value); setActiveId(''); setLimit(pageSize); },
+            onFilter: value => { setFilter(value); setActiveId(''); setLimit(pageSize); },
+            onMore: () => setLimit(n => n + pageSize),
+            onRefresh: () => perform(refresh),
+          });
+      }
+
+      return h('section', { className: 'dshw cite-workbench', 'data-main': workbench },
+        h(W.Styles),
+        h('style', null, CITE_WORKBENCH_CSS),
+        h('div', { className: 'cite-shell' },
+          h('h1', { className: 'cite-brand' }, h('span', { className: 'cite-brand-icon' }, h(W.Icon, { name: 'book', size: 15 })), 'dsh-cite'),
+          h(CiteButton, {
+            className: 'cite-quick-import', variant: 'primary', icon: 'plus', onClick: onImport,
+          }, t('导入 DOI / BibTeX', 'Import DOI / BibTeX')),
+          h(W.Tabs, { label: t('引文工作台', 'Citation workbench'), items: tabs, value: activeTab, onChange: setActiveTab },
+            error || notice || job ? h('div', { className: 'cite-feedback' },
+              error ? h(CiteMessage, { tone: 'error', onClose: () => setError(''), t }, error) : null,
+              notice ? h(CiteMessage, { tone: 'success', onClose: () => setNotice(''), t }, notice) : null,
+              job ? h(CiteEnrichment, {
+                t, job, busy, onDismiss: () => setJob(null),
+                onCancel: () => perform(async () => { await api({ action: 'cancel', job: job.id }, lang); }),
+              }) : null,
+            ) : null,
+            panel,
+          ),
+        ),
+      );
+    }
+
+    function apply(ctx) {
+      let locale;
+      try {
+        locale = ctx.get?.('locale') || ctx.locale;
+      } catch {}
+      const label = () => language(locale) === 'en' ? 'Reference library' : '引文库';
+
+      ctx.effect(() => {
+        let live = true;
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 5000);
+        function register() {
+          if (live) W.register(ctx, { id: 'dsh-cite.workbench', label, icon: 'book', component: Workbench, inject: () => ({ locale }), order: 64 });
+        }
+        fetch(new URL('api/dsh-cite/preferences', document.baseURI), { credentials: 'same-origin', signal: controller.signal })
+          .then(response => {
+            if (!response.ok) throw new Error('Unavailable preferences');
+            return response.json();
+          })
+          .then(value => { if (value.hideWorkbench !== true) register(); })
+          .catch(register)
+          .finally(() => clearTimeout(timer));
+        return () => { live = false; clearTimeout(timer); controller.abort(); };
+      }, 'dsh-cite: workbench visibility');
+
+      ctx.slots.inject('settings.section', () => ctx.slots.register({
+        name: 'settings.section', id: 'dsh-cite', order: 64, label, inject: () => ({ locale }),
+      }, Workbench));
+    }
+
+    return { inject: ['slots', 'locale'], apply };
+  },
+});

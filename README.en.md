@@ -2,7 +2,7 @@
 
 # Cite
 
-**Turn scattered DOIs and BibTeX into a reference library.**
+**Organize references, check DOIs, and export citations in DeepSeek Harness.**
 
 [![npm](https://img.shields.io/npm/v/dsh-cite)](https://www.npmjs.com/package/dsh-cite) [![downloads](https://raw.githubusercontent.com/STARDUSTLC666/dsh-suite/npm-downloads/assets/dsh-cite-downloads.svg)](https://www.npmjs.com/package/dsh-cite) [![total downloads](https://raw.githubusercontent.com/STARDUSTLC666/dsh-suite/npm-downloads/assets/dsh-cite-total-downloads.svg)](https://www.npmjs.com/package/dsh-cite)
 
@@ -17,9 +17,10 @@
 
 ## Features
 
-- Inspect duplicates and missing fields before saving.
-- Explicitly enrich through Crossref and inspect differences.
-- Export reference text, BibTeX or a full backup with sources.
+- Filter, search, and inspect references in a three-pane library. Copy a formatted citation or its BibTeX entry.
+- Preview duplicates and missing fields locally before importing a DOI list or BibTeX.
+- Check manuscript DOIs against Crossref, or fill gaps in saved references and review differences.
+- Export selected references or the entire library. Download a full backup with the original sources.
 
 ## Install
 

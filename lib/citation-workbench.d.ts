@@ -94,6 +94,7 @@ export declare class CitationWorkbench {
     job(id: unknown): EnrichmentJob;
     cancel(id: unknown): EnrichmentJob;
     dispose(): void;
+    private check;
     export(kind: unknown, style: unknown, lang: unknown, rawIds?: unknown): Promise<{
         filename: string;
         type: string;

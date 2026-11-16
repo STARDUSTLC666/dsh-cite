@@ -1,5 +1,12 @@
 # 更新记录
 
+## 0.8.0 (2026-11-16)
+
+- 新版原生引文工作台包含格式与状态筛选、文献列表和详情三栏，支持在详情复制当前格式的引文或 BibTeX。窄屏可以在列表和详情之间切换。
+- 新增 DOI 核查页，按首次出现的顺序向 Crossref 查询前 50 个唯一 DOI。导入页保留去重预览和冲突恢复，导出页支持按范围检查和下载。
+- The native workbench has panes for format and status filters, the reference list, and details. Copy a formatted citation or BibTeX from the details pane. Narrow layouts let you switch between the list and details.
+- The DOI check tab queries Crossref for the first 50 unique DOIs in order of appearance. The import tab previews duplicates and recovers from save conflicts. The export tab checks and downloads the chosen scope.
+
 ## 0.7.10 (2026-11-14)
 
 - 适配 DSH 0.2.2-rc.3：最低 Harness 版本声明提升至 0.2.2-rc.3，运行时代码未变。

@@ -3,9 +3,9 @@ import { lookupDoi, type FetchLike, type Work } from './crossref.js'
 import { buildBibtex, buildCitation, readStyle } from './format.js'
 import { parseCitationInput } from './citation-parser.js'
 import { CitationStore } from './citation-store.js'
-import { LibraryConflict, candidateKey, citationId, normalizeWork, readImportInput, readSelection, workWarnings, type ImportInput, type ImportRow, type FieldConflict } from './citation-model.js'
+import { LibraryConflict, MAX_INPUT_BYTES, candidateKey, citationId, normalizeWork, readImportInput, readSelection, workWarnings, type ImportInput, type ImportRow, type FieldConflict } from './citation-model.js'
 import { type ResolvedCiteConfig } from './config.js'
-import { type CiteToolDefinition } from './tools.js'
+import { checkDois, MAX_DOI_CHECKS, type CiteToolDefinition } from './tools.js'
 import { englishCitationError } from './citation-errors.js'
 
 interface Preview { id: string; revision: number; rows: ImportRow[]; createdAt: number; input: ImportInput }
@@ -120,6 +120,13 @@ export class CitationWorkbench {
   job(id: unknown): EnrichmentJob { this.live(); const j = this.jobs.get(citationId(id)); if (!j) throw new Error('任务不存在或 DSH 已重启。文献仍保留，请刷新。'); return structuredClone(j.view) }
   cancel(id: unknown): EnrichmentJob { this.live(); const j = this.jobs.get(citationId(id)); if (!j) throw new Error('任务不存在。'); if (j.view.state === 'running') j.controller.abort(); return structuredClone(j.view) }
   dispose(): void { this.lifetime.abort(new Error('插件已卸载。')); for (const j of this.jobs.values()) j.controller.abort() }
+  private async check(text: unknown, signal: AbortSignal) {
+    this.live()
+    if (typeof text !== 'string' || !text.trim()) throw new Error('请粘贴待核查的文本。')
+    if (Buffer.byteLength(text) > MAX_INPUT_BYTES) throw new Error('核查文本不能超过 256 KiB。')
+    const { count, results } = await checkDois(text, this.cfg, MAX_DOI_CHECKS, this.fetchImpl, AbortSignal.any([signal, this.lifetime.signal]))
+    return { count, results: results.map(row => row.error ? { ...row, errorEn: englishCitationError(row.error) } : row) }
+  }
   async export(kind: unknown, style: unknown, lang: unknown, rawIds?: unknown) {
     this.live()
     const state = await this.store.read(), ids = rawIds === undefined ? undefined : readSelection(rawIds)
@@ -163,7 +170,11 @@ export class CitationWorkbench {
       if (request.headers.get('x-dsh-cite') !== '1') return Response.json({ ok: false, message: '操作来源无效。' }, { status: 403 })
       if (!request.headers.get('content-type')?.startsWith('application/json')) throw new Error('请求格式无效。')
       const text = await request.text(); if (Buffer.byteLength(text) > 2 * 1024 * 1024) throw new Error('请求超过容量限制，请拆分输入。')
-      return Response.json({ ok: true, value: await this.dispatch(JSON.parse(text), request.signal) }, { headers: { 'cache-control': 'no-store' } })
+      const input = JSON.parse(text)
+      const value = input?.action === 'check'
+        ? await this.check(input.text, request.signal)
+        : await this.dispatch(input, request.signal)
+      return Response.json({ ok: true, value }, { headers: { 'cache-control': 'no-store' } })
     } catch (e) { return Response.json({ ok: false, message: message(e), messageEn: englishCitationError(message(e)) }, { status: e instanceof LibraryConflict ? 409 : 400, headers: { 'cache-control': 'no-store' } }) }
   }
 }

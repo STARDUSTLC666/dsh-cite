@@ -25,4 +25,21 @@ export interface CiteToolDefinition {
     execute(args: unknown, exec: unknown): Promise<unknown>;
     timeoutMs?: number;
 }
+export declare const MAX_DOI_CHECKS = 50;
+export declare function checkDois(text: string, cfg: ResolvedCiteConfig, limit: number, fetchImpl?: FetchLike, signal?: AbortSignal): Promise<{
+    count: number;
+    results: ({
+        doi: string;
+        ok: boolean;
+        title: string;
+        url: string;
+        error?: undefined;
+    } | {
+        doi: string;
+        ok: boolean;
+        title: string;
+        url: string;
+        error: string;
+    })[];
+}>;
 export declare function buildCiteTools(cfg: ResolvedCiteConfig, fetchImpl?: FetchLike): CiteToolDefinition[];

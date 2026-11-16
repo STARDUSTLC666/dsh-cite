@@ -1,8 +1,8 @@
 # dsh-cite 工作台 / Workbench
 
-引文主工作台，文献列表、元数据、来源与引文预览分栏；搜索与导入后的选中状态一致。
+引文库分为格式与状态筛选、文献列表、详情三栏。可按 DOI、标题、作者或引用键搜索，并在详情复制当前格式的引文或 BibTeX。
 
-Reference workbench with list/detail metadata, sources and matching citation previews after search or import.
+The library has three panes for format and status filters, references, and details. Search by DOI, title, author, or citation key. Copy the formatted citation or BibTeX from the details pane.
 
 ## 使用 / Use
 
@@ -16,7 +16,7 @@ The UI follows host language and theme without translating user content. Narrow 
 
 ## 导出前检查与冲突 / Export checks and conflicts
 
-「引文与下载」页先显示导出前检查，再给下载链接：可切换「全部文献 / 仅所选」，列出当前范围的条数、引文格式、缺标题 / 作者 / 年份的条目数，并说明完整备份始终包含全库与原始输入。条数与缺失字段来自本地文献库，切换范围立即重算；空库时下载位置给出说明而不是无效按钮。
+「导出备份」支持切换「全部文献 / 仅所选」。切换范围会更新文献条数、引文预览，以及缺少标题、作者或年份的条目数。完整备份始终包含全库与原始输入。
 
 The downloads tab shows a pre-export check before the links: switch between the entire library and the current selection, read the entry count, citation style, counts of entries missing title/authors/year, and the note that full backup always covers the whole library with original sources. Counts come from the local library and recompute when the scope changes; an empty library explains itself instead of showing inert buttons.
 
@@ -24,9 +24,13 @@ The downloads tab shows a pre-export check before the links: switch between the 
 
 A concurrent-save conflict is shown as an error status that names what happened, keeps the input, and offers one recovery path (preview the current input again). Saving stays disabled with a stated reason, so the same stale revision cannot be resubmitted.
 
+「DOI 核查」页复用 `cite_check` 的校验逻辑。点击核查后，按首次出现顺序向 Crossref 查询前 50 个唯一 DOI。核查以只读方式运行。
+
+The DOI check tab uses the same validation as `cite_check` to look up the first 50 unique DOIs in order of appearance. Checking is read-only.
+
 ## 源码 / Source
 
-编辑 templates/client.js、templates/panels/*.js 与 templates/workbench-ui.js，运行 pnpm run build。lib/client.js 是确定性产物，请随源码提交。公共组件的规范源位于 dsh-suite/ui/workbench-ui.js，Suite 的同步脚本显式分发副本；单个仓库可独立构建和安装。
+编辑 templates/client.js、templates/panels/*.js 和 templates/workbench.css，运行 pnpm run build。lib/client.js 是确定性产物，请随源码提交。公共组件的规范源位于 dsh-suite/ui/workbench-ui.js，Suite 的同步脚本显式分发副本；单个仓库可独立构建和安装。
 
 Edit the template sources and run pnpm run build. Commit generated lib/client.js with source changes. The vendored UI has no Suite runtime dependency.
 

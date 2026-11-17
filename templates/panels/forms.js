@@ -2,7 +2,7 @@ function CiteImport({
   t, locked, kind, text, label, preview, chosen, dirty, conflict,
   changeImport, upload, onPreview, onChoose, onRetry, onSave, onBack,
 }) {
-  const id = typeof React.useId === 'function' ? React.useId() : 'cite-import';
+  const id = React.useId();
   const file = useRef(null);
   const inputLabel = t('DOI / BibTeX 输入', 'DOI / BibTeX input');
   const noInput = !text.trim();
@@ -15,33 +15,23 @@ function CiteImport({
       h(CiteCard, {
         title: t('批量输入', 'Batch input'),
         actions: h('div', { className: 'cite-actions' },
-          h(CiteButton, { icon: 'upload', disabled: locked, onClick: () => file.current?.click() }, t('上传 .bib', 'Upload .bib')),
+          h(CiteButton, { icon: 'upload', disabled: locked, onClick: () => file.current.click() }, t('上传 .bib', 'Upload .bib')),
           h(CiteButton, { variant: 'primary', type: 'submit', icon: 'search', disabled: locked || noInput || conflict }, t('本地预览', 'Local preview')),
         ),
       },
         h('div', { className: 'cite-form-grid' },
           h('div', null,
-            h('span', { className: 'cite-label' }, t('输入类型', 'Input type')),
-            h(CiteSegmented, {
-              id: id + '-kind',
-              label: t('输入类型', 'Input type'),
-              value: kind,
-              disabled: locked,
-              options: [
-                { value: 'doi', label: t('DOI 列表', 'DOI list') },
-                { value: 'bibtex', label: 'BibTeX / BibLaTeX' },
-              ],
+            h('label', { className: 'cite-label', htmlFor: id + '-kind' }, t('输入类型', 'Input type')),
+            h(CitePicker, {
+              id: id + '-kind', label: t('输入类型', 'Input type'), value: kind, disabled: locked,
+              options: [{ id: 'doi', label: t('DOI 列表（每行一条）', 'DOI list (one per line)') }, { id: 'bibtex', label: 'BibTeX / BibLaTeX' }],
               onChange: value => changeImport({ kind: value }),
             }),
           ),
           h('div', null,
             h('label', { className: 'cite-label', htmlFor: id + '-source' }, t('来源名称（可选）', 'Source name (optional)')),
-            h(CiteInput, {
-              id: id + '-source',
-              value: label,
-              maxLength: 160,
-              disabled: locked,
-              placeholder: t('例如：开题参考文献', 'e.g. Manuscript draft'),
+            h('input', {
+              id: id + '-source', className: 'cite-field', value: label, maxLength: 160, disabled: locked,
               onChange: event => changeImport({ label: event.target.value }),
             }),
           ),
@@ -70,23 +60,21 @@ function CiteImport({
     preview ? h(CiteCard, {
       title: t('导入预览', 'Import preview'),
       actions: h('div', { className: 'cite-actions' },
-        h(CiteButton, { variant: 'ghost', icon: 'left', disabled: locked || conflict, onClick: onBack }, t('返回输入', 'Back to input')),
+        h(CiteButton, { variant: 'ghost', disabled: locked || conflict, onClick: onBack }, t('返回输入', 'Back to input')),
         h(CiteButton, {
           variant: 'primary', icon: 'check', disabled: locked || conflict || chosen.length === 0, onClick: onSave,
         }, t('保存所选 ', 'Save selected ') + chosen.length),
       ),
     },
       h('p', { className: 'cite-muted', role: 'status' }, preview.label + ' · ' + t('已选 ', 'Selected ') + chosen.length + '/' + preview.rows.length),
-      h('ul', { className: 'cite-plain-list' }, preview.rows.map(row => h('li', { key: row.index, 'data-dsh-row': '' },
-        h('div', { className: 'cite-preview-row' },
-          h(CiteCheckbox, {
-            checked: chosenRows.has(row.index),
-            disabled: locked || !!row.error || !!row.duplicate,
-            hiddenLabel: true,
-            label: t('保存预览条目 ', 'Save preview entry ') + (row.index + 1),
-            onChange: checked => onChoose(checked ? [...chosen, row.index] : chosen.filter(index => index !== row.index)),
+      h('ul', { className: 'cite-plain-list' }, preview.rows.map(row => h('li', { key: row.index },
+        h('label', { className: 'cite-preview-row' },
+          h('input', {
+            type: 'checkbox', checked: chosenRows.has(row.index), disabled: locked || !!row.error || !!row.duplicate,
+            'aria-label': t('保存预览条目 ', 'Save preview entry ') + (row.index + 1),
+            onChange: event => onChoose(event.target.checked ? [...chosen, row.index] : chosen.filter(index => index !== row.index)),
           }),
-          h('span', { className: 'cite-preview-content' },
+          h('span', null,
             h('strong', null, row.work?.title || row.work?.doi || row.key),
             row.work ? h('span', { className: 'cite-preview-meta' }, [authors(row.work), row.work.year, row.work.doi].filter(Boolean).join(' · ')) : null,
             h('span', { className: 'cite-chips' },
@@ -104,7 +92,7 @@ function CiteImport({
 }
 
 function CiteCheck({ t, lang, text, report, onReport, onChange }) {
-  const id = typeof React.useId === 'function' ? React.useId() : 'cite-check';
+  const id = React.useId();
   const request = useRef(null);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState('');
@@ -152,7 +140,7 @@ function CiteCheck({ t, lang, text, report, onReport, onChange }) {
     h('form', { onSubmit: submit },
       h(CiteCard, {
         title: t('核查输入', 'Text to check'),
-        actions: running ? h(CiteButton, { icon: 'close', onClick: cancel }, t('取消核查', 'Cancel check'))
+        actions: running ? h(CiteButton, { onClick: cancel }, t('取消核查', 'Cancel check'))
           : h(CiteButton, {
             variant: 'primary', type: 'submit', icon: 'check', disabled: !text.trim(),
           }, t('核查 DOI', 'Check DOIs')),
@@ -175,7 +163,7 @@ function CiteCheck({ t, lang, text, report, onReport, onChange }) {
         ? t('共 ' + report.count + ' 个 DOI，查到 ' + pass + ' 个。',
           'Found ' + pass + ' of ' + report.count + ' DOIs.')
         : t('输入中未提取到 DOI。', 'No DOIs were found in the input.')),
-      h('ul', { className: 'cite-plain-list' }, report.results.map(row => h('li', { key: row.doi, className: 'cite-result-row', 'data-dsh-row': '' },
+      h('ul', { className: 'cite-plain-list' }, report.results.map(row => h('li', { key: row.doi, className: 'cite-result-row' },
         h('div', null, h('code', null, row.doi),
           h('p', { className: 'cite-muted' }, row.ok ? row.title || t('未提供标题', 'Title unavailable') : t(row.error, row.errorEn)),
         ),
@@ -186,17 +174,16 @@ function CiteCheck({ t, lang, text, report, onReport, onChange }) {
 }
 
 function CiteExport({ t, lang, entries, selected, style, setStyle, revision, scope, onScope }) {
-  const id = typeof React.useId === 'function' ? React.useId() : 'cite-export';
+  const id = React.useId();
   const selectedIds = new Set(selected);
   const picked = entries.filter(entry => selectedIds.has(entry.id));
-  const effectiveScope = scope === 'selected' && picked.length ? 'selected' : 'all';
-  const scoped = effectiveScope === 'selected' ? picked : entries;
+  const scoped = scope === 'selected' ? picked : entries;
   const preview = useCitationOutput({ kind: 'references', id: scoped[0]?.id, style, lang, revision });
   const checks = ['title', 'authors', 'year'].map(field => ({
     field, missing: scoped.filter(entry => entry.warnings.includes('missing_' + field)).length,
   }));
   const hasMissing = checks.some(check => check.missing > 0);
-  const scopedIds = effectiveScope === 'selected' ? picked.map(entry => entry.id) : undefined;
+  const scopedIds = scope === 'selected' ? picked.map(entry => entry.id) : undefined;
   const items = [
     { kind: 'references', label: t('参考文献文本', 'Reference text'), detail: styleLabel(style) + ' · .txt', ids: scopedIds },
     { kind: 'bibtex', label: 'BibTeX', detail: '.bib', ids: scopedIds },
@@ -209,18 +196,15 @@ function CiteExport({ t, lang, entries, selected, style, setStyle, revision, sco
   },
     h(CiteCard, { title: t('导出前检查', 'Before you export') },
       h('div', { className: 'cite-form-grid' },
-        h('div', null,
-          h('span', { className: 'cite-label' }, t('导出范围', 'Export scope')),
-          h(CiteSegmented, {
-            id: id + '-scope',
-            label: t('导出范围', 'Export scope'),
-            value: effectiveScope,
-            options: [
-              { value: 'all', label: t('全部文献', 'Entire library') + ' · ' + entries.length },
-              { value: 'selected', label: t('仅所选', 'Selected only') + ' · ' + picked.length, disabled: !picked.length },
-            ],
-            onChange: onScope,
-          }),
+        h('fieldset', { className: 'cite-scope' },
+          h('legend', { className: 'cite-label' }, t('导出范围', 'Export scope')),
+          h('label', null, h('input', {
+            type: 'radio', name: id + '-scope', checked: scope === 'all', onChange: () => onScope('all'),
+          }), t('全部文献', 'Entire library') + ' · ' + entries.length),
+          h('label', null, h('input', {
+            type: 'radio', name: id + '-scope', checked: scope === 'selected', disabled: !picked.length,
+            onChange: () => onScope('selected'),
+          }), t('仅所选', 'Selected only') + ' · ' + picked.length),
         ),
         h('div', null,
           h('label', { className: 'cite-label', htmlFor: id + '-style' }, t('引文格式', 'Citation format')),
@@ -242,11 +226,11 @@ function CiteExport({ t, lang, entries, selected, style, setStyle, revision, sco
     h(CiteCard, { title: t('下载', 'Downloads') },
       h('ul', { className: 'cite-plain-list cite-downloads' }, items.map(item => {
         const available = item.kind === 'backup' ? entries.length > 0 : scoped.length > 0;
-        return h('li', { key: item.kind, className: 'cite-result-row', 'data-dsh-row': '' },
+        return h('li', { key: item.kind, className: 'cite-result-row' },
           h('div', null, h('strong', null, item.label), h('p', { className: 'cite-muted' }, item.detail)),
           available ? h('a', {
             className: 'cite-download',
-            'data-primary': String(item.kind === 'backup'),
+            'data-primary': item.kind === 'backup',
             href: download(item.kind, style, lang, item.ids),
             download: '',
             'aria-label': t('下载 ', 'Download ') + item.label,

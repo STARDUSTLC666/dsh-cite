@@ -16,10 +16,6 @@ export interface CitePluginContext {
     tools: {
         register(definition: CiteToolDefinition): () => void;
     };
-    effect?(fn: () => (() => void) | void, label?: string): void;
-    logger?: {
-        warn?(message: string): void;
-    };
     on?(event: string, listener: () => void): () => void;
     inject?(services: string[], callback: (host: any) => void): unknown;
 }

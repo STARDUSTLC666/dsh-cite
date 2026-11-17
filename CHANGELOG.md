@@ -1,11 +1,9 @@
 # 更新记录
 
-## 0.9.0 (2026-11-18)
+## 0.9.1 (2026-11-18)
 
-- 升级引文工作台 UI v2 并深度适配 DeepSeek Harness `>=0.2.2-rc.3`：新增 5 套可切换界面风格（原生清透 / 米白纸感 / Claude 暖书卷 / 8-Bit 像素 / 晴空薄荷）并支持跨插件同步，深色模式采用柔和透气岩板色（告别纯黑背景）。
-- 接入宿主原生控件（延迟按需解析与弹窗样式同步）、窗口顶栏与侧栏安全留白、按钮按压与小图标微交互动效，以及 Cordis 4 `ctx.effect` 热重载卸载清理。
-- Upgrade the citation workbench to UI v2 with deep DeepSeek Harness `>=0.2.2-rc.3` integration: add five switchable visual themes (`harness`, `cream`, `claude`, `pixel8bit`, `mint`) synced across plugins and a soft breathable slate dark mode instead of pitch black.
-- Wire lazy native host UI primitives with portaled overlay sync, window frame clearances, tactile button and SVG icon micro-animations, reduced-motion support, and Cordis 4 `ctx.effect` unload cleanup.
+- 恢复至 0.8.1 原版引文工作台界面与运行时实现。
+- Restore the exact 0.8.1 citation workbench UI and runtime implementation.
 
 ## 0.8.1 (2026-11-17)
 

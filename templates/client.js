@@ -5,10 +5,14 @@ window.__ModuleLoader__.load({
     const React = require('react');
     const { useEffect, useMemo, useRef, useState } = React;
     const h = React.createElement;
-    // Lazy host primitives: never call require('@deepseek-ai/dsh-client-ui-primitives') eagerly at load time.
-    const hostPrimitives = () => resolveHostPrimitives(React, require);
-    const StyleSwitcher = createStyleSwitcherComponent(React, require);
-    const W = createWorkbenchUI(React, require);
+    const W = createWorkbenchUI(React);
+
+    let primitives;
+    try {
+      primitives = require('@deepseek-ai/dsh-client-ui-primitives');
+    } catch {
+      // The shared styles and standard form controls support partial hosts.
+    }
 
     const route = 'api/dsh-cite/library';
     const emptyLibrary = { revision: 0, entries: [], sources: [] };
@@ -60,7 +64,6 @@ window.__ModuleLoader__.load({
 
     function Workbench({ locale, workbench = false } = {}) {
       const [lang, setLang] = useState(() => language(locale));
-      const [uiStyle, setUiStyle] = useDshStyle(React);
       const [activeTab, setActiveTab] = useState('library');
       const [library, setLibrary] = useState(null);
       const [job, setJob] = useState(null);
@@ -68,7 +71,6 @@ window.__ModuleLoader__.load({
       const [busy, setBusy] = useState(false);
       const [error, setError] = useState('');
       const [notice, setNotice] = useState('');
-      const [copiedKey, setCopiedKey] = useState('');
       const [search, setSearch] = useState('');
       const [filter, setFilter] = useState('all');
       const [limit, setLimit] = useState(pageSize);
@@ -81,7 +83,6 @@ window.__ModuleLoader__.load({
 
       const busyRef = useRef(false);
       const dirtyRef = useRef(dirty);
-      const copyTimerRef = useRef(null);
       const t = (zh, en) => lang === 'en' ? en : zh;
       const jobId = job?.id;
       const running = job?.state === 'running';
@@ -94,9 +95,6 @@ window.__ModuleLoader__.load({
       // Update protection: dsh-cite
       __stardustUpdatesGuard(React, "dsh-cite", { dirty, busy: locked, retainOnClose: true });
 
-      useEffect(() => () => {
-        if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
-      }, []);
       useEffect(() => {
         const update = () => setLang(language(locale));
         update();
@@ -107,7 +105,6 @@ window.__ModuleLoader__.load({
         dirtyRef.current = dirty;
       }, [form, dirty]);
       useEffect(() => {
-        if (typeof window?.addEventListener !== 'function') return;
         function warn(event) {
           if (!dirtyRef.current) return;
           event.preventDefault();
@@ -146,6 +143,7 @@ window.__ModuleLoader__.load({
             const next = await api({ action: 'job', job: jobId }, lang, controller.signal);
             if (controller.signal.aborted) return;
             if (next.state !== 'running') {
+              // Keep the job's real result visible even if the library refresh fails.
               await refresh(controller.signal).catch(err => {
                 if (!controller.signal.aborted) setError(err.message);
               });
@@ -228,16 +226,11 @@ window.__ModuleLoader__.load({
         });
       }
 
-      async function copy(value, format, key = '') {
+      async function copy(value, format) {
         try {
           await navigator.clipboard.writeText(value);
           setError('');
           setNotice(t('已复制' + format + '。', 'Copied ' + format + '.'));
-          if (key) {
-            setCopiedKey(key);
-            if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
-            copyTimerRef.current = setTimeout(() => setCopiedKey(''), 1400);
-          }
         } catch {
           setNotice('');
           setError(t('无法访问剪贴板，请从预览中手动复制。', 'Clipboard access is unavailable. Copy from the preview.'));
@@ -277,8 +270,7 @@ window.__ModuleLoader__.load({
           break;
         default:
           panel = h(CiteLibrary, {
-            t, lang, uiStyle, entries, sources, revision, loading, loaded: !!library, locked, running,
-            selected, setSelected, style, setStyle, copiedKey,
+            t, lang, entries, sources, revision, loading, loaded: !!library, locked, selected, setSelected, style, setStyle,
             filter, search, limit, activeId, setActiveId, onImport, enrich, copy,
             onSearch: value => { setSearch(value); setActiveId(''); setLimit(pageSize); },
             onFilter: value => { setFilter(value); setActiveId(''); setLimit(pageSize); },
@@ -287,27 +279,14 @@ window.__ModuleLoader__.load({
           });
       }
 
-      return h('section', {
-        className: 'dshw cite-workbench',
-        'data-main': String(Boolean(workbench)),
-        'data-dsh-style': uiStyle,
-      },
+      return h('section', { className: 'dshw cite-workbench', 'data-main': workbench },
         h(W.Styles),
         h('style', null, CITE_WORKBENCH_CSS),
         h('div', { className: 'cite-shell' },
           h('h1', { className: 'cite-brand' }, h('span', { className: 'cite-brand-icon' }, h(W.Icon, { name: 'book', size: 15 })), 'dsh-cite'),
-          h('div', { className: 'cite-header-actions' },
-            h(StyleSwitcher, {
-              style: uiStyle,
-              onChange: setUiStyle,
-              lang,
-              compact: true,
-              id: 'cite-style-switcher',
-            }),
-            h(CiteButton, {
-              className: 'cite-quick-import', variant: 'primary', icon: 'plus', onClick: onImport,
-            }, t('导入 DOI / BibTeX', 'Import DOI / BibTeX')),
-          ),
+          h(CiteButton, {
+            className: 'cite-quick-import', variant: 'primary', icon: 'plus', onClick: onImport,
+          }, t('导入 DOI / BibTeX', 'Import DOI / BibTeX')),
           h(W.Tabs, { label: t('引文工作台', 'Citation workbench'), items: tabs, value: activeTab, onChange: setActiveTab },
             error || notice || job ? h('div', { className: 'cite-feedback' },
               error ? h(CiteMessage, { tone: 'error', onClose: () => setError(''), t }, error) : null,
@@ -355,19 +334,6 @@ window.__ModuleLoader__.load({
       }, Workbench));
     }
 
-    return {
-      inject: ['slots', 'locale'],
-      apply,
-      __internals: {
-        DSH_STYLES,
-        DSH_STYLE_STORAGE_KEY,
-        DSH_STYLE_EVENT,
-        DSH_DEFAULT_STYLE,
-        normalizeDshStyle,
-        readDshStyle,
-        writeDshStyle,
-        subscribeDshStyle,
-      },
-    };
+    return { inject: ['slots', 'locale'], apply };
   },
 });

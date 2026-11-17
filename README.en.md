@@ -2,7 +2,9 @@
 
 # Cite
 
-**Organize references, check DOIs, and export citations in DeepSeek Harness.**
+**DeepSeek Harness citation workbench: organize references, check DOIs, export citations, and back up original sources in a three-pane library.**
+
+Built for DeepSeek Harness `>=0.2.2-rc.3`, with five switchable light/warm workbench styles (Harness Native, Cream Paper, Claude Warm, 8-Bit Pixel, Mint Air) synced across plugins plus a soft-slate dark mode.
 
 [![npm](https://img.shields.io/npm/v/dsh-cite)](https://www.npmjs.com/package/dsh-cite) [![downloads](https://raw.githubusercontent.com/STARDUSTLC666/dsh-suite/npm-downloads/assets/dsh-cite-downloads.svg)](https://www.npmjs.com/package/dsh-cite) [![total downloads](https://raw.githubusercontent.com/STARDUSTLC666/dsh-suite/npm-downloads/assets/dsh-cite-total-downloads.svg)](https://www.npmjs.com/package/dsh-cite)
 
@@ -20,10 +22,11 @@
 
 ## Features
 
-- Filter, search, and inspect references in a three-pane library. Copy a formatted citation or its BibTeX entry.
+- Filter, search, and inspect references in a three-pane library, copy formatted citations or BibTeX entries, and inspect raw records in a native modal.
 - Preview duplicates and missing fields locally before importing a DOI list or BibTeX.
 - Check manuscript DOIs against Crossref, or fill gaps in saved references and review differences.
 - Export selected references or the entire library. Download a full backup with the original sources.
+- Switch between five workbench styles (Harness Native, Cream Paper, Claude Warm, 8-Bit Pixel, Mint Air) synced to portaled dialogs and menus, adapted to DSH `>=0.2.2-rc.3` host primitives and frame clearances.
 
 ## Install
 

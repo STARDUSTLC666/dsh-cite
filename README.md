@@ -2,7 +2,9 @@
 
 # Cite
 
-**在 DeepSeek Harness 中整理文献、核查 DOI 并导出引文。**
+**DeepSeek Harness 引文工作台：在三栏工作台中整理文献、核查 DOI、导出引文并备份原始来源。**
+
+适配 DeepSeek Harness `>=0.2.2-rc.3`，提供原生清透、米白纸感、Claude 暖书卷、8-Bit 像素与晴空薄荷 5 套可切换浅色/暖色工作台风格（支持跨插件同步）及柔和岩板深色模式。
 
 [![npm](https://img.shields.io/npm/v/dsh-cite)](https://www.npmjs.com/package/dsh-cite) [![downloads](https://raw.githubusercontent.com/STARDUSTLC666/dsh-suite/npm-downloads/assets/dsh-cite-downloads.svg)](https://www.npmjs.com/package/dsh-cite) [![total downloads](https://raw.githubusercontent.com/STARDUSTLC666/dsh-suite/npm-downloads/assets/dsh-cite-total-downloads.svg)](https://www.npmjs.com/package/dsh-cite)
 
@@ -20,10 +22,11 @@
 
 ## 功能
 
-- 在三栏文献库筛选、搜索和查看文献，复制引文或 BibTeX。
+- 在三栏文献库筛选、搜索和查看文献，复制引文或 BibTeX，并在详情中弹出查看原始题录来源。
 - 导入 DOI 列表或 BibTeX 前，在本地预览重复项与缺失字段。
 - 通过 Crossref 核查文稿中的 DOI，或补全已存文献的空字段并查看差异。
 - 导出所选文献或全库引文，下载包含原始来源的完整备份。
+- 内置 5 套工作台视觉风格（原生清透 / 米白纸感 / Claude 暖书卷 / 8-Bit 像素 / 晴空薄荷），同步至弹层菜单与弹窗，适配 DSH `>=0.2.2-rc.3` 宿主控件与窗口留白。
 
 ## 安装
 

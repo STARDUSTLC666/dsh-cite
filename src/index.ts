@@ -19,6 +19,8 @@ export const inject = ['tools']
 
 export interface CitePluginContext {
   tools: { register(definition: CiteToolDefinition): () => void }
+  effect?(fn: () => (() => void) | void, label?: string): void
+  logger?: { warn?(message: string): void }
   on?(event: string, listener: () => void): () => void
   inject?(services: string[], callback: (host: any) => void): unknown
 }
@@ -30,21 +32,37 @@ export function apply(ctx: CitePluginContext, config?: CiteConfig | null): void 
   try {
     cfg = resolveConfig(config)
   } catch (error) {
-    console.warn('[dsh-cite] ' + (error instanceof Error ? error.message : String(error)))
+    const msg = '[dsh-cite] ' + (error instanceof Error ? error.message : String(error))
+    if (typeof ctx.logger?.warn === 'function') ctx.logger.warn(msg)
+    else console.warn(msg)
     cfg = resolveConfig(null)
   }
 
   const disposers: Array<() => void> = []
   const workbench = new CitationWorkbench(cfg)
-  const dispose = () => { workbench.dispose(); for (const fn of disposers.splice(0).reverse()) fn?.() }
+  let disposed = false
+  const dispose = () => {
+    if (disposed) return
+    disposed = true
+    workbench.dispose()
+    for (const fn of disposers.splice(0).reverse()) fn?.()
+  }
   try {
     for (const definition of [...buildCiteTools(cfg), buildBatchTool(workbench)]) disposers.push(ctx.tools.register(definition))
     ctx.inject?.(['connection'], host => {
       const remove = host.connection?.fetch?.register({ path: workbench.route, methods: ['GET', 'POST'], requestBody: 'buffered', fetch: (request: Request) => workbench.fetch(request) })
-      if (typeof remove === 'function') disposers.push(remove)
       const preferences = host.connection?.fetch?.register({ path: '/api/dsh-cite/preferences', methods: ['GET'], requestBody: 'buffered', fetch: () => Response.json({ hideWorkbench: cfg.hideWorkbench }, { headers: { 'cache-control': 'no-store' } }) })
-      if (typeof preferences === 'function') disposers.push(preferences)
+      let routeDisposed = false
+      const releaseRoutes = () => {
+        if (routeDisposed) return
+        routeDisposed = true
+        if (typeof preferences === 'function') preferences()
+        if (typeof remove === 'function') remove()
+      }
+      disposers.push(releaseRoutes)
+      if (typeof host?.effect === 'function') host.effect(() => releaseRoutes, 'dsh-cite: connection routes')
     })
+    if (typeof ctx.effect === 'function') ctx.effect(() => dispose, 'dsh-cite: lifecycle')
     ctx.on?.('dispose', dispose)
   } catch (e) { dispose(); throw e }
 }

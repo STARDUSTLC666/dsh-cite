@@ -18,7 +18,7 @@ Built for DeepSeek Harness `>=0.2.2-rc.3`, with five switchable light/warm workb
 | --- | --- |
 | [![Import preview flags DOIs already in the library or repeated in the batch](docs/assets/screenshots/import-en.jpg)](docs/assets/screenshots/import-en.jpg) | [![Crossref lookup results for three public DOIs](docs/assets/screenshots/doi-check-en.jpg)](docs/assets/screenshots/doi-check-en.jpg) |
 
-*Captured with `dsh-cite 0.8.0` running in Harness Web `0.2.2-rc.3`.*
+*Captured with `dsh-cite 0.9.3` running in Harness Web `0.2.2-rc.3` (Claude Warm style).*
 
 ## Features
 

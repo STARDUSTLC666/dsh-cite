@@ -18,7 +18,7 @@
 | --- | --- |
 | [![导入预览标出库内重复和同批重复的 DOI](docs/assets/screenshots/import-zh.jpg)](docs/assets/screenshots/import-zh.jpg) | [![Crossref 返回三条公开 DOI 的核查结果](docs/assets/screenshots/doi-check-zh.jpg)](docs/assets/screenshots/doi-check-zh.jpg) |
 
-*截图来自 Harness Web `0.2.2-rc.3` 中运行的 `dsh-cite 0.8.0`。*
+*截图来自 Harness Web `0.2.2-rc.3` 中运行的 `dsh-cite 0.9.3`（Claude 暖书卷风格）。*
 
 ## 功能
 

@@ -1,5 +1,10 @@
 # 更新记录
 
+## 0.9.3 (2026-11-18)
+
+- 同步 `@stardustlc/dsh-updates` 0.2.1：恢复 Suite 整包统一更新（移除独立拆包迁移），保留整包与独立插件的原地热更新与失败自动回滚。
+- Sync `@stardustlc/dsh-updates` 0.2.1: restore unified Suite bundle updates (removing standalone conversion) while retaining in-place hot reload and automatic rollback.
+
 ## 0.9.2 (2026-11-18)
 
 - 同步发布 0.9.0 原生引文工作台 UI v2 增强版（保留原有三栏布局与交互流程，含 5 套界面风格切换、柔和岩板深色模式与 DSH `>=0.2.2-rc.3` 深度适配）。

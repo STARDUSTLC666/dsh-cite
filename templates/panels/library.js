@@ -3,13 +3,14 @@ function referenceTitle(entry, t) {
 }
 
 function CiteLibrary({
-  entries, sources, revision, t, lang, loading, loaded, locked, selected, setSelected, style, setStyle,
+  entries, sources, revision, t, lang, uiStyle, loading, loaded, locked, running,
+  selected, setSelected, style, setStyle, copiedKey,
   filter, search, limit, activeId, setActiveId, onSearch, onFilter, onMore, onRefresh, onImport, enrich, copy,
 }) {
   const [openedId, setOpenedId] = useState('');
   const lastRow = useRef(null);
   const root = useRef(null);
-  const pickerId = React.useId();
+  const pickerId = typeof React.useId === 'function' ? React.useId() : 'cite-style-picker';
   const { indexed, missing, enriched } = useMemo(() => {
     const indexed = entries.map(entry => {
       const byline = authors(entry.work);
@@ -46,12 +47,14 @@ function CiteLibrary({
   useEffect(() => {
     if (!open) return;
     const back = root.current?.querySelector('.cite-back');
-    if (back?.getClientRects().length) back.focus({ preventScroll: true });
+    if (back?.getClientRects?.().length) back.focus({ preventScroll: true });
   }, [open, openedId]);
 
   function back() {
     setOpenedId('');
-    requestAnimationFrame(() => lastRow.current?.focus({ preventScroll: true }));
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(() => lastRow.current?.focus({ preventScroll: true }));
+    }
   }
 
   function changeFilter(value) {
@@ -64,9 +67,9 @@ function CiteLibrary({
     setOpenedId('');
   }
 
-  return h('div', { ref: root, className: 'cite-library', 'data-open': open },
+  return h('div', { ref: root, className: 'cite-library', 'data-open': String(open) },
     h('aside', { className: 'cite-rail', 'aria-label': t('文献库筛选', 'Library filters') },
-      h('div', { className: 'cite-style-box' },
+      h('div', { className: 'cite-style-box', 'data-dsh-card': '' },
         h('label', { className: 'cite-label', htmlFor: pickerId }, t('引文格式', 'Citation format')),
         h(CitePicker, { id: pickerId, label: t('引文格式', 'Citation format'), value: style, options: citationStyles, onChange: setStyle }),
       ),
@@ -80,13 +83,22 @@ function CiteLibrary({
     ),
     h('section', { className: 'cite-list', 'aria-label': t('文献列表', 'Reference list'), 'aria-busy': loading },
       h('div', { className: 'cite-searchbar' },
-        primitives?.Input
-          ? h(primitives.Input, {
-            className: 'cite-search', type: 'search', 'aria-label': searchLabel, placeholder: searchLabel + '…',
-            value: search, onChange: changeSearch, icon: h(W.Icon, { name: 'search', size: 15 }),
-          })
-          : h(W.Search, { label: searchLabel, value: search, onChange: changeSearch }),
-        h(CiteIconButton, { icon: 'refresh', label: t('刷新文献库', 'Refresh library'), disabled: locked, onClick: onRefresh }),
+        h(CiteInput, {
+          className: 'cite-search',
+          type: 'search',
+          'aria-label': searchLabel,
+          placeholder: searchLabel + '…',
+          value: search,
+          onChange: changeSearch,
+          icon: 'search',
+        }),
+        h(CiteIconButton, {
+          icon: 'refresh',
+          spinning: Boolean(loading || running),
+          label: t('刷新文献库', 'Refresh library'),
+          disabled: locked,
+          onClick: onRefresh,
+        }),
       ),
       entries.length ? h('div', { className: 'cite-selection' },
         h('span', { className: 'cite-muted', role: 'status' },
@@ -97,7 +109,7 @@ function CiteLibrary({
             variant: 'ghost', disabled: locked || !visible.length,
             onClick: () => setSelected(visible.slice(0, 100).map(({ entry }) => entry.id)),
           }, t('选择可见项', 'Select visible')),
-          selected.length ? h(CiteButton, { variant: 'ghost', disabled: locked, onClick: () => setSelected([]) },
+          selected.length ? h(CiteButton, { variant: 'ghost', icon: 'close', disabled: locked, onClick: () => setSelected([]) },
             t('清空选择', 'Clear selection'),
           ) : null,
         ),
@@ -106,15 +118,15 @@ function CiteLibrary({
         loading ? h('p', { className: 'cite-list-loading', role: 'status' }, t('正在读取文献库…', 'Loading library…'))
           : !loaded ? h(W.Empty, {
             title: t('暂时无法读取文献库', 'Could not load the library'),
-            action: h(CiteButton, { disabled: locked, onClick: onRefresh }, t('重新加载', 'Reload')),
+            action: h(CiteButton, { icon: 'refresh', disabled: locked, onClick: onRefresh }, t('重新加载', 'Reload')),
           })
           : entries.length === 0 ? h(W.Empty, {
             icon: 'book', title: t('文献库为空', 'Your library is empty'),
-            action: h(CiteButton, { variant: 'primary', onClick: onImport }, t('导入文献', 'Import references')),
+            action: h(CiteButton, { variant: 'primary', icon: 'plus', onClick: onImport }, t('导入文献', 'Import references')),
           }, t('从 DOI 列表或 BibTeX 开始。', 'Start with a DOI list or a BibTeX file.'))
           : matches.length === 0 ? h(W.Empty, {
             icon: 'search', title: t('没有匹配的文献', 'No matching references'),
-            action: h(CiteButton, { onClick: () => { changeFilter('all'); onSearch(''); } }, t('清空筛选', 'Clear filters')),
+            action: h(CiteButton, { icon: 'close', onClick: () => { changeFilter('all'); onSearch(''); } }, t('清空筛选', 'Clear filters')),
           }) : h('ul', { className: 'cite-reference-list' }, visible.map(({ entry, byline }) => h(CiteReferenceRow, {
             key: entry.id, entry, byline, active: entry.id === active?.id, checked: selectedIds.has(entry.id),
             disabled: locked || (selected.length >= 100 && !selectedIds.has(entry.id)), t,
@@ -130,13 +142,15 @@ function CiteLibrary({
         ) : null,
       ),
       selected.length ? h('div', { className: 'cite-selection-footer' }, h(CiteButton, {
-        icon: 'refresh', disabled: locked || !canEnrichSelected, onClick: () => enrich(selected),
+        icon: 'refresh', spinning: Boolean(running), disabled: locked || !canEnrichSelected, onClick: () => enrich(selected),
       }, t('从 Crossref 补全所选', 'Enrich selection from Crossref'))) : null,
     ),
     h('section', { className: 'cite-inspector', 'aria-label': t('文献详情', 'Reference details') },
       open ? h(CiteButton, { className: 'cite-back', icon: 'left', variant: 'ghost', onClick: back }, t('返回文献列表', 'Back to references')) : null,
       active
-        ? h(CiteInspector, { key: active.id, entry: active, sources, style, lang, revision, locked, enrich, copy, t })
+        ? h(CiteInspector, {
+          key: active.id, entry: active, sources, style, uiStyle, lang, revision, locked, running, copiedKey, enrich, copy, t,
+        })
         : h('p', { className: 'cite-inspector-empty' }, t('选择文献以查看引文与元数据。', 'Select a reference to view its citation and metadata.')),
     ),
   );
@@ -146,10 +160,18 @@ function CiteReferenceRow({ entry, byline, active, checked, disabled, t, onOpen,
   const title = referenceTitle(entry, t);
   const { work, bibKey, warnings, crossref } = entry;
   const meta = [byline, work.year, work.containerTitle].filter(Boolean).join(' · ');
-  return h('li', { className: 'cite-reference-row', 'data-active': active },
-    h('label', { className: 'cite-reference-check' }, h('input', {
-      type: 'checkbox', checked, disabled, 'aria-label': t('选择文献 ', 'Select reference ') + title,
-      onChange: event => onSelect(event.target.checked),
+  return h('li', {
+    className: 'cite-reference-row',
+    'data-dsh-row': '',
+    'data-selected': String(Boolean(active)),
+    'data-active': String(Boolean(active)),
+  },
+    h('div', { className: 'cite-reference-check' }, h(CiteCheckbox, {
+      checked,
+      disabled,
+      hiddenLabel: true,
+      label: t('选择文献 ', 'Select reference ') + title,
+      onChange: onSelect,
     })),
     h('button', { type: 'button', className: 'cite-reference-button', 'aria-pressed': active, onClick: onOpen },
       h('strong', null, title),
@@ -164,10 +186,12 @@ function CiteReferenceRow({ entry, byline, active, checked, disabled, t, onOpen,
   );
 }
 
-function CiteInspector({ entry, sources, style, lang, revision, locked, enrich, copy, t }) {
+function CiteInspector({ entry, sources, style, uiStyle, lang, revision, locked, running, copiedKey, enrich, copy, t }) {
+  const [sourceOpen, setSourceOpen] = useState(false);
   const { id, work, bibKey, warnings, crossref } = entry;
   const citation = useCitationOutput({ kind: 'references', id, style, lang, revision });
   const bibtex = useCitationOutput({ kind: 'bibtex', id, lang, revision });
+  const matchedSources = entry.sourceIds.map(sourceId => sources.find(source => source.id === sourceId)).filter(Boolean);
   const sourceLabels = entry.sourceIds.map(sourceId => sources.find(source => source.id === sourceId)?.label || sourceId);
   const citationLabel = styleLabel(style);
   const volumePages = [work.year, work.volume && t('卷 ', 'Vol. ') + work.volume,
@@ -198,15 +222,31 @@ function CiteInspector({ entry, sources, style, lang, revision, locked, enrich, 
       ),
       h('div', { className: 'cite-actions' },
         h(CiteButton, {
-          className: 'cite-crossref', icon: 'refresh', disabled: locked || !work.doi,
-          title: crossrefHint, onClick: () => enrich([id]),
+          className: 'cite-crossref',
+          icon: 'refresh',
+          spinning: Boolean(running),
+          disabled: locked || !work.doi,
+          title: crossrefHint,
+          onClick: () => enrich([id]),
         }, t('Crossref 补全', 'Enrich from Crossref')),
         h(CiteButton, {
-          icon: 'copy', disabled: !citation.content, onClick: () => copy(citation.content, t('引文', 'citation')),
-        }, t('复制引文', 'Copy citation')),
+          icon: copiedKey === 'citation' ? 'check' : 'copy',
+          'data-copied': copiedKey === 'citation' ? 'true' : undefined,
+          disabled: !citation.content,
+          onClick: () => copy(citation.content, t('引文', 'citation'), 'citation'),
+        }, copiedKey === 'citation' ? t('已复制引文', 'Copied citation') : t('复制引文', 'Copy citation')),
         h(CiteButton, {
-          icon: 'copy', disabled: !bibtex.content, onClick: () => copy(bibtex.content, 'BibTeX'),
-        }, t('复制 BibTeX', 'Copy BibTeX')),
+          icon: copiedKey === 'bibtex' ? 'check' : 'copy',
+          'data-copied': copiedKey === 'bibtex' ? 'true' : undefined,
+          disabled: !bibtex.content,
+          onClick: () => copy(bibtex.content, 'BibTeX', 'bibtex'),
+        }, copiedKey === 'bibtex' ? t('已复制 BibTeX', 'Copied BibTeX') : t('复制 BibTeX', 'Copy BibTeX')),
+        matchedSources.length ? h(CiteButton, {
+          variant: 'ghost',
+          icon: 'file',
+          'aria-haspopup': 'dialog',
+          onClick: () => setSourceOpen(true),
+        }, t('原始输入', 'Raw source')) : null,
       ),
     ),
     h('div', { className: 'cite-inspector-scroll' },
@@ -236,7 +276,7 @@ function CiteInspector({ entry, sources, style, lang, revision, locked, enrich, 
         ) : null,
       ),
       h(CiteCard, { title: t('BibTeX 条目', 'BibTeX entry') }, h(CiteOutput, { output: bibtex, label: 'BibTeX', code: true, t })),
-      h('details', { className: 'cite-card cite-provenance' },
+      h('details', { className: 'cite-card cite-provenance', 'data-dsh-card': '' },
         h('summary', null, t('来源与补全记录', 'Sources and enrichment history')),
         h(CiteMetadata, { fields: provenance, t }),
         crossref ? h('p', { className: 'cite-muted cite-metadata-note' },
@@ -245,6 +285,23 @@ function CiteInspector({ entry, sources, style, lang, revision, locked, enrich, 
         ) : null,
       ),
     ),
+    sourceOpen ? h(W.Dialog, {
+      style: uiStyle,
+      title: t('原始导入来源', 'Original import source'),
+      closeLabel: t('关闭', 'Close'),
+      onClose: () => setSourceOpen(false),
+      footer: h(CiteButton, { onClick: () => setSourceOpen(false) }, t('完成', 'Done')),
+    }, matchedSources.map(source => h('section', { key: source.id, className: 'cite-source-entry' },
+      h('div', { className: 'cite-card-header' },
+        h('strong', null, source.label || source.id),
+        source.text ? h(CiteButton, {
+          icon: copiedKey === 'source-' + source.id ? 'check' : 'copy',
+          'data-copied': copiedKey === 'source-' + source.id ? 'true' : undefined,
+          onClick: () => copy(source.text, t('原始输入', 'raw source'), 'source-' + source.id),
+        }, copiedKey === 'source-' + source.id ? t('已复制', 'Copied') : t('复制原文', 'Copy source')) : null,
+      ),
+      h('pre', { className: 'cite-code' }, source.text || t('无原文记录', 'No raw text recorded')),
+    ))) : null,
   );
 }
 

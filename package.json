@@ -1,6 +1,6 @@
 {
   "name": "dsh-cite",
-  "version": "0.8.1",
+  "version": "0.9.0",
   "description": "DeepSeek Harness 引文工作台。支持 DOI / BibTeX 导入去重、Crossref 核查与补全、引文导出和原始来源备份。",
   "type": "module",
   "main": "lib/index.js",

@@ -1,48 +1,103 @@
-function CiteButton({ className = '', children, variant = 'outline', icon, ...props }) {
-  const classes = ['cite-button', variant === 'primary' && 'cite-button-primary', className].filter(Boolean).join(' ');
-  if (primitives?.Button) {
-    return h(primitives.Button, {
-      type: 'button', ...props, className: classes, variant, size: 'sm',
-      icon: icon ? h(W.Icon, { name: icon, size: 15 }) : undefined,
-    }, children);
-  }
-  return h(W.Button, { ...props, className: classes, variant, icon }, children);
+function CiteButton({ className = '', children, variant = 'outline', icon, spinning = false, type = 'button', ...props }) {
+  const P = hostPrimitives();
+  const mappedVariant = variant === 'danger' ? 'ghost' : variant;
+  const classes = [
+    'cite-button',
+    variant === 'primary' && 'cite-button-primary',
+    variant === 'danger' && 'cite-button-danger',
+    className,
+  ].filter(Boolean).join(' ');
+  return h(P.Button, {
+    type,
+    ...props,
+    'aria-busy': spinning ? 'true' : props['aria-busy'],
+    className: classes,
+    variant: mappedVariant,
+    size: 'sm',
+    icon: icon ? h(W.Icon, { name: icon, size: 15, spinning }) : undefined,
+  }, children);
 }
 
 function CiteIconButton({ label, className = '', ...props }) {
   return h(CiteButton, {
-    ...props, variant: 'ghost', className: ('cite-icon-button ' + className).trim(),
-    'aria-label': label, title: label,
+    ...props,
+    variant: 'ghost',
+    className: ('cite-icon-button ' + className).trim(),
+    'aria-label': label,
+    title: label,
+  });
+}
+
+function CiteInput({ className = '', icon, ...props }) {
+  const P = hostPrimitives();
+  return h(P.Input, {
+    ...props,
+    className: ('cite-input-wrap ' + className).trim(),
+    icon: icon ? h(W.Icon, { name: icon, size: 15 }) : undefined,
+  });
+}
+
+function CiteCheckbox({ label, hiddenLabel = false, checked, disabled, onChange, className = '', title, ...props }) {
+  const P = hostPrimitives();
+  return h(P.Checkbox, {
+    ...props,
+    checked: Boolean(checked),
+    disabled,
+    label,
+    title: title || (hiddenLabel && typeof label === 'string' ? label : undefined),
+    className: ['cite-checkbox', hiddenLabel && 'dsh-checkbox-icon', className].filter(Boolean).join(' '),
+    onChange: next => onChange?.(typeof next === 'boolean' ? next : Boolean(next?.target?.checked)),
+  });
+}
+
+function CiteSegmented({ id, label, value, options, onChange, disabled = false, className = '' }) {
+  const P = hostPrimitives();
+  return h(P.SegmentedControl, {
+    id,
+    label,
+    value,
+    options,
+    disabled,
+    onChange,
+    className: ('cite-segmented ' + className).trim(),
   });
 }
 
 function CitePicker({ id, label, value, options, onChange, disabled }) {
   const [open, setOpen] = useState(false);
-  if (!primitives?.Menu) {
-    return h('select', {
-      id, value, disabled, 'aria-label': label, className: 'cite-field',
-      onChange: event => onChange(event.target.value),
-    }, options.map(option => h('option', { key: option.id, value: option.id }, option.label)));
-  }
-  const current = options.find(option => option.id === value);
-  return h(primitives.Menu, {
-    open: open && !disabled,
-    portal: true,
-    compact: true,
-    autoFocus: true,
-    minWidthFromAnchor: true,
-    className: 'cite-picker',
-    anchor: h(CiteButton, {
-      id, disabled, className: 'cite-picker-button',
-      'aria-label': label + ' · ' + current.label,
-      'aria-haspopup': 'menu', 'aria-expanded': open && !disabled,
-      onClick: () => setOpen(value => !value),
-    }, h('span', null, current.label), h(W.Icon, { name: 'down', size: 13 })),
-    items: options,
-    selectedId: value,
-    onClose: () => setOpen(false),
-    onSelect: id => { setOpen(false); onChange(id); },
-  });
+  const [uiStyle] = useDshStyle(React);
+  const P = hostPrimitives();
+  const current = options.find(option => option.id === value) || options[0];
+  return h('div', { className: 'cite-picker-wrap', 'data-window-drag-exclude': '' },
+    h(P.Menu, {
+      open: Boolean(open && !disabled),
+      dshStyle: uiStyle,
+      portal: !P.isFallback,
+      compact: true,
+      autoFocus: true,
+      minWidthFromAnchor: true,
+      className: 'cite-picker',
+      anchor: h(CiteButton, {
+        id,
+        disabled,
+        className: 'cite-picker-button',
+        'aria-label': label + ' · ' + (current?.label || ''),
+        'aria-haspopup': 'menu',
+        'aria-expanded': Boolean(open && !disabled),
+        onClick: () => setOpen(prev => !prev),
+        onKeyDown: event => {
+          if (!open && (event?.key === 'ArrowDown' || event?.key === 'ArrowUp')) {
+            event.preventDefault?.();
+            setOpen(true);
+          }
+        },
+      }, h('span', { ref: open ? createOverlaySyncRef(uiStyle) : undefined }, current?.label || ''), h(W.Icon, { name: 'down', size: 13 })),
+      items: options,
+      selectedId: value,
+      onClose: () => setOpen(false),
+      onSelect: nextId => { setOpen(false); onChange(nextId); },
+    }),
+  );
 }
 
 const citationStyles = [
@@ -52,7 +107,7 @@ const citationStyles = [
   { id: 'chicago', label: 'Chicago' },
 ];
 
-const styleLabel = id => citationStyles.find(option => option.id === id).label;
+const styleLabel = id => citationStyles.find(option => option.id === id)?.label || id;
 const authorName = author => author.name || [author.family, author.given].filter(Boolean).join(' ');
 const authors = work => work.authors.map(authorName).join(', ');
 
@@ -83,7 +138,7 @@ function CiteChip({ tone = '', children, ...props }) {
 }
 
 function CiteCard({ title, actions, children, className = '' }) {
-  return h('section', { className: ('cite-card ' + className).trim() },
+  return h('section', { className: ('cite-card ' + className).trim(), 'data-dsh-card': '' },
     h('header', { className: 'cite-card-header' }, h('h3', null, title), actions),
     children,
   );
@@ -92,7 +147,7 @@ function CiteCard({ title, actions, children, className = '' }) {
 function CiteSubpage({ title, description, children }) {
   return h('div', { className: 'cite-subpage' },
     h('div', { className: 'cite-subpage-inner' },
-      h('h2', null, title),
+      h('h2', { 'data-dsh-editorial-heading': '' }, title),
       description ? h('p', { className: 'cite-description' }, description) : null,
       children,
     ),

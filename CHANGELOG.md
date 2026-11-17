@@ -1,5 +1,10 @@
 # 更新记录
 
+## 0.8.1 (2026-11-17)
+
+- 在工作台单独检查和安装兼容版本。自动安装默认关闭，可为该插件开启空闲时的稳定补丁更新。
+- Check and install compatible versions separately from the workbench. Automatic installation is off by default. Enable it for this plugin to apply stable patches while idle.
+
 ## 0.8.0 (2026-11-16)
 
 - 新版原生引文工作台包含格式与状态筛选、文献列表和详情三栏，支持在详情复制当前格式的引文或 BibTeX。窄屏可以在列表和详情之间切换。

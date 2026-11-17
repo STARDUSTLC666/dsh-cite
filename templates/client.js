@@ -297,6 +297,8 @@ window.__ModuleLoader__.load({
               }) : null,
             ) : null,
             panel,
+            workbench && typeof __stardustUpdatesFooter === 'function'
+              ? __stardustUpdatesFooter(React, 'dsh-cite') : null,
           ),
         ),
       );

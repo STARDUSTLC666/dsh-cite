@@ -1,6 +1,6 @@
 {
   "name": "dsh-cite",
-  "version": "0.9.3",
+  "version": "0.9.4",
   "description": "DeepSeek Harness 引文工作台。支持 DOI / BibTeX 导入去重、Crossref 核查补全、引文导出与原始来源备份，内置 5 套浅色/暖色工作台风格（原生清透 / 米白纸感 / Claude 暖书卷 / 8-Bit 像素 / 晴空薄荷）并兼容浅色与柔和深色模式。欢迎提交 issues 和 PR。",
   "type": "module",
   "main": "lib/index.js",
@@ -52,7 +52,14 @@
     "apa",
     "mla",
     "chicago",
-    "dsh-plugin"
+    "dsh-plugin",
+    "deepseek",
+    "ai-agent",
+    "bibtex",
+    "doi",
+    "bibliography",
+    "文献",
+    "引文"
   ],
   "license": "MIT",
   "engines": {
@@ -78,7 +85,7 @@
     "@citation-js/core": "0.9.0",
     "@citation-js/plugin-bibtex": "0.9.0",
     "proper-lockfile": "4.1.2",
-    "@stardustlc/dsh-updates": "0.2.1"
+    "@stardustlc/dsh-updates": "0.2.2"
   },
   "icon": "./assets/plugin-icon.webp"
 }

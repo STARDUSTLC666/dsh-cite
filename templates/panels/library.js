@@ -12,6 +12,13 @@ function CiteLibrary({
   const root = useRef(null);
   const pickerId = typeof React.useId === 'function' ? React.useId() : 'cite-style-picker';
   const searchId = typeof React.useId === 'function' ? React.useId() : 'cite-library-search';
+  const listId = typeof React.useId === 'function' ? React.useId() : 'cite-list-pane';
+  const split = useResizableSplit(React, {
+    key: 'dsh-cite:list-width',
+    initial: 320,
+    min: 220,
+    max: 520,
+  });
   const { indexed, missing, enriched } = useMemo(() => {
     const indexed = entries.map(entry => {
       const byline = authors(entry.work);
@@ -68,7 +75,36 @@ function CiteLibrary({
     setOpenedId('');
   }
 
-  return h('div', { ref: root, className: 'cite-library', 'data-open': String(open) },
+  async function quickCopy(entry) {
+    try {
+      const value = await api({ action: 'export', kind: 'references', ids: [entry.id], style, lang }, lang);
+      const text = String(value?.content || '').trim() || referenceTitle(entry, t);
+      await copy(text, t('引文', 'citation'), 'row-' + entry.id);
+    } catch {
+      await copy(entry.work.doi || referenceTitle(entry, t), t('引文', 'citation'), 'row-' + entry.id);
+    }
+  }
+
+  function quickInspect(entry) {
+    setActiveId(entry.id);
+    setOpenedId(entry.id);
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(() => {
+        const target = root.current?.querySelector?.('.cite-detail-title, .cite-back');
+        if (target) {
+          target.tabIndex = -1;
+          target.focus({ preventScroll: true });
+        }
+      });
+    }
+  }
+
+  return h('div', {
+    ref: root,
+    className: 'cite-library dsh-split-pane',
+    'data-open': String(open),
+    style: split.paneStyle,
+  },
     h('aside', { className: 'cite-rail', 'aria-label': t('文献库筛选', 'Library filters') },
       h('div', { className: 'cite-style-box', 'data-dsh-card': '', 'data-tour': 'cite-format-picker' },
         h('label', { className: 'cite-label', htmlFor: pickerId }, t('引文格式', 'Citation format')),
@@ -82,7 +118,7 @@ function CiteLibrary({
         }, h('span', null, item.label), h('span', { className: 'cite-count' }, item.count))),
       ),
     ),
-    h('section', { className: 'cite-list', 'aria-label': t('文献列表', 'Reference list'), 'aria-busy': loading },
+    h('section', { id: listId, className: 'cite-list dsh-split-leading', 'aria-label': t('文献列表', 'Reference list'), 'aria-busy': loading },
       h('div', { className: 'cite-searchbar' },
         h('div', { className: 'cite-search-field' },
           h('label', { className: 'cite-sr-only', htmlFor: searchId }, searchLabel),
@@ -120,7 +156,9 @@ function CiteLibrary({
         ),
       ) : null,
       h('div', { className: 'cite-list-scroll' },
-        loading ? h('p', { className: 'cite-list-loading', role: 'status' }, t('正在读取文献库…', 'Loading library…'))
+        loading ? h('div', { className: 'cite-list-loading cite-skeleton-wrap', role: 'status', 'aria-busy': 'true', 'aria-label': t('正在读取文献库…', 'Loading library…') },
+          [0, 1, 2, 3].map(idx => h(W.Skeleton, { key: idx, variant: 'row' })),
+        )
           : !loaded ? h(W.Empty, {
             title: t('暂时无法读取文献库', 'Could not load the library'),
             action: h(CiteButton, { icon: 'refresh', disabled: locked, onClick: onRefresh }, t('重新加载', 'Reload')),
@@ -134,6 +172,7 @@ function CiteLibrary({
             action: h(CiteButton, { icon: 'close', onClick: () => { changeFilter('all'); onSearch(''); } }, t('清空筛选', 'Clear filters')),
           }) : h('ul', { className: 'cite-reference-list' }, visible.map(({ entry, byline }) => h(CiteReferenceRow, {
             key: entry.id, entry, byline, active: entry.id === active?.id, checked: selectedIds.has(entry.id),
+            copied: copiedKey === 'row-' + entry.id,
             disabled: locked || (selected.length >= 100 && !selectedIds.has(entry.id)), t,
             onOpen: event => {
               lastRow.current = event.currentTarget;
@@ -141,6 +180,8 @@ function CiteLibrary({
               setOpenedId(entry.id);
             },
             onSelect: checked => setSelected(checked ? [...selected, entry.id] : selected.filter(id => id !== entry.id)),
+            onQuickCopy: () => quickCopy(entry),
+            onQuickInspect: () => quickInspect(entry),
           }))),
         visible.length < matches.length ? h(CiteButton, { className: 'cite-more', onClick: onMore },
           t('再显示 50 条', 'Show 50 more'),
@@ -161,7 +202,13 @@ function CiteLibrary({
         ),
       ) : null,
     ),
-    h('section', { className: 'cite-inspector', 'aria-label': t('文献详情', 'Reference details') },
+    h(W.SplitResizer, {
+      ...split.resizerProps,
+      'aria-controls': listId,
+      label: t('调整文献列表宽度', 'Resize reference list pane'),
+      className: 'cite-resizer',
+    }),
+    h('section', { className: 'cite-inspector dsh-split-trailing', 'aria-label': t('文献详情', 'Reference details') },
       open ? h(CiteButton, { className: 'cite-back', icon: 'left', variant: 'ghost', onClick: back }, t('返回文献列表', 'Back to references')) : null,
       active
         ? h(CiteInspector, {
@@ -172,7 +219,7 @@ function CiteLibrary({
   );
 }
 
-function CiteReferenceRow({ entry, byline, active, checked, disabled, t, onOpen, onSelect }) {
+function CiteReferenceRow({ entry, byline, active, checked, copied, disabled, t, onOpen, onSelect, onQuickCopy, onQuickInspect }) {
   const title = referenceTitle(entry, t);
   const { work, bibKey, warnings, crossref } = entry;
   const meta = [byline, work.year, work.containerTitle].filter(Boolean).join(' · ');
@@ -190,7 +237,10 @@ function CiteReferenceRow({ entry, byline, active, checked, disabled, t, onOpen,
       onChange: onSelect,
     })),
     h('button', { type: 'button', className: 'cite-reference-button', 'aria-pressed': active, onClick: onOpen },
-      h('strong', null, title),
+      h('span', { className: 'cite-reference-title-line' },
+        h('span', { className: 'dsh-pixel-cursor', 'aria-hidden': 'true' }, '▶'),
+        h('strong', { 'data-dsh-serif': '' }, title),
+      ),
       meta ? h('span', { className: 'cite-reference-meta' }, meta) : null,
       h('span', { className: 'cite-chips' },
         bibKey ? h(CiteChip, { tone: 'accent' }, '@' + bibKey) : null,
@@ -198,6 +248,21 @@ function CiteReferenceRow({ entry, byline, active, checked, disabled, t, onOpen,
         warnings.length ? h(CiteChip, { tone: 'warn', title: warnings.map(code => warningLabel(code, t)).join(' · ') }, t('字段缺失', 'Missing fields')) : null,
         crossref ? h(CiteChip, { tone: 'success' }, t('已查询 Crossref', 'Crossref checked')) : null,
       ),
+    ),
+    h('div', { className: 'dsh-row-actions cite-row-actions' },
+      h(CiteIconButton, {
+        icon: copied ? 'check' : 'copy',
+        'data-copied': copied ? 'true' : undefined,
+        'data-cite-quick-copy': entry.id,
+        label: copied ? t('已复制引文', 'Copied citation') : t('快速复制引文', 'Quick copy citation'),
+        onClick: onQuickCopy,
+      }),
+      h(CiteIconButton, {
+        icon: 'right',
+        'data-cite-quick-inspect': entry.id,
+        label: t('查看详情', 'Inspect reference'),
+        onClick: onQuickInspect,
+      }),
     ),
   );
 }
@@ -273,6 +338,7 @@ function CiteInspector({ entry, sources, style, uiStyle, lang, revision, locked,
       ),
     ),
     h('div', { className: 'cite-inspector-scroll' },
+      h('h2', { className: 'cite-detail-title', 'data-dsh-serif': '' }, referenceTitle(entry, t)),
       h(CiteCard, {
         title: t(citationLabel + ' 引文预览', citationLabel + ' citation preview'),
         actions: h('span', { className: 'cite-muted' }, t('提交前请核对引用要求', 'Check submission requirements')),

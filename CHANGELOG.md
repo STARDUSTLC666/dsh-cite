@@ -1,5 +1,14 @@
 # 更新记录
 
+## 0.11.0 (2026-11-18)
+
+- **工作台 UI v3：13 套明亮风格 × 8 套双层中英文字体搭配（默认 `幼圆等宽 / YouYuan Mono`）**：
+  - 在原有风格基础上新增 `晴昼琉璃 / Glass`、`护眼墨水屏 / E-Ink`、`工程晒图 / Blueprint`、`波普孔版 / Riso Zine`、`千禧复古 / Retro 98`、`宋韵朱砂 / Song Xuan`、`晴空水晶 / Aqua Gloss`、`铅字晨报 / Gazette` 等共 **13 套明亮工作台预设**，统一支持 48px 单行顶栏、可拖拽分栏分隔条（`DshSplitResizer`）、滑动 Tab 指示器、骨架屏微光加载、行悬停快捷操作与干净精简行复选框。
+  - 新增独立 `FontSwitcher`（`字` / `Aa`），支持 8 套双层中英文排版（默认 `arcade` 幼圆等宽 + `auto` 跟随风格专属字 / `songkai` / `fangsong` / `poster` / `retro98` / `serif` / `modern`）并跨插件与弹窗同步。
+- **Workbench UI v3: 13 Bright Presets × 8 Dual-Layer Chinese/Latin Font Pairings (default `arcade` YouYuan Mono)**:
+  - Expand the theme system to **13 bright daylight presets** (adding `glass`, `eink`, `blueprint`, `risograph`, `win98`, `songhui`, `frutiger`, and `gazette`) alongside a unified 48px single-row header, resizable split pane (`DshSplitResizer`), sliding tab indicator, shimmer skeletons, row hover quick actions, and clean icon-only row checkboxes.
+  - Add standalone `FontSwitcher` (`字` / `Aa`) with 8 Windows-verified Chinese/Latin font pairings (`arcade` YouYuan Mono default, `auto` match-style, `songkai`, `fangsong`, `poster`, `retro98`, `serif`, `modern`), synced across workbenches and portaled overlays.
+
 ## 0.10.4 (2026-11-18)
 
 - 升级共享更新组件至 `@stardustlc/dsh-updates@0.2.5`：独立安装插件详情页底栏去重（保留组合包组件委派与对话页热更新卡片），补齐 `bundle-in-use` 组合包占用提示说明，并在检查结果过期或远端版本变更时自动刷新元数据，彻底消除 `check-first` 卡顿。

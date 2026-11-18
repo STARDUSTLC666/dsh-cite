@@ -21,8 +21,13 @@ function createMiniEnv({ withPrimitives = false, initialStyle = null, onApi } = 
 
   const document = {
     baseURI: 'http://127.0.0.1:62041/',
+    documentElement: {
+      attrs: {},
+      setAttribute(name, val) { this.attrs[name] = String(val) },
+    },
     querySelectorAll(selector) {
       if (selector === '[data-dsh-portal-synced]') return [...syncedNodes]
+      if (selector === '[data-dsh-portal-synced], [data-dsh-style]') return [...syncedNodes]
       return []
     },
     querySelector() { return null },
@@ -321,7 +326,7 @@ function textOf(node) {
   return (node.children || []).map(textOf).join('')
 }
 
-test('dsh-cite CSS bundle enforces Never-Too-Dark slate, 5 [data-dsh-style] presets, clearances, icons and reduced-motion', async () => {
+test('dsh-cite CSS bundle enforces Never-Too-Dark slate, 13 [data-dsh-style] presets, 8 [data-dsh-font] pairings, v3 layout primitives, clearances, icons and reduced-motion', async () => {
   const env = createMiniEnv({ withPrimitives: false })
   const mounted = await env.mountWorkbench(true, 'zh-CN')
   try {
@@ -329,9 +334,21 @@ test('dsh-cite CSS bundle enforces Never-Too-Dark slate, 5 [data-dsh-style] pres
     assert.match(cssText, /body\[data-ds-dark-theme\] \[data-dsh-style="harness"\]/)
     assert.match(cssText, /--dsw-alias-bg-base:\s*#1f232b/)
     assert.match(cssText, /--dsw-alias-bg-layer-1:\s*#272c36/)
-    for (const preset of ['harness', 'cream', 'claude', 'pixel8bit', 'mint']) {
+    for (const preset of ['harness', 'cream', 'claude', 'pixel8bit', 'mint', 'glass', 'eink', 'blueprint', 'risograph', 'win98', 'songhui', 'frutiger', 'gazette']) {
       assert.ok(cssText.includes(`[data-dsh-style="${preset}"]`), `missing preset ${preset}`)
     }
+    for (const fontId of ['songkai', 'fangsong', 'poster', 'retro98', 'serif', 'arcade', 'modern']) {
+      assert.ok(cssText.includes(`[data-dsh-font="${fontId}"]`), `missing font rule ${fontId}`)
+    }
+    assert.match(cssText, /\.dsh-style-switcher/)
+    assert.match(cssText, /\.dsh-font-trigger/)
+    assert.match(cssText, /\.dsh-header/)
+    assert.match(cssText, /\.dsh-tab-indicator/)
+    assert.match(cssText, /\.dsh-split-resizer/)
+    assert.match(cssText, /\.dsh-skeleton/)
+    assert.match(cssText, /\.dsh-row-actions/)
+    assert.match(cssText, /\[data-dsh-serif\]/)
+    assert.match(cssText, /\.dsh-pixel-cursor/)
     assert.match(cssText, /translate:\s*1px 1px !important/)
     assert.match(cssText, /box-shadow:\s*2px 2px 0px #1e2826/)
     assert.match(cssText, /--dsh-frame-top-clearance/)
@@ -344,16 +361,47 @@ test('dsh-cite CSS bundle enforces Never-Too-Dark slate, 5 [data-dsh-style] pres
   }
 })
 
-test('dsh-cite renders in standalone fallback mode, syncs all 5 styles, animates copy/icons, and stamps portaled dialogs', async () => {
+test('dsh-cite renders in standalone fallback mode, syncs all 13 styles + 8 fonts, exposes v3 header/resizer/skeleton/quick-actions, and stamps portaled dialogs', async () => {
   const env = createMiniEnv({ withPrimitives: false })
   assert.equal(env.primitivesRequestedAtLoad, false, 'must never eagerly require host primitives at load time')
-  assert.equal(env.client.__internals.DSH_STYLES.length, 5)
+  assert.equal(env.client.__internals.DSH_STYLES.length, 13)
+  assert.equal(env.client.__internals.DSH_FONTS.length, 8)
+  assert.equal(env.client.__internals.DSH_DEFAULT_FONT, 'arcade')
 
   const mounted = await env.mountWorkbench(true, 'en-US')
   try {
     let root = mounted.tree
     assert.equal(root.attrs['data-dsh-style'], 'harness')
+    assert.equal(root.attrs['data-dsh-font'], 'arcade')
     assert.equal(root.attrs['data-main'], 'true')
+
+    // Verify unified 48px single-row header, sliding tab indicator, and materiality hooks
+    assert.ok(findNodes(root, n => Object.hasOwn(n.attrs || {}, 'data-dsh-header')).length === 1)
+    assert.ok(findNodes(root, n => String(n.attrs?.className || '').includes('dsh-tab-indicator')).length === 1)
+    assert.ok(findNodes(root, n => Object.hasOwn(n.attrs || {}, 'data-dsh-tab-panel')).length === 1)
+    assert.ok(findNodes(root, n => Object.hasOwn(n.attrs || {}, 'data-dsh-serif')).length >= 2)
+    assert.ok(findNodes(root, n => String(n.attrs?.className || '').includes('dsh-pixel-cursor')).length >= 1)
+
+    // Verify DshSplitResizer keyboard resize + double-click reset + localStorage persistence
+    const resizer = findNodes(root, n => n.attrs?.role === 'separator' && Object.hasOwn(n.attrs || {}, 'data-dsh-resizer'))[0]
+    assert.ok(resizer, 'DshSplitResizer must render in CiteLibrary')
+    assert.equal(resizer.attrs['aria-valuenow'], 320)
+    resizer.attrs.onKeyDown({ key: 'ArrowRight', preventDefault() {} })
+    root = mounted.rerender()
+    assert.equal(findNodes(root, n => n.attrs?.role === 'separator')[0].attrs['aria-valuenow'], 336)
+    assert.equal(env.storage.get('dsh-cite:list-width'), '336')
+    findNodes(root, n => n.attrs?.role === 'separator')[0].attrs.onDoubleClick()
+    root = mounted.rerender()
+    assert.equal(findNodes(root, n => n.attrs?.role === 'separator')[0].attrs['aria-valuenow'], 320)
+
+    // Verify row hover quick-action bar quick copy
+    const quickCopyBtn = findNodes(root, n => n.attrs?.['data-cite-quick-copy'] === 'entry-1')[0]
+    assert.ok(quickCopyBtn, 'Row hover quick-copy button must render')
+    await quickCopyBtn.attrs.onClick()
+    root = mounted.rerender()
+    await new Promise(r => setTimeout(r, 15))
+    root = mounted.rerender()
+    assert.match(env.copiedClipboard, /Airy Design Systems/)
 
     // Verify SVG icon micro-animation markers exist on buttons
     const icons = findNodes(root, n => n.tag === 'svg' && n.attrs['data-dsh-icon'])
@@ -362,18 +410,23 @@ test('dsh-cite renders in standalone fallback mode, syncs all 5 styles, animates
       assert.ok(iconNames.has(expected), 'missing data-dsh-icon=' + expected)
     }
 
-    // Verify card & row motion hooks
+    // Verify card & row motion hooks, and row checkbox renders no visible duplicate label text
     assert.ok(findNodes(root, n => Object.hasOwn(n.attrs, 'data-dsh-card')).length >= 3)
     assert.ok(findNodes(root, n => Object.hasOwn(n.attrs, 'data-dsh-row')).length >= 1)
+    const rowCheck = findNodes(root, n => String(n.attrs?.className || '').includes('cite-reference-check'))[0]
+    assert.ok(rowCheck, 'row checkbox container should exist')
+    assert.equal(textOf(rowCheck).trim(), '', 'hiddenLabel row checkbox must not render duplicate visible title text')
+    const rowCheckInput = findNodes(rowCheck, n => n.tag === 'input' && n.attrs?.type === 'checkbox')[0]
+    assert.match(String(rowCheckInput?.attrs?.['aria-label'] || ''), /Select reference/)
 
-    // Switch across all 5 styles via StyleSwitcher & verify localStorage + CustomEvent sync
-    for (const preset of ['cream', 'claude', 'pixel8bit', 'mint', 'harness']) {
+    // Switch across all 13 styles via StyleSwitcher & verify localStorage + CustomEvent sync
+    for (const preset of ['cream', 'claude', 'pixel8bit', 'mint', 'glass', 'eink', 'blueprint', 'risograph', 'win98', 'songhui', 'frutiger', 'gazette', 'harness']) {
       const trigger = findNodes(root, n => n.attrs.id === 'cite-style-switcher')[0]
       assert.ok(trigger, 'style switcher trigger must exist')
       trigger.attrs.onClick()
       root = mounted.rerender()
       const items = findNodes(root, n => n.attrs.role === 'menuitemradio')
-      assert.equal(items.length, 5)
+      assert.equal(items.length, 13)
       const index = env.client.__internals.DSH_STYLES.findIndex(s => s.id === preset)
       items[index].attrs.onClick()
       root = mounted.rerender()
@@ -381,7 +434,22 @@ test('dsh-cite renders in standalone fallback mode, syncs all 5 styles, animates
       assert.equal(env.storage.get('dsh-stardust:ui-style'), preset)
     }
 
-    // External dsh-stardust-style event updates the workbench and any open portaled dialog
+    // Switch across all 8 font pairings via FontSwitcher & verify localStorage + CustomEvent sync
+    for (const fontId of ['auto', 'songkai', 'fangsong', 'poster', 'retro98', 'serif', 'modern', 'arcade']) {
+      const fontTrigger = findNodes(root, n => n.attrs.id === 'cite-style-switcher-font')[0]
+      assert.ok(fontTrigger, 'font switcher trigger must exist')
+      fontTrigger.attrs.onClick()
+      root = mounted.rerender()
+      const items = findNodes(root, n => n.attrs.role === 'menuitemradio')
+      assert.equal(items.length, 8)
+      const index = env.client.__internals.DSH_FONTS.findIndex(f => f.id === fontId)
+      items[index].attrs.onClick()
+      root = mounted.rerender()
+      assert.equal(root.attrs['data-dsh-font'], fontId)
+      assert.equal(env.storage.get('dsh-stardust:ui-font'), fontId)
+    }
+
+    // External dsh-stardust-style and dsh-stardust-font events update the workbench and any open portaled dialog
     const rawBtn = findNodes(root, n => n.tag === 'button' && textOf(n).includes('Raw source'))[0]
     assert.ok(rawBtn, 'Raw source modal trigger should render for entry with saved source')
     rawBtn.attrs.onClick()
@@ -390,14 +458,19 @@ test('dsh-cite renders in standalone fallback mode, syncs all 5 styles, animates
     const dialog = findNodes(root, n => n.attrs.role === 'dialog')[0]
     assert.ok(dialog, 'Fallback Modal dialog should open')
     assert.equal(dialog.attrs['data-dsh-style'], 'harness')
+    assert.equal(dialog.attrs['data-dsh-font'], 'arcade')
     assert.equal(dialog.attrs['data-window-drag-exclude'], '')
 
     env.win.localStorage.setItem('dsh-stardust:ui-style', 'pixel8bit')
     env.win.dispatchEvent(new env.win.CustomEvent('dsh-stardust-style', { detail: { style: 'pixel8bit' } }))
+    env.win.localStorage.setItem('dsh-stardust:ui-font', 'songkai')
+    env.win.dispatchEvent(new env.win.CustomEvent('dsh-stardust-font', { detail: { font: 'songkai' } }))
     root = mounted.rerender()
     const updatedDialog = findNodes(root, n => n.attrs.role === 'dialog')[0]
     assert.equal(root.attrs['data-dsh-style'], 'pixel8bit')
+    assert.equal(root.attrs['data-dsh-font'], 'songkai')
     assert.equal(updatedDialog.attrs['data-dsh-style'], 'pixel8bit')
+    assert.equal(updatedDialog.attrs['data-dsh-font'], 'songkai')
 
     // Copy citation button triggers check pop (`data-copied="true"`)
     const copyBtn = findNodes(root, n => n.tag === 'button' && textOf(n).includes('Copy citation'))[0]
@@ -437,9 +510,10 @@ test('dsh-cite integrates host @deepseek-ai/dsh-client-ui-primitives when availa
     const hostMenu = findNodes(root, n => n.attrs['data-host-menu'] === 'true')[0]
     assert.ok(hostMenu)
     assert.equal(hostMenu.attrs['data-dsh-style'], 'claude')
+    assert.equal(hostMenu.attrs['data-dsh-font'], 'arcade')
     assert.equal(hostMenu.attrs['data-window-drag-exclude'], '')
 
-    // Open Raw source Modal and verify createOverlaySyncRef stamps data-dsh-style + data-window-drag-exclude onto host Modal dialog
+    // Open Raw source Modal and verify createOverlaySyncRef stamps data-dsh-style + data-dsh-font + data-window-drag-exclude onto host Modal dialog
     const rawBtn = findNodes(root, n => n.tag === 'button' && textOf(n).includes('原始输入'))[0]
     rawBtn.attrs.onClick()
     root = mounted.rerender()
@@ -447,6 +521,7 @@ test('dsh-cite integrates host @deepseek-ai/dsh-client-ui-primitives when availa
     const hostModal = findNodes(root, n => n.attrs['data-host-modal'] === 'true')[0]
     assert.ok(hostModal)
     assert.equal(hostModal.attrs['data-dsh-style'], 'claude')
+    assert.equal(hostModal.attrs['data-dsh-font'], 'arcade')
     assert.equal(hostModal.attrs['data-window-drag-exclude'], '')
 
     // Switch to Import tab to verify host SegmentedControl
@@ -699,6 +774,40 @@ test('dsh-cite CoachmarkTour (? Tour), inline prompt copy, sample filler, DOI-ch
     assert.equal(removePayloads[0].id, 'entry-1')
     assert.equal(removePayloads[0].citekey, 'smith2026')
     assert.equal(removePayloads[0].expectedRevision, 2)
+  } finally {
+    mounted.cleanup()
+  }
+})
+
+test('dsh-cite renders DshSkeleton shimmer placeholders during pending DOI check', async () => {
+  let resolveCheck
+  const env = createMiniEnv({
+    withPrimitives: false,
+    onApi: async body => {
+      if (body.action === 'check') {
+        return new Promise(resolve => { resolveCheck = resolve })
+      }
+      return null
+    },
+  })
+  const mounted = await env.mountWorkbench(true, 'en-US')
+  try {
+    let root = mounted.tree
+    findNodes(root, n => n.attrs.role === 'tab' && textOf(n).includes('DOI check'))[0].attrs.onClick()
+    root = mounted.rerender()
+    findNodes(root, n => n.tag === 'textarea')[0].attrs.onChange({ target: { value: '10.1038/nature14539' } })
+    root = mounted.rerender()
+    const pendingCheck = findNodes(root, n => n.tag === 'form')[0].attrs.onSubmit({ preventDefault() {} })
+    root = mounted.rerender()
+
+    const skeletons = findNodes(root, n => Object.hasOwn(n.attrs || {}, 'data-dsh-skeleton'))
+    assert.ok(skeletons.length >= 2, 'DshSkeleton should render while DOI check is running')
+    assert.ok(findNodes(root, n => n.attrs?.role === 'status' && n.attrs?.['aria-label'] === 'Checking DOIs…').length >= 1)
+
+    resolveCheck({ ok: true, status: 200, json: async () => ({ ok: true, value: { count: 1, results: [{ doi: '10.1038/nature14539', ok: true, title: 'Deep learning' }] } }) })
+    await pendingCheck
+    root = mounted.rerender()
+    assert.match(textOf(root), /Deep learning/)
   } finally {
     mounted.cleanup()
   }

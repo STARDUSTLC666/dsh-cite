@@ -61,6 +61,7 @@ window.__ModuleLoader__.load({
     function Workbench({ locale, workbench = false } = {}) {
       const [lang, setLang] = useState(() => language(locale));
       const [uiStyle, setUiStyle] = useDshStyle(React);
+      const [uiFont, setUiFont] = useDshFont(React);
       const [activeTab, setActiveTab] = useState('library');
       const [library, setLibrary] = useState(null);
       const [job, setJob] = useState(null);
@@ -322,7 +323,7 @@ window.__ModuleLoader__.load({
           fallback: '#cite-style-switcher',
           side: 'right',
           title: t('切换引文体例（GB/T 7714 / APA）', 'Switch citation styles (GB/T 7714 / APA)'),
-          desc: t('随时切换 GB/T 7714、APA、MLA、Chicago 引文格式，右上角还可切换 5 套明亮护眼工作台风格。', 'Switch between GB/T 7714, APA, MLA, and Chicago formats anytime, plus 5 daylight-friendly workbench styles.'),
+          desc: t('随时切换 GB/T 7714、APA、MLA、Chicago 引文格式，右上角还可切换 13 套明亮护眼工作台风格与字体搭配。', 'Switch between GB/T 7714, APA, MLA, and Chicago formats anytime, plus 13 daylight-friendly workbench styles & font pairings.'),
         },
         {
           id: 'export',
@@ -393,6 +394,16 @@ window.__ModuleLoader__.load({
         { id: 'check', label: t('DOI 核查', 'DOI check') },
         { id: 'export', label: t('导出备份', 'Export') },
       ];
+      const tabId = typeof React.useId === 'function' ? React.useId() : 'cite-tabs';
+      const tabsIndicator = useSlidingTabIndicator(React, activeTab, { deps: [lang, library ? entries.length : 0] });
+      function onTabKeyDown(event, index) {
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        event.preventDefault();
+        const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+        const node = event.currentTarget.parentElement?.querySelectorAll('[role="tab"]')[next];
+        setActiveTab(tabs[next].id);
+        node?.focus?.();
+      }
       const onImport = () => setActiveTab('import');
       const onRequestRemove = ids => {
         setTour(prev => (prev.open ? { ...prev, open: false } : prev));
@@ -452,35 +463,77 @@ window.__ModuleLoader__.load({
         className: 'dshw cite-workbench',
         'data-main': String(Boolean(workbench)),
         'data-dsh-style': uiStyle,
+        'data-dsh-font': uiFont,
       },
         h(W.Styles),
         h('style', null, CITE_WORKBENCH_CSS),
         h('div', { className: 'cite-shell' },
-          h('h1', { className: 'cite-brand' }, h('span', { className: 'cite-brand-icon' }, h(W.Icon, { name: 'book', size: 15 })), 'dsh-cite'),
-          h('div', { className: 'cite-header-actions' },
-            h(CiteButton, {
-              ref: triggerRef,
-              variant: 'ghost',
-              className: 'cite-tour-trigger',
-              'data-tour-trigger': '',
-              'data-cite-tour-trigger': '',
-              'aria-label': t('使用引导', 'Interactive guide'),
-              'aria-expanded': tour.open,
-              title: t('使用引导', 'Interactive guide'),
-              onClick: () => (tour.open ? closeTour(true) : setTour({ open: true, step: 0, manual: true })),
-            }, t('? 引导', '? Tour')),
-            h(StyleSwitcher, {
-              style: uiStyle,
-              onChange: setUiStyle,
-              lang,
-              compact: true,
-              id: 'cite-style-switcher',
-            }),
-            h(CiteButton, {
-              className: 'cite-quick-import', variant: 'primary', icon: 'plus', onClick: onImport,
-            }, t('导入 DOI / BibTeX', 'Import DOI / BibTeX')),
+          h('header', { className: 'dsh-header cite-header', 'data-dsh-header': '' },
+            h('div', { className: 'dsh-header-leading' },
+              h('div', { className: 'dsh-header-brand cite-brand' },
+                h('span', { className: 'dsh-header-badge cite-brand-icon', 'aria-hidden': 'true' }, h(W.Icon, { name: 'book', size: 14 })),
+                h('h1', { className: 'dsh-header-title' }, 'dsh-cite'),
+              ),
+              h('div', { className: 'dsh-header-tabs' },
+                h('div', {
+                  className: 'w-tabs dsh-tablist dsh-tablist-pill',
+                  role: 'tablist',
+                  'aria-label': t('引文工作台', 'Citation workbench'),
+                  ...tabsIndicator.tablistProps,
+                },
+                  tabs.map((item, index) => h('button', {
+                    type: 'button',
+                    role: 'tab',
+                    key: item.id,
+                    id: tabId + '-' + item.id,
+                    'data-tab-id': item.id,
+                    'aria-selected': activeTab === item.id,
+                    tabIndex: activeTab === item.id ? 0 : -1,
+                    onClick: () => setActiveTab(item.id),
+                    onKeyDown: event => onTabKeyDown(event, index),
+                  },
+                    item.label,
+                    item.count !== undefined ? h('span', { className: 'w-count' }, item.count) : null,
+                  )),
+                  h('span', tabsIndicator.indicatorProps),
+                ),
+              ),
+            ),
+            h('div', { className: 'dsh-header-actions cite-header-actions' },
+              h(CiteButton, {
+                ref: triggerRef,
+                variant: 'ghost',
+                className: 'cite-tour-trigger',
+                'data-tour-trigger': '',
+                'data-cite-tour-trigger': '',
+                'aria-label': t('使用引导', 'Interactive guide'),
+                'aria-expanded': tour.open,
+                title: t('使用引导', 'Interactive guide'),
+                onClick: () => (tour.open ? closeTour(true) : setTour({ open: true, step: 0, manual: true })),
+              }, t('? 引导', '? Tour')),
+              h(StyleSwitcher, {
+                style: uiStyle,
+                font: uiFont,
+                onChange: setUiStyle,
+                onFontChange: setUiFont,
+                showFontSwitcher: true,
+                lang,
+                compact: true,
+                id: 'cite-style-switcher',
+              }),
+              h(CiteButton, {
+                className: 'cite-quick-import', variant: 'primary', icon: 'plus', onClick: onImport,
+              }, t('导入 DOI / BibTeX', 'Import DOI / BibTeX')),
+            ),
           ),
-          h(W.Tabs, { label: t('引文工作台', 'Citation workbench'), items: tabs, value: activeTab, onChange: setActiveTab },
+          h('div', {
+            key: activeTab,
+            className: 'w-tab-panel dsh-tab-panel cite-panel-body',
+            'data-dsh-tab-panel': '',
+            id: tabId + '-panel',
+            role: 'tabpanel',
+            'aria-labelledby': tabId + '-' + activeTab,
+          },
             error || notice || job ? h('div', { className: 'cite-feedback' },
               error ? h(CiteMessage, { tone: 'error', onClose: () => setError(''), t }, error) : null,
               notice ? h(CiteMessage, { tone: 'success', onClose: () => setNotice(''), t }, notice) : null,
@@ -490,9 +543,9 @@ window.__ModuleLoader__.load({
               }) : null,
             ) : null,
             panel,
-            workbench && typeof __stardustUpdatesFooter === 'function'
-              ? __stardustUpdatesFooter(React, 'dsh-cite') : null,
           ),
+          workbench && typeof __stardustUpdatesFooter === 'function'
+            ? __stardustUpdatesFooter(React, 'dsh-cite') : null,
         ),
         tour.open && !removeModal ? h(W.CoachmarkTour, {
           rootRef,
@@ -500,6 +553,7 @@ window.__ModuleLoader__.load({
           step: tour.step,
           manual: tour.manual,
           style: uiStyle,
+          font: uiFont,
           lang,
           activeKey: activeTab,
           layout: tourLayout,
@@ -510,6 +564,7 @@ window.__ModuleLoader__.load({
         }) : null,
         removeModal ? h(W.Dialog, {
           style: uiStyle,
+          font: uiFont,
           busy,
           title: removeModal.ids.length === 1 ? t('确认删除文献', 'Remove reference?') : t('确认删除所选文献', 'Remove selected references?'),
           closeLabel: t('关闭', 'Close'),
@@ -587,6 +642,14 @@ window.__ModuleLoader__.load({
         readDshStyle,
         writeDshStyle,
         subscribeDshStyle,
+        DSH_FONTS,
+        DSH_FONT_STORAGE_KEY,
+        DSH_FONT_EVENT,
+        DSH_DEFAULT_FONT,
+        normalizeDshFont,
+        readDshFont,
+        writeDshFont,
+        subscribeDshFont,
       },
     };
   },

@@ -11,7 +11,7 @@
   --cite-active: var(--dsw-alias-interactive-bg-active, rgba(65, 118, 230, 0.11));
   --cite-primary: var(--dsw-alias-button-primary-fill, #4176e6);
   --cite-on-primary: var(--dsw-alias-button-primary-ink, #ffffff);
-  --cite-mono: var(--ds-font-family-code, ui-monospace, SFMono-Regular, Consolas, monospace);
+  --cite-mono: var(--dsh-font-mono, var(--ds-font-family-code, ui-monospace, SFMono-Regular, Consolas, monospace));
   --cite-radius-sm: var(--dsw-radius-sm, 8px);
   --cite-radius-md: var(--dsw-radius-md, 12px);
   container: cite-workbench / inline-size;
@@ -19,7 +19,7 @@
   min-inline-size: 0;
   min-block-size: 0;
   box-sizing: border-box;
-  font-family: inherit;
+  font-family: var(--dsh-font-body, inherit);
   font-size: 13px;
   line-height: 1.5;
   color: var(--cite-ink);
@@ -43,15 +43,11 @@
 }
 
 .cite-workbench .cite-shell {
-  display: grid;
-  grid-template:
-    "brand tabs import" auto
-    "panel panel panel" minmax(0, 1fr)
-    / max-content minmax(0, 1fr) max-content;
-  align-items: center;
-  column-gap: 12px;
+  display: flex;
+  flex-direction: column;
   block-size: 100%;
-  background: var(--cite-base);
+  min-block-size: 0;
+  background: transparent;
 }
 
 .cite-workbench[data-main="false"] .cite-shell {
@@ -60,14 +56,14 @@
   overflow: clip;
 }
 
+.cite-workbench .cite-header {
+  min-block-size: 48px;
+}
+
 .cite-workbench .cite-brand {
-  grid-area: brand;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 0 14px;
-  font-size: 14px;
-  line-height: 1.3;
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.25;
   font-weight: 650;
   white-space: nowrap;
 }
@@ -75,20 +71,19 @@
 .cite-workbench .cite-brand-icon {
   display: grid;
   place-items: center;
-  inline-size: 25px;
-  block-size: 25px;
+  inline-size: 24px;
+  block-size: 24px;
   border-radius: var(--dsw-radius-xs, 7px);
   color: var(--cite-on-primary);
   background: var(--cite-primary);
 }
 
 .cite-workbench .cite-header-actions {
-  grid-area: import;
-  justify-self: end;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  margin: 7px 14px 7px 0;
+  flex-wrap: nowrap;
+  gap: 6px;
+  margin: 0;
 }
 
 .cite-workbench .w-tabs-layout {
@@ -96,12 +91,11 @@
 }
 
 .cite-workbench .w-tabs {
-  grid-area: tabs;
-  justify-self: start;
+  position: relative;
   flex-wrap: nowrap;
   max-inline-size: 100%;
   gap: 2px;
-  margin: 7px 0;
+  margin: 0;
   padding: 3px;
   border: var(--dsh-control-border-width, 0.5px) solid var(--cite-subtle-line);
   border-radius: calc(var(--cite-radius-sm) + 2px);
@@ -109,6 +103,8 @@
 }
 
 .cite-workbench .w-tabs > button {
+  position: relative;
+  z-index: 1;
   display: inline-flex;
   justify-content: center;
   align-items: center;
@@ -132,6 +128,29 @@
   font-weight: 600;
 }
 
+.cite-workbench .w-tabs[data-indicator-ready="true"] > button[aria-selected="true"] {
+  background: transparent;
+  box-shadow: none;
+}
+
+.cite-workbench .w-tabs > .dsh-tab-indicator {
+  inset-block: 3px;
+  height: auto;
+  border-radius: var(--cite-radius-sm);
+  background: var(--cite-base);
+  box-shadow: var(--dsw-elevation-soft, 0 1px 3px rgba(15, 23, 42, 0.08));
+}
+
+.cite-workbench[data-dsh-style="cream"] .w-tabs > .dsh-tab-indicator {
+  background: rgba(158, 88, 41, 0.11);
+  box-shadow: inset 0 2px 0 rgba(158, 88, 41, 0.22);
+}
+
+.cite-workbench[data-dsh-style="pixel8bit"] .w-tabs > .dsh-tab-indicator {
+  border-radius: 0px !important;
+  border-block-end: 3px solid #d95b43;
+}
+
 .cite-workbench .w-tabs .w-count {
   min-inline-size: 0;
   padding: 0 4px;
@@ -146,22 +165,18 @@
   background: color-mix(in oklab, var(--cite-accent) 14%, transparent);
 }
 
-.cite-workbench .w-tab-panel {
-  grid-area: panel;
+.cite-workbench .w-tab-panel,
+.cite-workbench .cite-panel-body {
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   min-block-size: 0;
   min-inline-size: 0;
-  block-size: 100%;
   overflow: hidden;
-  border-block-start: var(--dsh-control-border-width, 0.5px) solid var(--cite-line);
 }
 
-.cite-workbench .w-tab-panel > [data-plugin-update-footer="dsh-cite"] {
+.cite-workbench .cite-shell > [data-plugin-update-footer="dsh-cite"] {
   flex: 0 0 auto;
-  padding: 10px 16px;
-  border-block-start: var(--dsh-control-border-width, 0.5px) solid var(--cite-line);
-  background: var(--cite-layer);
 }
 
 .cite-workbench :is(button, a, input, select, textarea, summary):focus-visible {
@@ -320,10 +335,11 @@
 }
 
 .cite-workbench .cite-library {
-  display: grid;
+  display: flex;
   flex: 1 1 auto;
   min-block-size: 0;
-  grid-template-columns: clamp(168px, 18cqi, 236px) clamp(252px, 28cqi, 356px) minmax(0, 1fr);
+  min-inline-size: 0;
+  inline-size: 100%;
 }
 
 .cite-workbench :is(.cite-rail, .cite-list, .cite-inspector) {
@@ -332,6 +348,8 @@
 }
 
 .cite-workbench .cite-rail {
+  flex: 0 0 auto;
+  inline-size: clamp(168px, 18cqi, 228px);
   overflow: auto;
   overscroll-behavior: contain;
   padding: 12px 10px;
@@ -392,12 +410,19 @@
 }
 
 .cite-workbench .cite-list {
-  border-inline-end: var(--dsh-control-border-width, 0.5px) solid var(--cite-line);
+  flex: 0 0 auto;
+  inline-size: min(var(--dsh-split-size, 320px), max(220px, calc(100% - 236px - 320px)));
   background: var(--cite-base);
 }
 
 .cite-workbench .cite-inspector {
+  flex: 1 1 auto;
+  min-inline-size: 0;
   background: var(--cite-base);
+}
+
+.cite-workbench:is([data-dsh-style="glass"], [data-dsh-style="claude"], [data-dsh-style="blueprint"], [data-dsh-style="risograph"], [data-dsh-style="songhui"], [data-dsh-style="frutiger"]) :is(.cite-list, .cite-inspector, .cite-feedback) {
+  background: transparent;
 }
 
 .cite-workbench :is(.cite-searchbar, .cite-inspector-bar, .cite-selection) {
@@ -465,6 +490,14 @@
   text-align: center;
 }
 
+.cite-workbench .cite-skeleton-wrap {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 12px;
+  text-align: start;
+}
+
 .cite-workbench .cite-list .w-empty {
   gap: 9px;
   min-block-size: 220px;
@@ -489,7 +522,12 @@
 .cite-workbench .cite-reference-row {
   position: relative;
   display: flex;
+  align-items: center;
   border-block-end: var(--dsh-control-border-width, 0.5px) solid var(--cite-subtle-line);
+}
+
+.cite-workbench[data-dsh-style="cream"] .cite-reference-row {
+  border-block-end: 1px dashed var(--dsw-alias-border-l2);
 }
 
 .cite-workbench .cite-reference-row[data-active="true"] {
@@ -507,8 +545,14 @@
   pointer-events: none;
 }
 
+.cite-workbench[data-dsh-style="pixel8bit"] .cite-reference-row[data-active="true"]::before {
+  background: #d95b43;
+  border-radius: 0;
+}
+
 .cite-workbench .cite-reference-check {
   display: flex;
+  align-self: flex-start;
   align-items: flex-start;
   padding: 14px 5px 8px 12px;
 }
@@ -520,12 +564,31 @@
   gap: 3px;
   min-inline-size: 0;
   border: 0;
-  padding: 10px 12px 10px 5px;
+  padding: 10px 6px 10px 5px;
   background: transparent;
   color: var(--cite-ink);
   font: inherit;
   text-align: start;
   cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.cite-workbench .cite-reference-title-line {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  min-inline-size: 0;
+}
+
+.cite-workbench .cite-row-actions {
+  padding: 6px 8px 6px 2px;
+}
+
+.cite-workbench .cite-detail-title {
+  margin: 0 0 12px;
+  font-size: 18px;
+  line-height: 1.35;
+  font-weight: 650;
   overflow-wrap: anywhere;
 }
 
@@ -820,10 +883,11 @@
   margin: 0;
 }
 
-.cite-workbench .cite-job > progress {
+.cite-workbench .cite-job > progress,
+.cite-workbench .cite-job-progress {
   display: block;
   inline-size: 100%;
-  block-size: 8px;
+  margin-block-start: 6px;
 }
 
 .cite-workbench .cite-sr-only {
@@ -863,7 +927,7 @@
   pointer-events: none;
   z-index: 2147483000;
   color: var(--tour-ink);
-  font: 13px/1.55 var(--ds-font-family-ui, system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif);
+  font: 13px/1.55 var(--dsh-font-body, var(--ds-font-family-ui, system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif));
 }
 
 .cite-tour-layer[popover]:is(:popover-open, .\:popover-open) {
@@ -1127,7 +1191,7 @@
       transition: background-color 140ms var(--dsh-ease-out, ease-out), translate 180ms var(--dsh-ease-out, ease-out);
     }
 
-    .cite-workbench:not([data-dsh-style="pixel8bit"]) .cite-reference-row:hover {
+    .cite-workbench:not([data-dsh-style="pixel8bit"]):not([data-dsh-style="eink"]) .cite-reference-row:hover {
       translate: 2px 0px;
     }
   }
@@ -1148,16 +1212,30 @@
 }
 
 @container cite-workbench (max-width: 860px) {
+  .cite-workbench .cite-header-actions {
+    flex-wrap: wrap;
+  }
+
   .cite-workbench .cite-library {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr);
+    flex-direction: column;
   }
 
   .cite-workbench .cite-rail {
+    inline-size: 100%;
     overflow: visible;
     padding: 8px 10px;
     border-inline-end: 0;
     border-block-end: var(--dsh-control-border-width, 0.5px) solid var(--cite-line);
+  }
+
+  .cite-workbench .cite-list {
+    inline-size: 100% !important;
+    flex: 1 1 auto;
+    border-inline-end: 0;
+  }
+
+  .cite-workbench .cite-resizer {
+    display: none;
   }
 
   .cite-workbench .cite-style-box {
@@ -1190,12 +1268,8 @@
     font-size: 11.5px;
   }
 
-  .cite-workbench .cite-list {
-    border-inline-end: 0;
-  }
-
   .cite-workbench .cite-library[data-open="true"] .cite-inspector {
-    grid-row: 1 / -1;
+    flex: 1 1 auto;
   }
 
   .cite-workbench .cite-back {
@@ -1215,17 +1289,12 @@
 }
 
 @container cite-workbench (max-width: 660px) {
-  .cite-workbench .cite-shell {
-    grid-template:
-      "brand import" auto
-      "tabs tabs" auto
-      "panel panel" minmax(0, 1fr)
-      / minmax(0, 1fr) max-content;
+  .cite-workbench .cite-header {
+    padding-inline: 10px;
   }
 
   .cite-workbench .w-tabs {
     justify-self: stretch;
-    margin: 0 10px 7px;
   }
 
   .cite-workbench .w-tabs > button {

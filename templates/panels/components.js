@@ -39,12 +39,14 @@ function CiteInput({ className = '', icon, ...props }) {
 
 function CiteCheckbox({ label, hiddenLabel = false, checked, disabled, onChange, className = '', title, ...props }) {
   const P = hostPrimitives();
+  const ariaLabel = props['aria-label'] || (hiddenLabel && typeof label === 'string' ? label : undefined);
   return h(P.Checkbox, {
     ...props,
     checked: Boolean(checked),
     disabled,
-    label,
-    title: title || (hiddenLabel && typeof label === 'string' ? label : undefined),
+    label: hiddenLabel ? undefined : label,
+    'aria-label': ariaLabel,
+    title: title || ariaLabel,
     className: ['cite-checkbox', hiddenLabel && 'dsh-checkbox-icon', className].filter(Boolean).join(' '),
     onChange: next => onChange?.(typeof next === 'boolean' ? next : Boolean(next?.target?.checked)),
   });
@@ -66,12 +68,14 @@ function CiteSegmented({ id, label, value, options, onChange, disabled = false, 
 function CitePicker({ id, label, value, options, onChange, disabled }) {
   const [open, setOpen] = useState(false);
   const [uiStyle] = useDshStyle(React);
+  const [uiFont] = useDshFont(React);
   const P = hostPrimitives();
   const current = options.find(option => option.id === value) || options[0];
   return h('div', { className: 'cite-picker-wrap', 'data-window-drag-exclude': '' },
     h(P.Menu, {
       open: Boolean(open && !disabled),
       dshStyle: uiStyle,
+      dshFont: uiFont,
       portal: !P.isFallback,
       compact: true,
       autoFocus: true,
@@ -91,7 +95,7 @@ function CitePicker({ id, label, value, options, onChange, disabled }) {
             setOpen(true);
           }
         },
-      }, h('span', { ref: open ? createOverlaySyncRef(uiStyle) : undefined }, current?.label || ''), h(W.Icon, { name: 'down', size: 13 })),
+      }, h('span', { ref: open ? createOverlaySyncRef(uiStyle, uiFont) : undefined }, current?.label || ''), h(W.Icon, { name: 'down', size: 13 })),
       items: options,
       selectedId: value,
       onClose: () => setOpen(false),
@@ -139,7 +143,7 @@ function CiteChip({ tone = '', children, ...props }) {
 
 function CiteCard({ title, actions, children, className = '' }) {
   return h('section', { className: ('cite-card ' + className).trim(), 'data-dsh-card': '' },
-    h('header', { className: 'cite-card-header' }, h('h3', null, title), actions),
+    h('header', { className: 'cite-card-header' }, h('h3', { 'data-dsh-serif': '' }, title), actions),
     children,
   );
 }
@@ -182,7 +186,7 @@ function useCitationOutput({ kind, id, style, lang, revision }) {
 
 function CiteOutput({ output, label, code = false, t }) {
   if (output.error) return h(W.Status, { tone: 'error' }, output.error);
-  if (!output.content) return h('p', { className: 'cite-muted', role: 'status' }, t('正在生成…', 'Formatting…'));
+  if (!output.content) return h(W.Skeleton, { variant: 'text', lines: 2, label: t('正在生成…', 'Formatting…') });
   return h('pre', { className: code ? 'cite-code' : 'cite-formatted', 'aria-label': label }, output.content);
 }
 
@@ -195,6 +199,7 @@ function CiteEnrichment({ t, job, busy, onCancel, onDismiss }) {
     cancelled: t('补全已取消', 'Enrichment cancelled'),
   }[job.state];
   const failed = job.results.filter(row => !row.ok).length;
+  const pct = job.total ? Math.min(100, Math.round((job.completed / job.total) * 100)) : 0;
   return h('section', { className: 'cite-job', 'aria-label': t('补全进度', 'Enrichment progress') },
     h('div', { className: 'cite-job-header' },
       h('div', { role: job.state === 'failed' ? 'alert' : 'status' },
@@ -209,7 +214,14 @@ function CiteEnrichment({ t, job, busy, onCancel, onDismiss }) {
         ? h(CiteButton, { variant: 'ghost', onClick: onCancel, disabled: busy }, t('取消补全', 'Cancel enrichment'))
         : h(CiteIconButton, { icon: 'close', label: t('关闭补全结果', 'Dismiss enrichment results'), onClick: onDismiss }),
     ),
-    running ? h('progress', { max: job.total || 1, value: job.completed, 'aria-label': t('补全进度', 'Enrichment progress') }) : null,
+    running ? h('div', {
+      className: 'dsh-progress cite-job-progress',
+      role: 'progressbar',
+      'aria-label': t('补全进度', 'Enrichment progress'),
+      'aria-valuemin': 0,
+      'aria-valuemax': job.total || 1,
+      'aria-valuenow': job.completed,
+    }, h('div', { className: 'dsh-progress-bar', style: { '--dsh-progress-value': pct + '%' } })) : null,
     job.results.length ? h('details', { className: 'cite-job-results' },
       h('summary', null, t('查看每条结果', 'Show individual results')),
       h('ul', { className: 'cite-plain-list' }, job.results.map(row =>

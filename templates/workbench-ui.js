@@ -114,9 +114,11 @@ function createWorkbenchUI(React, requireFn) {
     });
   }
 
-  function Page({ title, subtitle, actions, children, workbench = false, className, rootRef, style: styleProp, ...props }) {
+  function Page({ title, subtitle, actions, children, workbench = false, className, rootRef, style: styleProp, font: fontProp, ...props }) {
     const [syncedStyle] = useDshStyle(React);
+    const [syncedFont] = useDshFont(React);
     const activeStyle = normalizeDshStyle(styleProp ?? syncedStyle);
+    const activeFont = normalizeDshFont(fontProp ?? syncedFont);
     return h(
       'section',
       {
@@ -125,6 +127,7 @@ function createWorkbenchUI(React, requireFn) {
         className: cx('dshw', 'w-page', className),
         'data-main': workbench ? 'true' : 'false',
         'data-dsh-style': activeStyle,
+        'data-dsh-font': activeFont,
       },
       h(Styles, { key: 'styles' }),
       h(
@@ -140,6 +143,7 @@ function createWorkbenchUI(React, requireFn) {
   function Tabs({ items, value, onChange, label, children }) {
     const id = typeof useId === 'function' ? useId() : 'w-tabs';
     const active = items.some(item => item.id === value) ? value : items[0]?.id;
+    const tabsIndicator = useSlidingTabIndicator(React, active, { deps: [items.length] });
     function keys(event, index) {
       if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
       event.preventDefault();
@@ -152,7 +156,7 @@ function createWorkbenchUI(React, requireFn) {
       { className: 'w-tabs-layout' },
       h(
         'div',
-        { className: 'w-tabs', role: 'tablist', 'aria-label': label },
+        { className: 'w-tabs dsh-tablist dsh-tablist-pill', role: 'tablist', 'aria-label': label, ...tabsIndicator.tablistProps },
         items.map((item, index) =>
           h(
             'button',
@@ -171,8 +175,16 @@ function createWorkbenchUI(React, requireFn) {
             item.count !== undefined ? h('span', { className: 'w-count' }, item.count) : null,
           ),
         ),
+        h('span', tabsIndicator.indicatorProps),
       ),
-      h('div', { className: 'w-tab-panel', id: id + '-panel', role: 'tabpanel', 'aria-labelledby': id + '-' + active }, children),
+      h('div', {
+        key: active,
+        className: 'w-tab-panel dsh-tab-panel',
+        'data-dsh-tab-panel': '',
+        id: id + '-panel',
+        role: 'tabpanel',
+        'aria-labelledby': id + '-' + active,
+      }, children),
     );
   }
 
@@ -272,9 +284,11 @@ function createWorkbenchUI(React, requireFn) {
     );
   }
 
-  function Dialog({ title, children, onClose, closeLabel = 'Close', className, busy = false, footer, style: styleProp }) {
+  function Dialog({ title, children, onClose, closeLabel = 'Close', className, busy = false, footer, style: styleProp, font: fontProp }) {
     const [syncedStyle] = useDshStyle(React);
+    const [syncedFont] = useDshFont(React);
     const activeStyle = normalizeDshStyle(styleProp ?? syncedStyle);
+    const activeFont = normalizeDshFont(fontProp ?? syncedFont);
     const titleId = typeof useId === 'function' ? useId() : 'w-dialog-title';
     const P = resolveHostPrimitives(React, requireFn);
     const close = () => { if (!busy) onClose?.(); };
@@ -283,6 +297,7 @@ function createWorkbenchUI(React, requireFn) {
       {
         open: true,
         dshStyle: activeStyle,
+        dshFont: activeFont,
         headless: true,
         title,
         closeLabel,
@@ -293,9 +308,10 @@ function createWorkbenchUI(React, requireFn) {
       h(
         'section',
         {
-          ref: createOverlaySyncRef(activeStyle),
+          ref: createOverlaySyncRef(activeStyle, activeFont),
           className: cx('dshw', 'w-dialog', className),
           'data-dsh-style': activeStyle,
+          'data-dsh-font': activeFont,
           'data-window-drag-exclude': '',
           'aria-labelledby': titleId,
         },
@@ -311,8 +327,9 @@ function createWorkbenchUI(React, requireFn) {
     );
   }
 
-  function CoachmarkTour({ rootRef, steps = [], step = 0, manual = false, style = 'harness', lang = 'zh', activeKey = '', layout: rawLayout, setLayout, onStep, onClose, onCopyPrompt }) {
+  function CoachmarkTour({ rootRef, steps = [], step = 0, manual = false, style = 'harness', font, lang = 'zh', activeKey = '', layout: rawLayout, setLayout, onStep, onClose, onCopyPrompt }) {
     const activeStyle = normalizeDshStyle(style);
+    const activeFont = normalizeDshFont(font ?? readDshFont());
     const layerRef = useRef ? useRef(null) : { current: null };
     const cardRef = useRef ? useRef(null) : { current: null };
     const nextBtnRef = useRef ? useRef(null) : { current: null };
@@ -347,12 +364,29 @@ function createWorkbenchUI(React, requireFn) {
     }, [step]);
 
     useEffect?.(() => {
+      function safeQuery(scope, selector) {
+        if (!scope || typeof scope.querySelector !== 'function' || !selector) return null;
+        if (selector.startsWith('#') && !/[\s>+~,\[]/.test(selector)) {
+          const rawId = selector.slice(1);
+          const escaped = typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
+            ? '#' + CSS.escape(rawId)
+            : (/[:"\\]/.test(rawId) ? '[id="' + rawId.replace(/["\\]/g, '\\$&') + '"]' : selector);
+          try {
+            return scope.querySelector(escaped);
+          } catch {
+            try { return scope.querySelector(selector); } catch { return null; }
+          }
+        }
+        try {
+          return scope.querySelector(selector);
+        } catch {
+          return null;
+        }
+      }
       function measure() {
         const scope = rootRef?.current || (typeof document !== 'undefined' ? document : null);
         if (!scope || typeof scope.querySelector !== 'function') return;
-        const target = (current.selector && scope.querySelector(current.selector))
-          || (current.fallback && scope.querySelector(current.fallback))
-          || null;
+        const target = safeQuery(scope, current.selector) || safeQuery(scope, current.fallback);
         setLayout?.(computeTourLayout(target, current.side, cardRef.current));
       }
       measure();
@@ -402,6 +436,7 @@ function createWorkbenchUI(React, requireFn) {
       ref: layerRef,
       className: 'dshw cite-tour-layer',
       'data-dsh-style': activeStyle,
+      'data-dsh-font': activeFont,
       'data-cite-tour': current.id || String(step),
       'data-window-drag-exclude': '',
     },
@@ -472,7 +507,7 @@ function createWorkbenchUI(React, requireFn) {
   }
 
   const styles = `
-.dshw{--w-bg:var(--dsw-alias-bg-base,#ffffff);--w-soft:var(--dsw-alias-bg-layer-1,#f7f9fc);--w-layer-2:var(--dsw-alias-bg-layer-2,#eef2f7);--w-text:var(--dsw-alias-label-primary,#1b2230);--w-muted:var(--dsw-alias-label-secondary,#5b667a);--w-border:var(--dsw-alias-border-l2,#e2e7f0);--w-accent:var(--dsw-alias-state-business-primary,#4176e6);--w-selected:color-mix(in oklab,var(--w-accent) 12%,var(--w-bg));--w-primary:var(--dsw-alias-button-primary-fill,#4176e6);--w-on-primary:var(--dsw-alias-button-primary-ink,#ffffff);container-type:inline-size;container-name:dsh-workbench;color:var(--w-text);font:14px/1.65 var(--dsh-font-family-content,system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif);min-width:0;max-width:100%;box-sizing:border-box;text-align:start;color-scheme:inherit}
+.dshw{--w-bg:var(--dsw-alias-bg-base,#ffffff);--w-soft:var(--dsw-alias-bg-layer-1,#f7f9fc);--w-layer-2:var(--dsw-alias-bg-layer-2,#eef2f7);--w-text:var(--dsw-alias-label-primary,#1b2230);--w-muted:var(--dsw-alias-label-secondary,#5b667a);--w-border:var(--dsw-alias-border-l2,#e2e7f0);--w-accent:var(--dsw-alias-state-business-primary,#4176e6);--w-selected:color-mix(in oklab,var(--w-accent) 12%,var(--w-bg));--w-primary:var(--dsw-alias-button-primary-fill,#4176e6);--w-on-primary:var(--dsw-alias-button-primary-ink,#ffffff);container-type:inline-size;container-name:dsh-workbench;color:var(--w-text);font:14px/1.65 var(--dsh-font-body,var(--dsh-font-family-content,system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif));min-width:0;max-width:100%;box-sizing:border-box;text-align:start;color-scheme:inherit}
 .dshw *,.dshw *:before,.dshw *:after{box-sizing:border-box}.dshw h1,.dshw h2,.dshw h3,.dshw h4,.dshw p{margin:0}.dshw h1{font-size:30px;line-height:1.25;letter-spacing:-.025em;font-weight:650}.dshw h2{font-size:20px;line-height:1.35;font-weight:650;letter-spacing:-.015em;overflow-wrap:anywhere}.dshw h3,.dshw h4{font-size:16px;line-height:1.4;font-weight:600}.dshw a{color:var(--w-accent);text-underline-offset:3px;overflow-wrap:anywhere}.dshw button,.dshw input,.dshw select,.dshw textarea{font:inherit;color:inherit;max-width:100%}.dshw input:not([type=checkbox]):not([type=radio]):not([type=file]),.dshw select,.dshw textarea{background:var(--dsw-specific-input-major,var(--w-bg));border:var(--dsh-control-border-width,1px) solid var(--w-border);border-radius:var(--dsw-radius-sm,8px);padding:6px 10px;min-width:0;line-height:1.5}.dshw input:not([type=checkbox]):not([type=radio]):not([type=file]),.dshw select{min-height:34px}.dshw textarea{resize:vertical}.dshw input[type=checkbox],.dshw input[type=radio]{width:15px;height:15px;flex-shrink:0;accent-color:var(--w-accent)}.dshw :focus-visible{outline:2px solid var(--w-accent);outline-offset:2px}.dshw button:disabled,.dshw input:disabled,.dshw select:disabled,.dshw textarea:disabled{opacity:.5;cursor:not-allowed}.dshw label{font-size:13px}.dshw fieldset{min-width:0;border:1px solid var(--w-border);border-radius:var(--dsw-radius-sm,8px)}.dshw summary{cursor:pointer;font-weight:550;list-style:none;display:flex;align-items:center;gap:8px}.dshw summary::-webkit-details-marker{display:none}.dshw summary:after{content:'';display:block;margin-inline-start:auto;width:7px;height:7px;border-inline-end:1.75px solid currentColor;border-bottom:1.75px solid currentColor;transform:rotate(45deg);flex-shrink:0;transition:transform .18s ease}.dshw details[open]>summary:after{transform:rotate(225deg)}.dshw details>summary+*{margin-top:12px}.dshw pre{white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.7 ui-monospace,SFMono-Regular,Consolas,monospace;max-width:100%;background:var(--w-soft);border-radius:var(--dsw-radius-sm,8px);padding:12px}.dshw img,.dshw video,.dshw iframe{max-width:100%}
 .w-page{display:flex;flex-direction:column;position:relative;padding:0;min-height:540px;gap:0}.w-page[data-main=true]{height:100%;min-height:0;padding:calc(24px + var(--dsh-frame-top-clearance,0px)) 28px 0 max(28px,var(--dsh-frame-leading-clearance,0px));overflow:auto}.dshw[data-main=true]{background:var(--w-bg)}.dshw.w-page,.dshw .w-body,.dshw .w-tab-panel{overflow-x:clip}.w-page-header{display:flex;justify-content:space-between;gap:24px;align-items:flex-start;padding-bottom:22px;flex-shrink:0}.w-heading{min-width:0}.w-subtitle{margin-top:8px!important;font-size:14px;color:var(--w-muted);line-height:1.6}.w-header-actions,.w-toolbar,.w-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px;min-width:0}.w-header-actions{justify-content:flex-end}.w-body,.w-tabs-layout{display:flex;flex-direction:column;flex:1;min-height:0;min-width:0}.w-body{overflow:auto}.w-tab-panel{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;overflow:auto}.w-tabs{display:flex;align-items:stretch;gap:20px;border-bottom:1px solid var(--w-border);flex-shrink:0;overflow-x:auto;scrollbar-width:thin}.dshw .w-tabs>button{border:0;border-bottom:2px solid transparent;background:transparent;padding:11px 8px 13px;white-space:nowrap;font-size:14px;font-weight:550;cursor:pointer;color:var(--w-muted);display:flex;align-items:center;gap:7px}.dshw .w-tabs>button[aria-selected=true]{border-bottom-color:var(--w-accent);color:var(--w-accent)}.w-count,.w-tag{font-size:12px;line-height:1.5;display:inline-flex;align-items:center;flex-shrink:0;background:var(--w-soft);border-radius:var(--dsw-radius-xs,5px);padding:1px 6px;color:var(--w-muted)}.w-tabs [aria-selected=true] .w-count,.w-selected .w-tag{color:var(--w-accent);background:var(--w-selected)}
 .dshw .w-button{display:inline-flex;justify-content:center;align-items:center;gap:6px;background:var(--w-bg);border:var(--dsh-control-border-width,1px) solid var(--w-border);border-radius:var(--dsw-radius-sm,8px);padding:6px 11px;min-height:30px;line-height:1.4;font-size:13px;font-weight:500;cursor:pointer;text-decoration:none;white-space:normal}.dshw .w-button:not(:disabled):hover{background:var(--dsw-alias-interactive-bg-hover,var(--w-soft))}.dshw .w-primary{background:var(--w-primary);border-color:var(--w-primary);color:var(--w-on-primary)}.dshw .w-primary:not(:disabled):hover{background:var(--dsw-alias-button-primary-hover,var(--w-primary));opacity:.95}.dshw .w-ghost{background:transparent;border-color:transparent}.dshw .w-danger{color:var(--dsw-alias-state-error-primary,#b43c3c)}.dshw .w-icon-button{width:30px;min-width:30px;padding:6px}.dshw .w-button svg{flex-shrink:0}.w-muted{color:var(--w-muted);font-size:12px;line-height:1.6}.w-section{padding:24px 0;border-bottom:1px solid var(--w-border);min-width:0}.w-section>h3{margin-bottom:12px}.w-section>p+p{margin-top:8px}.w-fields{display:grid;gap:16px;min-width:0}.w-field{display:grid;gap:6px;min-width:0}.w-field>input,.w-field>select,.w-field>textarea{width:100%}.w-status{display:flex;align-items:flex-start;gap:8px;padding:10px 12px;margin:10px 0;border:var(--dsh-control-border-width,1px) solid var(--w-border);border-radius:var(--dsw-radius-sm,8px);background:var(--w-soft);font-size:13px;overflow-wrap:anywhere;flex-shrink:0}.w-status>svg{flex-shrink:0;margin-top:2px}.w-status-error{color:var(--dsw-alias-state-error-primary,#ad3636)}.w-status-success{color:var(--dsw-alias-state-success-primary,#24794a)}.w-status-warn{color:var(--dsw-alias-state-warn-label,#8a5a00)}.w-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:12px;width:100%;max-width:580px;padding:40px 24px;margin:auto;min-height:240px;overflow-wrap:anywhere}.w-empty>svg{color:var(--w-muted)}.w-empty h2{font-size:18px}.w-empty .w-muted{font-size:13px}.w-empty .w-toolbar{justify-content:center}
@@ -484,6 +519,8 @@ function createWorkbenchUI(React, requireFn) {
 @media(max-width:700px){.w-page[data-main=true]{padding:calc(16px + var(--dsh-frame-top-clearance,0px)) 16px 0 max(16px,var(--dsh-frame-leading-clearance,0px))}}
 @media(prefers-reduced-motion:reduce){.dshw summary:after,.w-switch-track,.w-switch-track:before{transition:none!important}}
 `;
+  const SplitResizer = createSplitResizerComponent(React);
+  const Skeleton = createSkeletonComponent(React);
   function Styles() { return h('style', null, styles); }
-  return { Icon, Button, IconButton, Page, Tabs, Status, Empty, Split, Row, Search, Switch, Dialog, CoachmarkTour, computeTourLayout, readTourDone, writeTourDone, Styles, register, styles };
+  return { Icon, Button, IconButton, Page, Tabs, Status, Empty, Split, SplitResizer, Skeleton, Row, Search, Switch, Dialog, CoachmarkTour, computeTourLayout, readTourDone, writeTourDone, Styles, register, styles };
 }

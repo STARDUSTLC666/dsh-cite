@@ -25,7 +25,7 @@ Built for DeepSeek Harness `>=0.2.2-rc.3`, with five switchable light/warm workb
 - Filter, search, and inspect references in a three-pane library, copy formatted citations or BibTeX entries, inspect raw records in a native modal, and safely remove single or selected entries with revision-conflict protection.
 - Preview duplicates and missing fields locally before importing a DOI list or BibTeX, with a 1-click **Fill sample BibTeX / DOI** starter.
 - Check manuscript DOIs against Crossref (and send verified DOIs directly to Import preview in 1 click), or fill gaps in saved references and review differences.
-- Expand the compact **How it works: 4-step citation workflow** bar at the top of the workbench to copy ready-to-send DSH chat prompts.
+- Launch the interactive **`? Tour`** spotlight coachmark guide from the topbar (with first-visit onboarding and 1-click chat prompt copy).
 - Export selected references or the entire library. Download a full backup with the original sources.
 - Switch between five workbench styles (Harness Native, Cream Paper, Claude Warm, 8-Bit Pixel, Mint Air) synced to portaled dialogs and menus, adapted to DSH `>=0.2.2-rc.3` host primitives and frame clearances.
 
@@ -55,9 +55,9 @@ For the web profile, replace `desktop` with `web`. Restart that DSH profile afte
 3. **Enrich & clean up**: Select entries in **Library** to run **Crossref enrichment** (preserving local edits and highlighting differences), or click **Remove** to delete unwanted/duplicate entries with confirmation and revision protection.
 4. **Format & back up for submission**: Switch between `GB/T 7714`, `APA`, `MLA`, and `Chicago` to copy formatted citations, or open **Export** to download `.bib`, `.txt`, and full `.json` source backups.
 
-You can also expand the workflow bar inside the workbench to copy ready-made DSH chat prompts in one click:
+Reopen **`? Tour`** in the topbar anytime for an interactive walkthrough, or send ready-made prompts to DSH chat:
 
-- `Use cite_check to verify every DOI in my draft below against Crossref and list any missing or invalid references:`
+- `Verify this paper’s DOI and metadata, then import it into my citation library`
 - `Read my local citation library (cite_batch list) and format a clean GB/T 7714 bibliography, noting any missing fields.`
 - `Read my local citation library (cite_batch list), format the bibliography in APA style, and check year, volume, and page completeness.`
 

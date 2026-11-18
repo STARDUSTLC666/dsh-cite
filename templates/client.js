@@ -69,8 +69,9 @@ window.__ModuleLoader__.load({
       const [error, setError] = useState('');
       const [notice, setNotice] = useState('');
       const [copiedKey, setCopiedKey] = useState('');
-      const [promptStatus, setPromptStatus] = useState('');
       const [removeModal, setRemoveModal] = useState(null);
+      const [tour, setTour] = useState({ open: false, step: 0, manual: false });
+      const [tourLayout, setTourLayout] = useState(null);
       const [search, setSearch] = useState('');
       const [filter, setFilter] = useState('all');
       const [limit, setLimit] = useState(pageSize);
@@ -81,11 +82,13 @@ window.__ModuleLoader__.load({
       const [form, setForm] = useState(draft);
       const { kind, text, label, preview, chosen, selected, style, dirty, conflict } = form;
 
+      const rootRef = useRef(null);
+      const triggerRef = useRef(null);
+      const modalOpenRef = useRef(false);
+      modalOpenRef.current = Boolean(removeModal);
       const busyRef = useRef(false);
       const dirtyRef = useRef(dirty);
       const copyTimerRef = useRef(null);
-      const promptTimerRef = useRef(null);
-      const lastPromptMsgRef = useRef('');
       const t = (zh, en) => lang === 'en' ? en : zh;
       const jobId = job?.id;
       const running = job?.state === 'running';
@@ -100,8 +103,21 @@ window.__ModuleLoader__.load({
 
       useEffect(() => () => {
         if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
-        if (promptTimerRef.current) clearTimeout(promptTimerRef.current);
       }, []);
+      useEffect(() => {
+        if (!workbench || W.readTourDone('dsh-cite.tour.v1')) return undefined;
+        const timer = setTimeout(() => {
+          if (!W.readTourDone('dsh-cite.tour.v1') && !modalOpenRef.current) {
+            setTour({ open: true, step: 0, manual: false });
+          }
+        }, 280);
+        return () => clearTimeout(timer);
+      }, [workbench]);
+      useEffect(() => {
+        if (removeModal && tour.open) {
+          setTour(prev => ({ ...prev, open: false }));
+        }
+      }, [removeModal]);
       useEffect(() => {
         const update = () => setLang(language(locale));
         update();
@@ -258,25 +274,65 @@ window.__ModuleLoader__.load({
         }
       }
 
-      async function copyPrompt(value, labelText, key) {
-        try {
-          await writeClipboardText(value);
-          let msg = t('已复制指令：「' + labelText + '」', 'Copied prompt: ' + labelText);
-          if (msg === lastPromptMsgRef.current) msg += '\u00A0';
-          lastPromptMsgRef.current = msg;
-          setPromptStatus(msg);
-          setCopiedKey(key);
-          if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
-          if (promptTimerRef.current) clearTimeout(promptTimerRef.current);
-          copyTimerRef.current = setTimeout(() => setCopiedKey(''), 1800);
-          promptTimerRef.current = setTimeout(() => setPromptStatus(''), 2400);
-        } catch {
-          let fail = t('剪贴板不可用，请手动选择复制。', 'Clipboard unavailable.');
-          if (fail === lastPromptMsgRef.current) fail += '\u00A0';
-          lastPromptMsgRef.current = fail;
-          setPromptStatus(fail);
+      function closeTour(restoreFocus = false) {
+        W.writeTourDone('dsh-cite.tour.v1');
+        setTour(prev => ({ ...prev, open: false }));
+        if (restoreFocus) {
+          setTimeout(() => {
+            (triggerRef.current || rootRef.current?.querySelector?.('[data-cite-tour-trigger]'))?.focus?.();
+          }, 0);
         }
       }
+
+      async function copyTourPrompt(value) {
+        try {
+          await writeClipboardText(value);
+          setError('');
+          setNotice(t('已复制对话指令，可直接粘贴到聊天框。', 'Copied prompt — paste it into chat.'));
+          return true;
+        } catch {
+          setNotice('');
+          setError(t('无法访问剪贴板，请手动复制。', 'Clipboard access is unavailable.'));
+          return false;
+        }
+      }
+
+      const tourSteps = [
+        {
+          id: 'import',
+          selector: '.cite-quick-import',
+          fallback: '[data-tab-id="import"]',
+          side: 'bottom',
+          title: t('导入 DOI / BibTeX 文献', 'Import DOI / BibTeX references'),
+          desc: t('点击这里或切换到「导入预览」，批量粘贴 DOI 列表、上传 .bib 或一键填入示例，先在本地去重再保存。', 'Click here or open Import to paste DOIs, upload .bib, or fill a sample—deduplicating locally before saving.'),
+        },
+        {
+          id: 'check',
+          selector: '[data-tab-id="check"]',
+          fallback: '.w-tabs',
+          side: 'bottom',
+          title: t('核验 DOI 与补全元数据', 'Verify DOIs & enrich metadata'),
+          desc: t('在「DOI 核查」检验文稿引文真伪并一键送入导入预览；也可点击下方按钮复制指令发给助手：', 'Verify manuscript DOIs against Crossref in DOI check and send valid ones to Import—or copy this chat prompt:'),
+          prompt: t('帮我核验这篇论文的 DOI 与真实元数据并导入引文库', 'Verify this paper’s DOI and metadata, then import it into my citation library'),
+          promptLabel: t('复制核验导入指令', 'Copy verify & import prompt'),
+        },
+        {
+          id: 'style',
+          selector: '[data-tour="cite-format-picker"]',
+          fallback: '#cite-style-switcher',
+          side: 'right',
+          title: t('切换引文体例（GB/T 7714 / APA）', 'Switch citation styles (GB/T 7714 / APA)'),
+          desc: t('随时切换 GB/T 7714、APA、MLA、Chicago 引文格式，右上角还可切换 5 套明亮护眼工作台风格。', 'Switch between GB/T 7714, APA, MLA, and Chicago formats anytime, plus 5 daylight-friendly workbench styles.'),
+        },
+        {
+          id: 'export',
+          selector: '[data-tab-id="export"]',
+          fallback: '[data-tour="cite-copy-actions"]',
+          side: 'bottom',
+          title: t('一键生成引用与导出参考文献列表', 'Copy citations & export bibliography'),
+          desc: t('在文献详情栏一键复制单条标准引文或 BibTeX，或打开「导出备份」批量下载参考文献列表与原始来源备份。', 'Copy formatted citations or BibTeX from the details bar, or open Export to download bibliographies and full backups.'),
+        },
+      ];
 
       const removeEntries = removeModal
         ? removeModal.ids.map(id => entries.find(entry => entry.id === id)).filter(Boolean)
@@ -338,7 +394,10 @@ window.__ModuleLoader__.load({
         { id: 'export', label: t('导出备份', 'Export') },
       ];
       const onImport = () => setActiveTab('import');
-      const onRequestRemove = ids => setRemoveModal({ ids: [...ids], conflict: false, error: '' });
+      const onRequestRemove = ids => {
+        setTour(prev => (prev.open ? { ...prev, open: false } : prev));
+        setRemoveModal({ ids: [...ids], conflict: false, error: '' });
+      };
 
       let panel;
       switch (activeTab) {
@@ -380,6 +439,7 @@ window.__ModuleLoader__.load({
             t, lang, uiStyle, entries, sources, revision, loading, loaded: !!library, locked, running,
             selected, setSelected, style, setStyle, copiedKey,
             filter, search, limit, activeId, setActiveId, onImport, enrich, copy, onRequestRemove,
+            onModalOpen: () => setTour(prev => (prev.open ? { ...prev, open: false } : prev)),
             onSearch: value => { setSearch(value); setActiveId(''); setLimit(pageSize); },
             onFilter: value => { setFilter(value); setActiveId(''); setLimit(pageSize); },
             onMore: () => setLimit(n => n + pageSize),
@@ -388,6 +448,7 @@ window.__ModuleLoader__.load({
       }
 
       return h('section', {
+        ref: rootRef,
         className: 'dshw cite-workbench',
         'data-main': String(Boolean(workbench)),
         'data-dsh-style': uiStyle,
@@ -397,6 +458,17 @@ window.__ModuleLoader__.load({
         h('div', { className: 'cite-shell' },
           h('h1', { className: 'cite-brand' }, h('span', { className: 'cite-brand-icon' }, h(W.Icon, { name: 'book', size: 15 })), 'dsh-cite'),
           h('div', { className: 'cite-header-actions' },
+            h(CiteButton, {
+              ref: triggerRef,
+              variant: 'ghost',
+              className: 'cite-tour-trigger',
+              'data-tour-trigger': '',
+              'data-cite-tour-trigger': '',
+              'aria-label': t('使用引导', 'Interactive guide'),
+              'aria-expanded': tour.open,
+              title: t('使用引导', 'Interactive guide'),
+              onClick: () => (tour.open ? closeTour(true) : setTour({ open: true, step: 0, manual: true })),
+            }, t('? 引导', '? Tour')),
             h(StyleSwitcher, {
               style: uiStyle,
               onChange: setUiStyle,
@@ -409,7 +481,6 @@ window.__ModuleLoader__.load({
             }, t('导入 DOI / BibTeX', 'Import DOI / BibTeX')),
           ),
           h(W.Tabs, { label: t('引文工作台', 'Citation workbench'), items: tabs, value: activeTab, onChange: setActiveTab },
-            h(CiteWorkflowGuide, { t, copiedKey, statusText: promptStatus, onCopyPrompt: copyPrompt }),
             error || notice || job ? h('div', { className: 'cite-feedback' },
               error ? h(CiteMessage, { tone: 'error', onClose: () => setError(''), t }, error) : null,
               notice ? h(CiteMessage, { tone: 'success', onClose: () => setNotice(''), t }, notice) : null,
@@ -423,6 +494,20 @@ window.__ModuleLoader__.load({
               ? __stardustUpdatesFooter(React, 'dsh-cite') : null,
           ),
         ),
+        tour.open && !removeModal ? h(W.CoachmarkTour, {
+          rootRef,
+          steps: tourSteps,
+          step: tour.step,
+          manual: tour.manual,
+          style: uiStyle,
+          lang,
+          activeKey: activeTab,
+          layout: tourLayout,
+          setLayout: setTourLayout,
+          onStep: (nextStep, isManual) => setTour({ open: true, step: nextStep, manual: Boolean(isManual) }),
+          onClose: closeTour,
+          onCopyPrompt: copyTourPrompt,
+        }) : null,
         removeModal ? h(W.Dialog, {
           style: uiStyle,
           busy,

@@ -5,7 +5,7 @@ function referenceTitle(entry, t) {
 function CiteLibrary({
   entries, sources, revision, t, lang, uiStyle, loading, loaded, locked, running,
   selected, setSelected, style, setStyle, copiedKey,
-  filter, search, limit, activeId, setActiveId, onSearch, onFilter, onMore, onRefresh, onImport, enrich, copy, onRequestRemove,
+  filter, search, limit, activeId, setActiveId, onSearch, onFilter, onMore, onRefresh, onImport, enrich, copy, onRequestRemove, onModalOpen,
 }) {
   const [openedId, setOpenedId] = useState('');
   const lastRow = useRef(null);
@@ -70,7 +70,7 @@ function CiteLibrary({
 
   return h('div', { ref: root, className: 'cite-library', 'data-open': String(open) },
     h('aside', { className: 'cite-rail', 'aria-label': t('文献库筛选', 'Library filters') },
-      h('div', { className: 'cite-style-box', 'data-dsh-card': '' },
+      h('div', { className: 'cite-style-box', 'data-dsh-card': '', 'data-tour': 'cite-format-picker' },
         h('label', { className: 'cite-label', htmlFor: pickerId }, t('引文格式', 'Citation format')),
         h(CitePicker, { id: pickerId, label: t('引文格式', 'Citation format'), value: style, options: citationStyles, onChange: setStyle }),
       ),
@@ -165,7 +165,7 @@ function CiteLibrary({
       open ? h(CiteButton, { className: 'cite-back', icon: 'left', variant: 'ghost', onClick: back }, t('返回文献列表', 'Back to references')) : null,
       active
         ? h(CiteInspector, {
-          key: active.id, entry: active, sources, style, uiStyle, lang, revision, locked, running, copiedKey, enrich, copy, onRequestRemove, t,
+          key: active.id, entry: active, sources, style, uiStyle, lang, revision, locked, running, copiedKey, enrich, copy, onRequestRemove, onModalOpen, t,
         })
         : h('p', { className: 'cite-inspector-empty' }, t('选择文献以查看引文与元数据。', 'Select a reference to view its citation and metadata.')),
     ),
@@ -202,7 +202,7 @@ function CiteReferenceRow({ entry, byline, active, checked, disabled, t, onOpen,
   );
 }
 
-function CiteInspector({ entry, sources, style, uiStyle, lang, revision, locked, running, copiedKey, enrich, copy, onRequestRemove, t }) {
+function CiteInspector({ entry, sources, style, uiStyle, lang, revision, locked, running, copiedKey, enrich, copy, onRequestRemove, onModalOpen, t }) {
   const [sourceOpen, setSourceOpen] = useState(false);
   const { id, work, bibKey, warnings, crossref } = entry;
   const citation = useCitationOutput({ kind: 'references', id, style, lang, revision });
@@ -236,7 +236,7 @@ function CiteInspector({ entry, sources, style, uiStyle, lang, revision, locked,
         bibKey ? h(CiteChip, { tone: 'accent' }, '@' + bibKey) : null,
         sourceLabels[0] ? h(CiteChip, { title: sourceLabels.join(' · ') }, sourceLabels[0]) : null,
       ),
-      h('div', { className: 'cite-actions' },
+      h('div', { className: 'cite-actions', 'data-tour': 'cite-copy-actions' },
         h(CiteButton, {
           className: 'cite-crossref',
           icon: 'refresh',
@@ -261,7 +261,7 @@ function CiteInspector({ entry, sources, style, uiStyle, lang, revision, locked,
           variant: 'ghost',
           icon: 'file',
           'aria-haspopup': 'dialog',
-          onClick: () => setSourceOpen(true),
+          onClick: () => { onModalOpen?.(); setSourceOpen(true); },
         }, t('原始输入', 'Raw source')) : null,
         onRequestRemove ? h(CiteButton, {
           variant: 'danger',

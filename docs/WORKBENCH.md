@@ -36,7 +36,7 @@ Edit the template sources and run pnpm run build. Commit generated lib/client.js
 
 ## 验收范围 / Validation boundary
 
-当前版本要求宿主 DSH `>=0.2.2-rc.3`。工作台顶部内置可折叠「4 步管理论文引用」指南与一键复制的对话指令，文献库支持带修订冲突保护的单条与批量确认删除。历史回归基线：Windows 后台 Chrome/Playwright 实际点击和输入；覆盖中英文、浅深色、1536px 与 390px、状态读回与控制台。Browser plugin 不可用，因此使用本地 Playwright。
+当前版本要求宿主 DSH `>=0.2.2-rc.3`。工作台顶部提供 `? 引导`（`? Tour`）交互式聚光灯导览与一键复制的核验对话指令，文献库支持带修订冲突保护的单条与批量确认删除。历史回归基线：Windows 后台 Chrome/Playwright 实际点击和输入；覆盖中英文、浅深色、1536px 与 390px、状态读回与控制台。Browser plugin 不可用，因此使用本地 Playwright。
 
 邮件使用受控 AgentMail HTTP 服务，日历使用受控 CalDAV 协议传输；插件处理器、存储、校验和原生宿主均实际运行。未使用真实邮箱、真实日历账号或付费模型。RSS 访问 Node.js 官方公开来源。PPT 实际生成并渲染 PPTX、下载 ZIP；两个视频插件实际运行官方引擎并播放 MP4。
 

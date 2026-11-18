@@ -107,6 +107,8 @@ function createMiniEnv({ withPrimitives = false, initialStyle = null, onApi } = 
   let primitivesRequestedAtLoad = false
   let allowPrimitivesNow = false
   let copiedClipboard = ''
+  let focusedNode = null
+  const popoverOpenedNodes = new Set()
 
   const sampleLibrary = {
     revision: 2,
@@ -204,6 +206,35 @@ function createMiniEnv({ withPrimitives = false, initialStyle = null, onApi } = 
         if (name === 'data-dsh-portal-synced') syncedNodes.add(this)
       },
       hasAttribute(name) { return Object.hasOwn(this.attrs, name) },
+      showPopover() { popoverOpenedNodes.add(this) },
+      hidePopover() { popoverOpenedNodes.delete(this) },
+      focus() { focusedNode = this },
+      getBoundingClientRect() {
+        return { left: 160, top: 44, width: 132, height: 30, right: 292, bottom: 74 }
+      },
+      querySelector(sel) {
+        const matchSimple = el => {
+          if (!el || typeof el !== 'object' || !el.attrs) return false
+          for (const rawPart of String(sel).split(',')) {
+            const part = rawPart.trim()
+            if (!part) continue
+            if (part.startsWith('.')) {
+              const cls = String(el.attrs.className || '').split(/\s+/)
+              if (cls.includes(part.slice(1))) return true
+            } else if (part.startsWith('#')) {
+              if (el.attrs.id === part.slice(1)) return true
+            } else {
+              const attrMatch = /^\[([^=\]]+)(?:=["']?([^"'\]]*)["']?)?\]$/.exec(part)
+              if (attrMatch) {
+                const [, attrName, attrVal] = attrMatch
+                if (attrVal === undefined ? Object.hasOwn(el.attrs, attrName) : String(el.attrs[attrName]) === attrVal) return true
+              }
+            }
+          }
+          return false
+        }
+        return findNodes(this, matchSimple)[0] || null
+      },
       closest(sel) {
         for (const item of [this, ...ancestors]) {
           if (sel.includes('[role="dialog"]') && item.attrs?.role === 'dialog') return item
@@ -239,6 +270,9 @@ function createMiniEnv({ withPrimitives = false, initialStyle = null, onApi } = 
     win,
     primitiveCalls,
     get copiedClipboard() { return copiedClipboard },
+    get focusedNode() { return focusedNode },
+    resetFocusedNode() { focusedNode = null },
+    get popoverOpenedNodes() { return popoverOpenedNodes },
     get primitivesRequestedAtLoad() { return primitivesRequestedAtLoad },
     async mountWorkbench(workbench = true, activeLocale = 'zh-CN') {
       allowPrimitivesNow = true
@@ -466,7 +500,7 @@ test('Cordis 4 ctx.effect unload disposer cleans up registered Cite tools and ro
   assert.equal(activeRoutes, 0)
 })
 
-test('dsh-cite workflow guide, prompt chips, sample filler, DOI-check-to-import handoff, label htmlFor, and remove confirmation work end-to-end', async () => {
+test('dsh-cite CoachmarkTour (? Tour), inline prompt copy, sample filler, DOI-check-to-import handoff, label htmlFor, and remove confirmation work end-to-end', async () => {
   const apiCalls = []
   let simulateConflictOnce = true
   const env = createMiniEnv({
@@ -519,26 +553,79 @@ test('dsh-cite workflow guide, prompt chips, sample filler, DOI-check-to-import 
   try {
     let root = mounted.tree
     const cssText = findNodes(root, n => n.tag === 'style').map(textOf).join('\n')
-    assert.match(cssText, /content:\s*"▸";[\s\S]*?content:\s*"▸"\s*\/\s*"";/)
-    assert.match(cssText, /@media \(prefers-reduced-motion: no-preference\)\s*\{[\s\S]*?transition:\s*rotate/)
+    assert.match(cssText, /\[popover\]:is\(:popover-open,\s*\.\\:popover-open\)\s*\{\s*display:\s*block;\s*\}/)
+    assert.match(cssText, /\.cite-tour-card\[data-side="bottom"\]\s*>\s*\.cite-tour-arrow/)
+    assert.match(cssText, /box-shadow:\s*4px 4px 0px #1e2826/)
 
-    // 1. Collapsible workflow guide uses <details> + <summary> with zero headings inside <summary>
-    const guide = findNodes(root, n => n.tag === 'details' && String(n.attrs.className || '').includes('cite-workflow-guide'))[0]
-    assert.ok(guide, 'workflow guide <details> must render')
-    const summary = findNodes(guide, n => n.tag === 'summary')[0]
-    assert.ok(summary)
-    assert.match(textOf(summary), /How it works: 4-step citation workflow/)
-    assert.equal(findNodes(summary, n => /^h[1-6]$/.test(n.tag)).length, 0, 'never place headings inside <summary>')
+    // Static workflow <details> box is completely removed
+    assert.equal(findNodes(root, n => String(n.attrs?.className || '').includes('cite-workflow-guide')).length, 0)
 
-    // Copyable chat prompt chips copy prompt text and update role="status"
-    const promptChip = findNodes(guide, n => n.tag === 'button' && textOf(n).includes('Format in APA'))[0]
-    assert.ok(promptChip, 'APA prompt chip should render')
-    await promptChip.attrs.onClick()
+    // 1. First-visit 280ms auto-open does NOT steal focus, and closes if a modal opens
+    env.resetFocusedNode()
+    await new Promise(r => setTimeout(r, 310))
     root = mounted.rerender()
-    assert.match(env.copiedClipboard, /APA/)
-    const guideAfterCopy = findNodes(root, n => n.tag === 'details' && String(n.attrs.className || '').includes('cite-workflow-guide'))[0]
-    const statusLive = findNodes(guideAfterCopy, n => n.attrs.role === 'status')[0]
-    assert.match(textOf(statusLive), /Copied prompt/)
+    let tourCard = findNodes(root, n => n.attrs?.['data-tour-card'])[0]
+    assert.ok(tourCard, 'CoachmarkTour auto-opens after 280ms on first visit')
+    assert.equal(env.focusedNode, null, 'auto-opened tour must not hijack focus')
+
+    // Opening a modal dialog automatically dismisses the auto-tour
+    findNodes(root, n => n.tag === 'button' && textOf(n) === 'Remove')[0].attrs.onClick()
+    root = mounted.rerender()
+    assert.equal(findNodes(root, n => n.attrs?.['data-tour-card']).length, 0, 'auto-tour closes when modal opens')
+    findNodes(root, n => n.tag === 'button' && textOf(n) === 'Cancel')[0].attrs.onClick()
+    root = mounted.rerender()
+
+    // 2. Manual "? Tour" trigger in topbar focuses [data-tour-next], renders spotlight + directional arrow, steps 1->4, and persists 'done'
+    const tourTrigger = findNodes(root, n => Object.hasOwn(n.attrs || {}, 'data-cite-tour-trigger'))[0]
+    assert.ok(tourTrigger, 'topbar "? Tour" button must render')
+    assert.equal(tourTrigger.attrs['aria-haspopup'], undefined, 'trigger must not set aria-haspopup')
+    assert.equal(tourTrigger.attrs['aria-expanded'], false)
+
+    tourTrigger.attrs.onClick()
+    root = mounted.rerender()
+    root = mounted.rerender() // flush measured spotlight layout
+    assert.equal(findNodes(root, n => Object.hasOwn(n.attrs || {}, 'data-cite-tour-trigger'))[0].attrs['aria-expanded'], true)
+
+    const tourLayer = findNodes(root, n => n.attrs?.['data-cite-tour'])[0]
+    assert.equal(tourLayer.attrs.popover, 'manual', 'tour layer promoted via setAttribute("popover", "manual")')
+    assert.ok(env.popoverOpenedNodes.size >= 1, 'showPopover() called on tour layer')
+    assert.ok(findNodes(tourLayer, n => n.attrs?.['data-tour-spotlight'])[0], 'spotlight cutout rendered around target')
+
+    tourCard = findNodes(tourLayer, n => n.attrs?.['data-tour-card'])[0]
+    assert.equal(tourCard.attrs.role, 'dialog')
+    assert.equal(tourCard.attrs['aria-modal'], 'false')
+    assert.match(textOf(tourCard), /1 \/ 4/)
+    assert.ok(findNodes(tourCard, n => n.attrs?.['data-tour-arrow'])[0], 'directional arrow [data-tour-arrow] rendered')
+    assert.ok(env.focusedNode && Object.hasOwn(env.focusedNode.attrs || {}, 'data-tour-next'), 'manual open focuses [data-tour-next]')
+
+    // Step 2: DOI verification + inline 1-click prompt copy
+    findNodes(tourCard, n => Object.hasOwn(n.attrs || {}, 'data-tour-next'))[0].attrs.onClick()
+    root = mounted.rerender()
+    tourCard = findNodes(root, n => n.attrs?.['data-tour-card'])[0]
+    assert.match(textOf(tourCard), /2 \/ 4/)
+    const inlineCopyBtn = findNodes(tourCard, n => n.attrs?.['data-copy-prompt'] === 'Verify this paper’s DOI and metadata, then import it into my citation library')[0]
+    assert.ok(inlineCopyBtn, 'Step 2 renders inline 1-click prompt copy button')
+    await inlineCopyBtn.attrs.onClick()
+    root = mounted.rerender()
+    assert.equal(env.copiedClipboard, 'Verify this paper’s DOI and metadata, then import it into my citation library')
+
+    // Step 3 -> Step 4 -> Finish ('Done') persists localStorage['dsh-cite.tour.v1'] = 'done' and restores focus
+    findNodes(root, n => Object.hasOwn(n.attrs || {}, 'data-tour-next'))[0].attrs.onClick()
+    root = mounted.rerender()
+    assert.match(textOf(findNodes(root, n => n.attrs?.['data-tour-card'])[0]), /3 \/ 4/)
+
+    findNodes(root, n => Object.hasOwn(n.attrs || {}, 'data-tour-next'))[0].attrs.onClick()
+    root = mounted.rerender()
+    tourCard = findNodes(root, n => n.attrs?.['data-tour-card'])[0]
+    assert.match(textOf(tourCard), /4 \/ 4/)
+    assert.match(textOf(tourCard), /Done/)
+
+    findNodes(tourCard, n => Object.hasOwn(n.attrs || {}, 'data-tour-next'))[0].attrs.onClick()
+    root = mounted.rerender()
+    await new Promise(r => setTimeout(r, 10))
+    assert.equal(findNodes(root, n => n.attrs?.['data-tour-card']).length, 0, 'tour closes on Done')
+    assert.equal(env.storage.get('dsh-cite.tour.v1'), 'done', 'completion persisted under dsh-cite.tour.v1')
+    assert.ok(env.focusedNode && Object.hasOwn(env.focusedNode.attrs || {}, 'data-cite-tour-trigger'), 'focus restored to trigger button')
 
     // Verify all <label> elements on Library tab have explicit htmlFor matching an id
     const checkLabels = treeRoot => {
@@ -550,7 +637,7 @@ test('dsh-cite workflow guide, prompt chips, sample filler, DOI-check-to-import 
     }
     checkLabels(root)
 
-    // 2. Import tab: Fill sample BibTeX / DOI populates input in 1 click
+    // 3. Import tab: Fill sample BibTeX / DOI populates input in 1 click
     findNodes(root, n => n.attrs.role === 'tab' && textOf(n).includes('Import'))[0].attrs.onClick()
     root = mounted.rerender()
     checkLabels(root)
@@ -561,7 +648,7 @@ test('dsh-cite workflow guide, prompt chips, sample filler, DOI-check-to-import 
     const importTextarea = findNodes(root, n => n.tag === 'textarea')[0]
     assert.match(importTextarea.attrs.value, /10\.1038\/nature14539/)
 
-    // 3. DOI Check tab: Send to Import preview carries verified DOIs into Import tab
+    // 4. DOI Check tab: Send to Import preview carries verified DOIs into Import tab
     findNodes(root, n => n.attrs.role === 'tab' && textOf(n).includes('DOI check'))[0].attrs.onClick()
     root = mounted.rerender()
     checkLabels(root)
@@ -578,7 +665,7 @@ test('dsh-cite workflow guide, prompt chips, sample filler, DOI-check-to-import 
     const prefilledTextarea = findNodes(root, n => n.tag === 'textarea')[0]
     assert.equal(prefilledTextarea.attrs.value, '10.1038/nature14539', 'only verified DOIs are pre-filled in Import')
 
-    // 4. Library tab: Remove opens confirmation modal, handles 409 conflict, refreshes, and deletes
+    // 5. Library tab: Remove opens confirmation modal, handles 409 conflict, refreshes, and deletes
     findNodes(root, n => n.attrs.role === 'tab' && textOf(n).includes('Library'))[0].attrs.onClick()
     root = mounted.rerender()
     const removeBtn = findNodes(root, n => n.tag === 'button' && textOf(n) === 'Remove')[0]

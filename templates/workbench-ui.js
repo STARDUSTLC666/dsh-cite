@@ -4,8 +4,82 @@
  */
 function createWorkbenchUI(React, requireFn) {
   const h = React.createElement;
-  const { useEffect, useId, useRef } = React;
+  const { useEffect, useId, useRef, useState } = React;
   const cx = (...values) => values.filter(Boolean).join(' ');
+
+  const tourSessionDone = new Set();
+  function readTourDone(storageKey) {
+    if (tourSessionDone.has(storageKey)) return true;
+    try {
+      return typeof window !== 'undefined' && window.localStorage?.getItem(storageKey) === 'done';
+    } catch {
+      return false;
+    }
+  }
+  function writeTourDone(storageKey) {
+    tourSessionDone.add(storageKey);
+    try {
+      if (typeof window !== 'undefined') window.localStorage?.setItem(storageKey, 'done');
+    } catch { /* ignore */ }
+  }
+  function computeTourLayout(target, preferredSide, cardEl) {
+    const vw = (typeof window !== 'undefined' && window.innerWidth) || 1280;
+    const vh = (typeof window !== 'undefined' && window.innerHeight) || 800;
+    const cw = cardEl?.offsetWidth || 320;
+    const ch = cardEl?.offsetHeight || 196;
+    const pad = 5;
+    const gap = 12;
+    const raw = target?.getBoundingClientRect?.();
+    if (!target) {
+      return {
+        spotlight: null,
+        side: 'center',
+        left: Math.max(12, Math.round((vw - cw) / 2)),
+        top: Math.max(12, Math.round((vh - ch) / 2)),
+        arrowX: 28,
+        arrowY: 24,
+      };
+    }
+    const hasBox = Boolean(raw && (raw.width > 0 || raw.height > 0));
+    const rect = hasBox ? raw : { left: 120, top: 72, width: 140, height: 32 };
+    const spotlight = {
+      left: Math.round(rect.left - pad),
+      top: Math.round(rect.top - pad),
+      width: Math.round(rect.width + pad * 2),
+      height: Math.round(rect.height + pad * 2),
+    };
+    const spaceBottom = vh - spotlight.top - spotlight.height;
+    const spaceTop = spotlight.top;
+    const spaceRight = vw - spotlight.left - spotlight.width;
+    const spaceLeft = spotlight.left;
+    let side = preferredSide || 'bottom';
+    if (side === 'right' && spaceRight < cw + gap + 12) {
+      side = spaceBottom >= ch + gap + 12 ? 'bottom' : spaceLeft >= cw + gap + 12 ? 'left' : 'top';
+    } else if (side === 'left' && spaceLeft < cw + gap + 12) {
+      side = spaceRight >= cw + gap + 12 ? 'right' : 'bottom';
+    } else if (side === 'bottom' && spaceBottom < ch + gap + 12 && spaceTop > spaceBottom) {
+      side = 'top';
+    } else if (side === 'top' && spaceTop < ch + gap + 12 && spaceBottom > spaceTop) {
+      side = 'bottom';
+    }
+    let left = spotlight.left;
+    let top = spotlight.top + spotlight.height + gap;
+    if (side === 'top') top = spotlight.top - ch - gap;
+    else if (side === 'right') { left = spotlight.left + spotlight.width + gap; top = spotlight.top; }
+    else if (side === 'left') { left = spotlight.left - cw - gap; top = spotlight.top; }
+    left = Math.round(Math.max(12, Math.min(vw - cw - 12, left)));
+    top = Math.round(Math.max(12, Math.min(vh - ch - 12, top)));
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    return {
+      spotlight,
+      side,
+      left,
+      top,
+      arrowX: Math.round(Math.max(18, Math.min(cw - 18, centerX - left))),
+      arrowY: Math.round(Math.max(18, Math.min(ch - 18, centerY - top))),
+    };
+  }
 
   function Icon({ name = 'file', size = 20, spinning = false, ...props }) {
     return renderDshIcon(React, { name, size, spinning, ...props });
@@ -87,6 +161,7 @@ function createWorkbenchUI(React, requireFn) {
               role: 'tab',
               key: item.id,
               id: id + '-' + item.id,
+              'data-tab-id': item.id,
               'aria-selected': active === item.id,
               tabIndex: active === item.id ? 0 : -1,
               onClick: () => onChange(item.id),
@@ -236,6 +311,161 @@ function createWorkbenchUI(React, requireFn) {
     );
   }
 
+  function CoachmarkTour({ rootRef, steps = [], step = 0, manual = false, style = 'harness', lang = 'zh', activeKey = '', layout: rawLayout, setLayout, onStep, onClose, onCopyPrompt }) {
+    const activeStyle = normalizeDshStyle(style);
+    const layerRef = useRef ? useRef(null) : { current: null };
+    const cardRef = useRef ? useRef(null) : { current: null };
+    const nextBtnRef = useRef ? useRef(null) : { current: null };
+    const copyTimerRef = useRef ? useRef(null) : { current: null };
+    const lastStatusRef = useRef ? useRef('') : { current: '' };
+    const [copied, setCopied] = useState ? useState(false) : [false, () => {}];
+    const [statusMsg, setStatusMsg] = useState ? useState('') : ['', () => {}];
+    const titleId = (typeof useId === 'function' ? useId() : 'dsh-cite-tour') + '-title';
+    const isEn = String(lang).startsWith('en');
+    const l = (zh, en) => (isEn ? en : zh);
+    const current = steps[Math.max(0, Math.min(steps.length - 1, step))] || {};
+    const layout = rawLayout && typeof rawLayout === 'object' && rawLayout.side
+      ? rawLayout
+      : { spotlight: null, side: current.side || 'bottom', left: 24, top: 76, arrowX: 28, arrowY: 24 };
+
+    useEffect?.(() => {
+      const node = layerRef.current;
+      if (!node) return undefined;
+      try {
+        node.setAttribute?.('popover', 'manual');
+        node.showPopover?.();
+      } catch { /* ignore */ }
+      return () => {
+        if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+        try { node.hidePopover?.(); } catch { /* ignore */ }
+      };
+    }, []);
+
+    useEffect?.(() => {
+      setCopied(false);
+      setStatusMsg('');
+    }, [step]);
+
+    useEffect?.(() => {
+      function measure() {
+        const scope = rootRef?.current || (typeof document !== 'undefined' ? document : null);
+        if (!scope || typeof scope.querySelector !== 'function') return;
+        const target = (current.selector && scope.querySelector(current.selector))
+          || (current.fallback && scope.querySelector(current.fallback))
+          || null;
+        setLayout?.(computeTourLayout(target, current.side, cardRef.current));
+      }
+      measure();
+      const raf = typeof requestAnimationFrame === 'function' ? requestAnimationFrame(measure) : null;
+      if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') {
+        return () => { if (raf && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(raf); };
+      }
+      window.addEventListener('resize', measure, { passive: true });
+      window.addEventListener('scroll', measure, true);
+      return () => {
+        if (raf && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(raf);
+        window.removeEventListener('resize', measure);
+        window.removeEventListener('scroll', measure, true);
+      };
+    }, [step, activeKey, current.selector, current.fallback, current.side]);
+
+    useEffect?.(() => {
+      if (!manual) return;
+      (nextBtnRef.current || cardRef.current?.querySelector?.('[data-tour-next]'))?.focus?.();
+    }, [manual, step]);
+
+    async function handleCopy() {
+      if (!current.prompt || !onCopyPrompt) return;
+      const ok = await onCopyPrompt(current.prompt);
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      let msg = ok !== false ? l('已复制指令', 'Copied prompt') : l('复制失败', 'Copy failed');
+      if (msg === lastStatusRef.current) msg += '\u00A0';
+      lastStatusRef.current = msg;
+      setCopied(ok !== false);
+      setStatusMsg(msg);
+      copyTimerRef.current = setTimeout(() => {
+        setCopied(false);
+        setStatusMsg('');
+      }, 1800);
+    }
+
+    const isLast = step >= steps.length - 1;
+    function finish() { onClose?.(manual); }
+    function onKeyDown(event) {
+      if (event.isComposing || event.nativeEvent?.isComposing) return;
+      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); finish(); }
+      else if (event.key === 'ArrowRight' && !isLast) { event.preventDefault(); onStep?.(step + 1, true); }
+      else if (event.key === 'ArrowLeft' && step > 0) { event.preventDefault(); onStep?.(step - 1, true); }
+    }
+
+    return h('div', {
+      ref: layerRef,
+      className: 'dshw cite-tour-layer',
+      'data-dsh-style': activeStyle,
+      'data-cite-tour': current.id || String(step),
+      'data-window-drag-exclude': '',
+    },
+      layout.spotlight
+        ? h('div', {
+            className: 'cite-tour-spotlight',
+            'data-tour-spotlight': current.id || String(step),
+            'aria-hidden': 'true',
+            style: {
+              left: layout.spotlight.left + 'px',
+              top: layout.spotlight.top + 'px',
+              width: layout.spotlight.width + 'px',
+              height: layout.spotlight.height + 'px',
+            },
+          })
+        : h('div', { className: 'cite-tour-backdrop-fallback', 'aria-hidden': 'true' }),
+      h('div', {
+        ref: cardRef,
+        role: 'dialog',
+        'aria-modal': 'false',
+        'aria-labelledby': titleId,
+        tabIndex: -1,
+        onKeyDown,
+        className: 'cite-tour-card',
+        'data-side': layout.side,
+        'data-tour-card': current.id || String(step),
+        style: {
+          left: layout.left + 'px',
+          top: layout.top + 'px',
+          '--arrow-x': layout.arrowX + 'px',
+          '--arrow-y': layout.arrowY + 'px',
+        },
+      },
+        h('span', { className: 'cite-tour-arrow', 'data-tour-arrow': layout.side, 'aria-hidden': 'true' }),
+        h('div', { className: 'cite-tour-head' },
+          h('div', { className: 'cite-tour-step-meta' },
+            h('span', { className: 'cite-tour-step-badge' }, (step + 1) + ' / ' + steps.length),
+            h('span', { className: 'cite-tour-dots', 'aria-hidden': 'true' },
+              steps.map((item, idx) => h('span', { key: item.id || idx, className: 'cite-tour-dot', 'data-active': idx === step ? 'true' : undefined })))),
+          h('button', { type: 'button', className: 'cite-tour-skip', onClick: finish }, l('跳过', 'Skip'))),
+        h('h2', { id: titleId, className: 'cite-tour-title' }, current.title),
+        h('p', { className: 'cite-tour-desc' }, current.desc),
+        current.prompt ? h('div', { className: 'cite-tour-inline-action' },
+          h(Button, {
+            variant: 'outline',
+            icon: copied ? 'check' : 'copy',
+            'data-copy-prompt': current.prompt,
+            'data-copied': copied ? 'true' : undefined,
+            onClick: () => { void handleCopy(); },
+          }, copied ? l('已复制', 'Copied') : (current.promptLabel || l('复制对话指令', 'Copy prompt'))),
+          h('span', { className: 'cite-copy-status', role: 'status' }, statusMsg)) : null,
+        h('div', { className: 'cite-tour-footer' },
+          step > 0
+            ? h(Button, { variant: 'ghost', onClick: () => onStep?.(step - 1, true), 'data-tour-prev': '' }, l('上一步', 'Back'))
+            : h('span', null),
+          h('div', { className: 'cite-tour-nav' },
+            h(Button, {
+              ref: nextBtnRef,
+              variant: 'primary',
+              'data-tour-next': '',
+              onClick: () => (isLast ? finish() : onStep?.(step + 1, true)),
+            }, isLast ? l('完成引导', 'Done') : l('下一步', 'Next'))))));
+  }
+
   function register(ctx, { id, label, icon, component, inject, order = 50 }) {
     ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: id, inject: () => ({ ...(inject?.() || {}), workbench: true }) }, component));
     ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({ name: 'sidebar.panellist', id, order, label }, function WorkbenchIcon({ size }) { return h(Icon, { name: icon, size }); }));
@@ -255,5 +485,5 @@ function createWorkbenchUI(React, requireFn) {
 @media(prefers-reduced-motion:reduce){.dshw summary:after,.w-switch-track,.w-switch-track:before{transition:none!important}}
 `;
   function Styles() { return h('style', null, styles); }
-  return { Icon, Button, IconButton, Page, Tabs, Status, Empty, Split, Row, Search, Switch, Dialog, Styles, register, styles };
+  return { Icon, Button, IconButton, Page, Tabs, Status, Empty, Split, Row, Search, Switch, Dialog, CoachmarkTour, computeTourLayout, readTourDone, writeTourDone, Styles, register, styles };
 }

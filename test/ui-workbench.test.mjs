@@ -6,7 +6,7 @@ import { apply as applyCiteServer } from '../lib/index.js'
 
 const CLIENT_BUNDLE = readFileSync(new URL('../lib/client.js', import.meta.url), 'utf8')
 
-function createMiniEnv({ withPrimitives = false, initialStyle = null } = {}) {
+function createMiniEnv({ withPrimitives = false, initialStyle = null, onApi } = {}) {
   const storage = new Map()
   if (initialStyle) storage.set('dsh-stardust:ui-style', initialStyle)
   const listeners = new Map()
@@ -49,9 +49,10 @@ function createMiniEnv({ withPrimitives = false, initialStyle = null } = {}) {
     },
   }
 
-  const states = []
-  const refs = []
+  const states = new Map()
+  const refs = new Map()
   const effects = []
+  let activeOwner = 'root'
   let cursor = 0
   let refCursor = 0
   let idCounter = 0
@@ -72,17 +73,18 @@ function createMiniEnv({ withPrimitives = false, initialStyle = null } = {}) {
       }
     },
     useState(initial) {
-      const idx = cursor++
-      if (!(idx in states)) states[idx] = typeof initial === 'function' ? initial() : initial
+      const key = activeOwner + '#' + (cursor++)
+      if (!states.has(key)) states.set(key, typeof initial === 'function' ? initial() : initial)
       const setState = next => {
-        states[idx] = typeof next === 'function' ? next(states[idx]) : next
+        const prev = states.get(key)
+        states.set(key, typeof next === 'function' ? next(prev) : next)
       }
-      return [states[idx], setState]
+      return [states.get(key), setState]
     },
     useRef(initial) {
-      const idx = refCursor++
-      if (!(idx in refs)) refs[idx] = { current: initial }
-      return refs[idx]
+      const key = activeOwner + '#' + (refCursor++)
+      if (!refs.has(key)) refs.set(key, { current: initial })
+      return refs.get(key)
     },
     useMemo(fn) { return fn() },
     useId() { return 'id-' + (++idCounter) },
@@ -144,6 +146,10 @@ function createMiniEnv({ withPrimitives = false, initialStyle = null } = {}) {
     fetch: async (_url, init) => {
       const body = init?.body ? JSON.parse(init.body) : { action: 'preferences' }
       if (!init?.body) return { ok: true, status: 200, json: async () => ({ hideWorkbench: false }) }
+      if (typeof onApi === 'function') {
+        const custom = await onApi(body, sampleLibrary)
+        if (custom) return custom
+      }
       if (body.action === 'list') return { ok: true, status: 200, json: async () => ({ ok: true, value: sampleLibrary }) }
       if (body.action === 'export') return { ok: true, status: 200, json: async () => ({ ok: true, value: { content: 'Smith, J. (2026). Airy Design Systems.' } }) }
       return { ok: true, status: 200, json: async () => ({ ok: true, value: sampleLibrary }) }
@@ -166,12 +172,24 @@ function createMiniEnv({ withPrimitives = false, initialStyle = null } = {}) {
     }),
   })
 
-  function materialize(vnode, ancestors = []) {
+  function materialize(vnode, ancestors = [], path = '0') {
     if (vnode === null || vnode === undefined || typeof vnode === 'boolean') return null
     if (typeof vnode === 'string' || typeof vnode === 'number') return String(vnode)
-    if (Array.isArray(vnode)) return vnode.map(child => materialize(child, ancestors)).filter(Boolean)
+    if (Array.isArray(vnode)) return vnode.map((child, idx) => materialize(child, ancestors, path + '.' + idx)).filter(Boolean)
     if (typeof vnode.type === 'function') {
-      return materialize(vnode.type(vnode.props || {}), ancestors)
+      const prevOwner = activeOwner
+      const prevCursor = cursor
+      const prevRefCursor = refCursor
+      activeOwner = path + ':' + (vnode.type.name || 'anon')
+      cursor = 0
+      refCursor = 0
+      try {
+        return materialize(vnode.type(vnode.props || {}), ancestors, path)
+      } finally {
+        activeOwner = prevOwner
+        cursor = prevCursor
+        refCursor = prevRefCursor
+      }
     }
     const attrs = {}
     for (const [k, v] of Object.entries(vnode.props || {})) {
@@ -200,7 +218,7 @@ function createMiniEnv({ withPrimitives = false, initialStyle = null } = {}) {
       vnode.props.ref.current = node
     }
     const nextAncestors = [node, ...ancestors]
-    node.children = (vnode.props?.children || []).map(child => materialize(child, nextAncestors)).flat(Infinity).filter(Boolean)
+    node.children = (vnode.props?.children || []).map((child, idx) => materialize(child, nextAncestors, path + '/' + idx)).flat(Infinity).filter(Boolean)
     return node
   }
 
@@ -446,4 +464,155 @@ test('Cordis 4 ctx.effect unload disposer cleans up registered Cite tools and ro
   for (const dispose of effects.splice(0).reverse()) dispose()
   assert.equal(activeTools, 0)
   assert.equal(activeRoutes, 0)
+})
+
+test('dsh-cite workflow guide, prompt chips, sample filler, DOI-check-to-import handoff, label htmlFor, and remove confirmation work end-to-end', async () => {
+  const apiCalls = []
+  let simulateConflictOnce = true
+  const env = createMiniEnv({
+    withPrimitives: false,
+    onApi: async (body, sampleLibrary) => {
+      apiCalls.push(body)
+      if (body.action === 'check') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            ok: true,
+            value: {
+              count: 2,
+              results: [
+                { doi: '10.1038/nature14539', ok: true, title: 'Deep learning' },
+                { doi: '10.1000/bad-doi', ok: false, error: 'DOI 在 Crossref 中不存在：10.1000/bad-doi', errorEn: 'DOI not found in Crossref: 10.1000/bad-doi' },
+              ],
+            },
+          }),
+        }
+      }
+      if ((body.action ?? body.operation) === 'remove') {
+        if (simulateConflictOnce) {
+          simulateConflictOnce = false
+          return {
+            ok: false,
+            status: 409,
+            json: async () => ({
+              ok: false,
+              message: '文献库已在另一窗口更新，未执行删除。请刷新文献库后重新确认。',
+              messageEn: 'The library changed elsewhere, so nothing was removed. Refresh the library and confirm again.',
+            }),
+          }
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            ok: true,
+            value: { revision: sampleLibrary.revision + 1, entries: [], sources: [], removed: 1, removedIds: [body.id] },
+          }),
+        }
+      }
+      return null
+    },
+  })
+
+  const mounted = await env.mountWorkbench(true, 'en-US')
+  try {
+    let root = mounted.tree
+    const cssText = findNodes(root, n => n.tag === 'style').map(textOf).join('\n')
+    assert.match(cssText, /content:\s*"▸";[\s\S]*?content:\s*"▸"\s*\/\s*"";/)
+    assert.match(cssText, /@media \(prefers-reduced-motion: no-preference\)\s*\{[\s\S]*?transition:\s*rotate/)
+
+    // 1. Collapsible workflow guide uses <details> + <summary> with zero headings inside <summary>
+    const guide = findNodes(root, n => n.tag === 'details' && String(n.attrs.className || '').includes('cite-workflow-guide'))[0]
+    assert.ok(guide, 'workflow guide <details> must render')
+    const summary = findNodes(guide, n => n.tag === 'summary')[0]
+    assert.ok(summary)
+    assert.match(textOf(summary), /How it works: 4-step citation workflow/)
+    assert.equal(findNodes(summary, n => /^h[1-6]$/.test(n.tag)).length, 0, 'never place headings inside <summary>')
+
+    // Copyable chat prompt chips copy prompt text and update role="status"
+    const promptChip = findNodes(guide, n => n.tag === 'button' && textOf(n).includes('Format in APA'))[0]
+    assert.ok(promptChip, 'APA prompt chip should render')
+    await promptChip.attrs.onClick()
+    root = mounted.rerender()
+    assert.match(env.copiedClipboard, /APA/)
+    const guideAfterCopy = findNodes(root, n => n.tag === 'details' && String(n.attrs.className || '').includes('cite-workflow-guide'))[0]
+    const statusLive = findNodes(guideAfterCopy, n => n.attrs.role === 'status')[0]
+    assert.match(textOf(statusLive), /Copied prompt/)
+
+    // Verify all <label> elements on Library tab have explicit htmlFor matching an id
+    const checkLabels = treeRoot => {
+      const ids = new Set(findNodes(treeRoot, n => Boolean(n.attrs?.id)).map(n => n.attrs.id))
+      for (const lbl of findNodes(treeRoot, n => n.tag === 'label')) {
+        assert.ok(lbl.attrs.htmlFor, 'every <label> must have explicit htmlFor')
+        assert.ok(ids.has(lbl.attrs.htmlFor), 'label htmlFor=' + lbl.attrs.htmlFor + ' must match a control id')
+      }
+    }
+    checkLabels(root)
+
+    // 2. Import tab: Fill sample BibTeX / DOI populates input in 1 click
+    findNodes(root, n => n.attrs.role === 'tab' && textOf(n).includes('Import'))[0].attrs.onClick()
+    root = mounted.rerender()
+    checkLabels(root)
+    const sampleBtn = findNodes(root, n => n.tag === 'button' && textOf(n).includes('Fill sample BibTeX / DOI'))[0]
+    assert.ok(sampleBtn, 'Fill sample BibTeX / DOI button should exist')
+    sampleBtn.attrs.onClick()
+    root = mounted.rerender()
+    const importTextarea = findNodes(root, n => n.tag === 'textarea')[0]
+    assert.match(importTextarea.attrs.value, /10\.1038\/nature14539/)
+
+    // 3. DOI Check tab: Send to Import preview carries verified DOIs into Import tab
+    findNodes(root, n => n.attrs.role === 'tab' && textOf(n).includes('DOI check'))[0].attrs.onClick()
+    root = mounted.rerender()
+    checkLabels(root)
+    const checkTextarea = findNodes(root, n => n.tag === 'textarea')[0]
+    checkTextarea.attrs.onChange({ target: { value: 'Draft refs: 10.1038/nature14539 and 10.1000/bad-doi' } })
+    root = mounted.rerender()
+    const checkForm = findNodes(root, n => n.tag === 'form')[0]
+    await checkForm.attrs.onSubmit({ preventDefault() {} })
+    root = mounted.rerender()
+    const handoffBtn = findNodes(root, n => n.tag === 'button' && textOf(n).includes('Send to Import preview'))[0]
+    assert.ok(handoffBtn, 'Send to Import preview button must render when valid DOIs are found')
+    handoffBtn.attrs.onClick()
+    root = mounted.rerender()
+    const prefilledTextarea = findNodes(root, n => n.tag === 'textarea')[0]
+    assert.equal(prefilledTextarea.attrs.value, '10.1038/nature14539', 'only verified DOIs are pre-filled in Import')
+
+    // 4. Library tab: Remove opens confirmation modal, handles 409 conflict, refreshes, and deletes
+    findNodes(root, n => n.attrs.role === 'tab' && textOf(n).includes('Library'))[0].attrs.onClick()
+    root = mounted.rerender()
+    const removeBtn = findNodes(root, n => n.tag === 'button' && textOf(n) === 'Remove')[0]
+    assert.ok(removeBtn, 'Remove button must render in CiteInspector')
+    removeBtn.attrs.onClick()
+    root = mounted.rerender()
+    let modal = findNodes(root, n => n.attrs.role === 'dialog')[0]
+    assert.ok(modal, 'Remove confirmation modal must open before deleting')
+    assert.match(textOf(modal), /Airy Design Systems/)
+
+    const confirmBtn = findNodes(modal, n => n.tag === 'button' && textOf(n).includes('Confirm remove'))[0]
+    await confirmBtn.attrs.onClick()
+    root = mounted.rerender()
+    modal = findNodes(root, n => n.attrs.role === 'dialog')[0]
+    assert.match(textOf(modal), /nothing was removed/i, '409 revision conflict should surface in confirmation dialog')
+
+    const refreshConflictBtn = findNodes(modal, n => n.tag === 'button' && textOf(n).includes('Refresh library'))[0]
+    assert.ok(refreshConflictBtn)
+    await refreshConflictBtn.attrs.onClick()
+    root = mounted.rerender()
+    modal = findNodes(root, n => n.attrs.role === 'dialog')[0]
+    const retryConfirmBtn = findNodes(modal, n => n.tag === 'button' && textOf(n).includes('Confirm remove'))[0]
+    await retryConfirmBtn.attrs.onClick()
+    root = mounted.rerender()
+
+    assert.equal(findNodes(root, n => n.attrs.role === 'dialog').length, 0, 'modal closes after confirmed removal')
+    assert.match(textOf(root), /Your library is empty/)
+    const removePayloads = apiCalls.filter(c => (c.action ?? c.operation) === 'remove')
+    assert.equal(removePayloads.length, 2)
+    assert.equal(removePayloads[0].operation, 'remove')
+    assert.equal(removePayloads[0].id, 'entry-1')
+    assert.equal(removePayloads[0].citekey, 'smith2026')
+    assert.equal(removePayloads[0].expectedRevision, 2)
+  } finally {
+    mounted.cleanup()
+  }
 })

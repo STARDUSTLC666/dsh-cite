@@ -3,7 +3,7 @@ import { lookupDoi, type FetchLike, type Work } from './crossref.js'
 import { buildBibtex, buildCitation, readStyle } from './format.js'
 import { parseCitationInput } from './citation-parser.js'
 import { CitationStore } from './citation-store.js'
-import { LibraryConflict, MAX_INPUT_BYTES, candidateKey, citationId, normalizeWork, readImportInput, readSelection, workWarnings, type ImportInput, type ImportRow, type FieldConflict } from './citation-model.js'
+import { LibraryConflict, MAX_INPUT_BYTES, candidateKey, citationId, normalizeWork, readImportInput, readSelection, workWarnings, type ImportInput, type ImportRow, type FieldConflict, type LibraryEntry } from './citation-model.js'
 import { type ResolvedCiteConfig } from './config.js'
 import { checkDois, MAX_DOI_CHECKS, type CiteToolDefinition } from './tools.js'
 import { englishCitationError } from './citation-errors.js'
@@ -120,6 +120,83 @@ export class CitationWorkbench {
   job(id: unknown): EnrichmentJob { this.live(); const j = this.jobs.get(citationId(id)); if (!j) throw new Error('任务不存在或 DSH 已重启。文献仍保留，请刷新。'); return structuredClone(j.view) }
   cancel(id: unknown): EnrichmentJob { this.live(); const j = this.jobs.get(citationId(id)); if (!j) throw new Error('任务不存在。'); if (j.view.state === 'running') j.controller.abort(); return structuredClone(j.view) }
   dispose(): void { this.lifetime.abort(new Error('插件已卸载。')); for (const j of this.jobs.values()) j.controller.abort() }
+  private exportedBibKeys(entries: LibraryEntry[]): Map<string, string> {
+    const keys = new Map<string, string>(), used = new Set<string>()
+    for (const e of entries) {
+      const base = e.bibKey.replace(/[^A-Za-z0-9_.:\/-]+/g, '_').replace(/^_+|_+$/g, '') || 'work'
+      let key = base, n = 0
+      while (used.has(key)) key = base + '-' + e.id.slice(0, 8) + (n++ ? '-' + n : '')
+      used.add(key); keys.set(e.id, key)
+    }
+    return keys
+  }
+  async remove(rawTarget: unknown, rawRevision?: unknown, signal?: AbortSignal) {
+    this.live()
+    const effectiveSignal = signal ? AbortSignal.any([signal, this.lifetime.signal]) : this.lifetime.signal
+    effectiveSignal.throwIfAborted()
+    if ([...this.jobs.values()].some(j => j.view.state === 'running')) throw new Error('已有补全任务运行中，请等待或取消。')
+    const opts: Record<string, unknown> = rawTarget && typeof rawTarget === 'object' && !Array.isArray(rawTarget)
+      ? rawTarget as Record<string, unknown>
+      : Array.isArray(rawTarget) ? { ids: rawTarget, expectedRevision: rawRevision } : { id: rawTarget, expectedRevision: rawRevision }
+    const expectedRevision = opts.expectedRevision !== undefined ? opts.expectedRevision : (opts.revision !== undefined ? opts.revision : rawRevision)
+    if (typeof expectedRevision !== 'number' || !Number.isInteger(expectedRevision) || expectedRevision < 0) {
+      throw new Error('请提供当前文献库修订号。')
+    }
+    const rawIds = opts.ids, rawId = opts.id, rawCitekey = opts.citekey ?? opts.bibKey ?? opts.key
+    if (rawIds === undefined && rawId === undefined && rawCitekey === undefined) {
+      throw new Error('请提供要删除的文献 id 或引用键。')
+    }
+    const checkedIds = rawIds !== undefined ? readSelection(rawIds) : undefined
+    const checkedId = rawId !== undefined ? citationId(rawId) : undefined
+    let normalizedKey: string | undefined
+    if (rawCitekey !== undefined) {
+      if (typeof rawCitekey !== 'string' || !rawCitekey.trim() || rawCitekey.trim().length > 200) {
+        throw new Error('请提供要删除的文献 id 或引用键。')
+      }
+      normalizedKey = rawCitekey.trim().replace(/^@+/, '').trim()
+      if (!normalizedKey) throw new Error('请提供要删除的文献 id 或引用键。')
+    }
+    let removedIds: string[] = []
+    try {
+      const nextState = await this.store.edit(expectedRevision, state => {
+        const exportedKeys = this.exportedBibKeys(state.entries)
+        const targets = new Set<string>()
+        if (checkedIds) {
+          for (const id of checkedIds) {
+            if (!state.entries.some(e => e.id === id)) throw new Error('所选文献已不存在，请刷新。')
+            targets.add(id)
+          }
+        }
+        if (checkedId) {
+          const entry = state.entries.find(e => e.id === checkedId)
+          if (!entry) throw new Error('所选文献已不存在，请刷新。')
+          if (normalizedKey && entry.bibKey !== normalizedKey && exportedKeys.get(entry.id) !== normalizedKey) {
+            throw new Error('文献 id 与引用键不匹配，请刷新后核对。')
+          }
+          targets.add(entry.id)
+        } else if (normalizedKey) {
+          const exactDisambiguated = state.entries.filter(e => exportedKeys.get(e.id) === normalizedKey && e.bibKey !== normalizedKey)
+          const matches = exactDisambiguated.length === 1
+            ? exactDisambiguated
+            : state.entries.filter(e => e.bibKey === normalizedKey || exportedKeys.get(e.id) === normalizedKey)
+          if (matches.length === 0) throw new Error('所选文献已不存在，请刷新。')
+          if (matches.length > 1) throw new Error('引用键匹配多条文献，请改用具体文献 id 删除。')
+          targets.add(matches[0]!.id)
+        }
+        if (!targets.size) throw new Error('请提供要删除的文献 id 或引用键。')
+        removedIds = state.entries.filter(e => targets.has(e.id)).map(e => e.id)
+        state.entries = state.entries.filter(e => !targets.has(e.id))
+        const usedSources = new Set(state.entries.flatMap(e => e.sourceIds))
+        state.sources = state.sources.filter(s => usedSources.has(s.id))
+      }, effectiveSignal)
+      return { ...summary(nextState), removed: removedIds.length, removedIds }
+    } catch (e) {
+      if (e instanceof LibraryConflict) {
+        throw new LibraryConflict('文献库已在另一窗口更新，未执行删除。请刷新文献库后重新确认。')
+      }
+      throw e
+    }
+  }
   private async check(text: unknown, signal: AbortSignal) {
     this.live()
     if (typeof text !== 'string' || !text.trim()) throw new Error('请粘贴待核查的文本。')
@@ -138,19 +215,20 @@ export class CitationWorkbench {
     if (!entries.length) throw new Error('文献库为空，请先导入。')
     if (kind === 'references') return { filename: 'references-' + readStyle(style) + '.txt', type: 'text/plain; charset=utf-8', content: entries.map((e, i) => `[${i + 1}] ` + buildCitation(e.work, readStyle(style), lang === 'en' ? 'en' : 'zh')).join('\n\n') + '\n' }
     if (kind !== 'bibtex') throw new Error('导出类型只能是 bibtex / references / backup。')
-    const keys = new Map<string, string>(), used = new Set<string>()
-    for (const e of state.entries) { const base = e.bibKey.replace(/[^A-Za-z0-9_.:\/-]+/g, '_').replace(/^_+|_+$/g, '') || 'work'; let key = base; let n = 0; while (used.has(key)) key = base + '-' + e.id.slice(0, 8) + (n++ ? '-' + n : ''); used.add(key); keys.set(e.id, key) }
+    const keys = this.exportedBibKeys(state.entries)
     return { filename: 'references.bib', type: 'application/x-bibtex; charset=utf-8', content: entries.map(e => buildBibtex(e.work, keys.get(e.id))).join('\n\n') + '\n' }
   }
   async dispatch(value: unknown, signal?: AbortSignal): Promise<unknown> {
     this.live()
     if (!value || typeof value !== 'object') throw new Error('操作参数无效。')
     const v = value as Record<string, unknown>
-    switch (v.action) {
+    const op = v.action ?? v.operation
+    switch (op) {
       case 'list': return this.list()
       case 'preview': return this.preview({ kind: v.kind, text: v.text, label: v.label }, signal)
       case 'import': return this.import(v.preview, v.selection)
-      case 'enrich': return this.enrich(v.ids, v.revision)
+      case 'enrich': return this.enrich(v.ids, v.expectedRevision ?? v.revision)
+      case 'remove': return this.remove(v, undefined, signal)
       case 'job': return this.job(v.job)
       case 'cancel': return this.cancel(v.job)
       case 'export': return this.export(v.kind, v.style, v.lang, v.ids)
@@ -171,7 +249,8 @@ export class CitationWorkbench {
       if (!request.headers.get('content-type')?.startsWith('application/json')) throw new Error('请求格式无效。')
       const text = await request.text(); if (Buffer.byteLength(text) > 2 * 1024 * 1024) throw new Error('请求超过容量限制，请拆分输入。')
       const input = JSON.parse(text)
-      const value = input?.action === 'check'
+      const op = input?.action ?? input?.operation
+      const value = op === 'check'
         ? await this.check(input.text, request.signal)
         : await this.dispatch(input, request.signal)
       return Response.json({ ok: true, value }, { headers: { 'cache-control': 'no-store' } })
@@ -180,8 +259,8 @@ export class CitationWorkbench {
 }
 export function buildBatchTool(workbench: CitationWorkbench): CiteToolDefinition {
   return {
-    name: 'cite_batch', description: '本地文献库：显式 preview 解析 DOI 列表/BibTeX（不联网），import 选择预览条目保存，list 读取，enrich 才联网从 Crossref 补空字段且保留冲突原值，job/cancel 查进度或取消，export 导出基本引文/BibTeX/完整原始来源备份。单批最多100条、库最多500条；不得捏造缺失数据。',
-    parameters: { type: 'object', properties: { action: { type: 'string', enum: ['list', 'preview', 'import', 'enrich', 'job', 'cancel', 'export'] }, kind: { type: 'string', enum: ['doi', 'bibtex', 'references', 'backup'] }, text: { type: 'string', description: 'DOI 每行一条；或 BibTeX 文本，最大256KiB。' }, label: { type: 'string' }, preview: { type: 'string' }, selection: { type: 'array', items: { type: 'integer' }, description: 'preview 返回的零起始 index（1–100个）。' }, ids: { type: 'array', items: { type: 'string' }, description: '已保存文献 id（1–100个）。' }, revision: { type: 'integer' }, job: { type: 'string' }, style: { type: 'string', enum: ['gb-t-7714', 'apa', 'mla', 'chicago'] }, lang: { type: 'string', enum: ['zh', 'en'] } }, required: ['action'] },
+    name: 'cite_batch', description: '本地文献库：显式 preview 解析 DOI 列表/BibTeX（不联网），import 选择预览条目保存，list 读取，enrich 才联网从 Crossref 补空字段且保留冲突原值，remove 按 id/citekey/ids 与 expectedRevision 冲突保护原子删除条目，job/cancel 查进度或取消，export 导出基本引文/BibTeX/完整原始来源备份。单批最多100条、库最多500条；不得捏造缺失数据。',
+    parameters: { type: 'object', properties: { action: { type: 'string', enum: ['list', 'preview', 'import', 'enrich', 'remove', 'job', 'cancel', 'export'] }, operation: { type: 'string', enum: ['list', 'preview', 'import', 'enrich', 'remove', 'job', 'cancel', 'export'], description: 'action 的兼容别名（如 remove）。' }, kind: { type: 'string', enum: ['doi', 'bibtex', 'references', 'backup'] }, text: { type: 'string', description: 'DOI 每行一条；或 BibTeX 文本，最大256KiB。' }, label: { type: 'string' }, preview: { type: 'string' }, selection: { type: 'array', items: { type: 'integer' }, description: 'preview 返回的零起始 index（1–100个）。' }, id: { type: 'string', description: '要删除的单条已保存文献 id。' }, citekey: { type: 'string', description: '要删除的单条文献引用键 bibKey（唯一匹配时生效）。' }, ids: { type: 'array', items: { type: 'string' }, description: '已保存文献 id（1–100个）。' }, expectedRevision: { type: 'integer', description: '期望的当前文献库修订号（冲突保护）。' }, revision: { type: 'integer', description: '当前文献库修订号。' }, job: { type: 'string' }, style: { type: 'string', enum: ['gb-t-7714', 'apa', 'mla', 'chicago'] }, lang: { type: 'string', enum: ['zh', 'en'] } } },
     output: { schema: { type: 'object', additionalProperties: true }, render(_args, value) { return [{ type: 'text', text: JSON.stringify(value, null, 2) }] } },
     async execute(args, exec) { const signal = typeof exec === 'object' && exec && (exec as any).signal instanceof AbortSignal ? (exec as any).signal as AbortSignal : undefined; signal?.throwIfAborted(); return workbench.dispatch(args, signal) }, timeoutMs: 15000,
   }

@@ -33,9 +33,9 @@ Local BibTeX parsing uses Citation.js, including macros, nested braces, literal 
 | `cite_bibtex` | Generate a BibTeX entry | `doi`; `key` optional |
 | `cite_check` | Extract DOIs from text and validate them | `text`; `maxChecks` 1-50, default 10 |
 | `cite_health` | Self-check: probe Crossref connectivity and report latency | none |
-| `cite_batch` | Local library shared with the settings page | `action`: list / preview / import / enrich / job / cancel / export |
+| `cite_batch` | Local library shared with the settings page | `action` (or `operation`): list / preview / import / enrich / remove / job / cancel / export |
 
-`preview` accepts `kind: doi / bibtex`, `text` and optional `label`, returning a preview ID and zero-based row indices. `import` accepts that `preview` and a `selection` array. `enrich` accepts saved entry `ids` and the current `revision`, returning a job ID; use `job` / `cancel` to inspect or cancel it. `export` accepts `kind: bibtex / references / backup`, optional `style` / `lang`, and optional entry `ids`; full backups cannot be scoped to a selection.
+`preview` accepts `kind: doi / bibtex`, `text` and optional `label`, returning a preview ID and zero-based row indices. `import` accepts that `preview` and a `selection` array. `enrich` accepts saved entry `ids` and the current `revision`, returning a job ID; use `job` / `cancel` to inspect or cancel it. `remove` deletes entries atomically by `id`, unique `citekey`, or `ids` with `expectedRevision` conflict protection. `export` accepts `kind: bibtex / references / backup`, optional `style` / `lang`, and optional entry `ids`; full backups cannot be scoped to a selection.
 
 ## Network and data
 

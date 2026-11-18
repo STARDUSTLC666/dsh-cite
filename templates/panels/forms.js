@@ -1,3 +1,24 @@
+const CITE_SAMPLE_DOI = '10.1038/nature14539\n10.1145/3368089.3409749';
+const CITE_SAMPLE_BIBTEX = [
+  '@article{lecun2015deep,',
+  '  title={Deep learning},',
+  '  author={LeCun, Yann and Bengio, Yoshua and Hinton, Geoffrey},',
+  '  journal={Nature},',
+  '  volume={521},',
+  '  number={7553},',
+  '  pages={436--444},',
+  '  year={2015},',
+  '  doi={10.1038/nature14539}',
+  '}',
+  '',
+  '@inproceedings{vaswani2017attention,',
+  '  title={Attention Is All You Need},',
+  '  author={Vaswani, Ashish and Shazeer, Noam and Parmar, Niki},',
+  '  booktitle={Advances in Neural Information Processing Systems},',
+  '  year={2017}',
+  '}',
+].join('\n');
+
 function CiteImport({
   t, locked, kind, text, label, preview, chosen, dirty, conflict,
   changeImport, upload, onPreview, onChoose, onRetry, onSave, onBack,
@@ -7,6 +28,13 @@ function CiteImport({
   const inputLabel = t('DOI / BibTeX 输入', 'DOI / BibTeX input');
   const noInput = !text.trim();
   const chosenRows = new Set(chosen);
+  function fillSample() {
+    changeImport({
+      kind,
+      text: kind === 'bibtex' ? CITE_SAMPLE_BIBTEX : CITE_SAMPLE_DOI,
+      label: t('示例文献', 'Sample references'),
+    });
+  }
   return h(CiteSubpage, {
     title: t('DOI / BibTeX 导入预览与去重', 'DOI / BibTeX import and deduplication'),
     description: t('先在本地检查重复和缺失字段，再勾选要保存的文献。', 'Review duplicates and missing fields locally, then select entries to save.'),
@@ -15,6 +43,7 @@ function CiteImport({
       h(CiteCard, {
         title: t('批量输入', 'Batch input'),
         actions: h('div', { className: 'cite-actions' },
+          h(CiteButton, { icon: 'sparkles', disabled: locked, onClick: fillSample }, t('填入示例 DOI / BibTeX', 'Fill sample BibTeX / DOI')),
           h(CiteButton, { icon: 'upload', disabled: locked, onClick: () => file.current?.click() }, t('上传 .bib', 'Upload .bib')),
           h(CiteButton, { variant: 'primary', type: 'submit', icon: 'search', disabled: locked || noInput || conflict }, t('本地预览', 'Local preview')),
         ),
@@ -55,7 +84,8 @@ function CiteImport({
                 : '@article{key,\n  title={Your title},\n  author={Family, Given},\n  year={2026}\n}',
             }),
           ),
-          h('input', { hidden: true, ref: file, type: 'file', accept: '.bib', onChange: upload }),
+          h('label', { className: 'cite-sr-only', htmlFor: id + '-file' }, t('上传 BibTeX 文件', 'Upload BibTeX file')),
+          h('input', { id: id + '-file', hidden: true, ref: file, type: 'file', accept: '.bib', onChange: upload }),
         ),
         h('p', { className: 'cite-muted cite-form-note' }, t('每批最多 256 KiB、100 条，文献库最多 500 条。', 'Up to 256 KiB and 100 entries per batch, and 500 entries per library.')),
         dirty ? h('p', { className: 'cite-muted' }, t('输入尚未保存入库，切页时会保留。', 'Unsaved input is retained when switching tabs.')) : null,
@@ -103,7 +133,7 @@ function CiteImport({
   );
 }
 
-function CiteCheck({ t, lang, text, report, onReport, onChange }) {
+function CiteCheck({ t, lang, text, report, onReport, onChange, onSendToImport }) {
   const id = typeof React.useId === 'function' ? React.useId() : 'cite-check';
   const request = useRef(null);
   const [running, setRunning] = useState(false);
@@ -111,7 +141,7 @@ function CiteCheck({ t, lang, text, report, onReport, onChange }) {
   const [cancelled, setCancelled] = useState(false);
 
   useEffect(() => () => {
-    request.current?.abort();
+    if (typeof request.current?.abort === 'function') request.current.abort();
     request.current = null;
   }, []);
 
@@ -144,7 +174,8 @@ function CiteCheck({ t, lang, text, report, onReport, onChange }) {
     setCancelled(true);
   }
 
-  const pass = report?.results.filter(row => row.ok).length || 0;
+  const validDois = report ? report.results.filter(row => row.ok).map(row => row.doi) : [];
+  const pass = validDois.length;
   return h(CiteSubpage, {
     title: t('文稿 DOI 核查', 'Manuscript DOI check'),
     description: t('从文稿或参考文献列表中提取 DOI，并通过 Crossref 查看登记结果。', 'Extract DOIs from a manuscript or reference list and check their Crossref records.'),
@@ -170,7 +201,14 @@ function CiteCheck({ t, lang, text, report, onReport, onChange }) {
         error ? h(W.Status, { tone: 'error' }, error) : null,
       ),
     ),
-    report ? h(CiteCard, { title: t('核查结果', 'Check results') },
+    report ? h(CiteCard, {
+      title: t('核查结果', 'Check results'),
+      actions: pass > 0 && onSendToImport ? h(CiteButton, {
+        variant: 'primary',
+        icon: 'right',
+        onClick: () => onSendToImport(validDois),
+      }, t('送入导入预览', 'Send to Import preview') + ' (' + pass + ')') : null,
+    },
       h('p', { className: 'cite-muted', role: 'status' }, report.count
         ? t('共 ' + report.count + ' 个 DOI，查到 ' + pass + ' 个。',
           'Found ' + pass + ' of ' + report.count + ' DOIs.')

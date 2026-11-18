@@ -5,12 +5,13 @@ function referenceTitle(entry, t) {
 function CiteLibrary({
   entries, sources, revision, t, lang, uiStyle, loading, loaded, locked, running,
   selected, setSelected, style, setStyle, copiedKey,
-  filter, search, limit, activeId, setActiveId, onSearch, onFilter, onMore, onRefresh, onImport, enrich, copy,
+  filter, search, limit, activeId, setActiveId, onSearch, onFilter, onMore, onRefresh, onImport, enrich, copy, onRequestRemove,
 }) {
   const [openedId, setOpenedId] = useState('');
   const lastRow = useRef(null);
   const root = useRef(null);
   const pickerId = typeof React.useId === 'function' ? React.useId() : 'cite-style-picker';
+  const searchId = typeof React.useId === 'function' ? React.useId() : 'cite-library-search';
   const { indexed, missing, enriched } = useMemo(() => {
     const indexed = entries.map(entry => {
       const byline = authors(entry.work);
@@ -83,15 +84,19 @@ function CiteLibrary({
     ),
     h('section', { className: 'cite-list', 'aria-label': t('文献列表', 'Reference list'), 'aria-busy': loading },
       h('div', { className: 'cite-searchbar' },
-        h(CiteInput, {
-          className: 'cite-search',
-          type: 'search',
-          'aria-label': searchLabel,
-          placeholder: searchLabel + '…',
-          value: search,
-          onChange: changeSearch,
-          icon: 'search',
-        }),
+        h('div', { className: 'cite-search-field' },
+          h('label', { className: 'cite-sr-only', htmlFor: searchId }, searchLabel),
+          h(CiteInput, {
+            id: searchId,
+            className: 'cite-search',
+            type: 'search',
+            'aria-label': searchLabel,
+            placeholder: searchLabel + '…',
+            value: search,
+            onChange: changeSearch,
+            icon: 'search',
+          }),
+        ),
         h(CiteIconButton, {
           icon: 'refresh',
           spinning: Boolean(loading || running),
@@ -141,15 +146,26 @@ function CiteLibrary({
           t('再显示 50 条', 'Show 50 more'),
         ) : null,
       ),
-      selected.length ? h('div', { className: 'cite-selection-footer' }, h(CiteButton, {
-        icon: 'refresh', spinning: Boolean(running), disabled: locked || !canEnrichSelected, onClick: () => enrich(selected),
-      }, t('从 Crossref 补全所选', 'Enrich selection from Crossref'))) : null,
+      selected.length ? h('div', { className: 'cite-selection-footer' },
+        h('div', { className: 'cite-actions' },
+          h(CiteButton, {
+            icon: 'refresh', spinning: Boolean(running), disabled: locked || !canEnrichSelected, onClick: () => enrich(selected),
+          }, t('从 Crossref 补全所选', 'Enrich selection from Crossref')),
+          onRequestRemove ? h(CiteButton, {
+            variant: 'danger',
+            icon: 'trash',
+            disabled: locked,
+            'aria-haspopup': 'dialog',
+            onClick: () => onRequestRemove(selected),
+          }, t('删除所选', 'Remove selected') + ' (' + selected.length + ')') : null,
+        ),
+      ) : null,
     ),
     h('section', { className: 'cite-inspector', 'aria-label': t('文献详情', 'Reference details') },
       open ? h(CiteButton, { className: 'cite-back', icon: 'left', variant: 'ghost', onClick: back }, t('返回文献列表', 'Back to references')) : null,
       active
         ? h(CiteInspector, {
-          key: active.id, entry: active, sources, style, uiStyle, lang, revision, locked, running, copiedKey, enrich, copy, t,
+          key: active.id, entry: active, sources, style, uiStyle, lang, revision, locked, running, copiedKey, enrich, copy, onRequestRemove, t,
         })
         : h('p', { className: 'cite-inspector-empty' }, t('选择文献以查看引文与元数据。', 'Select a reference to view its citation and metadata.')),
     ),
@@ -186,7 +202,7 @@ function CiteReferenceRow({ entry, byline, active, checked, disabled, t, onOpen,
   );
 }
 
-function CiteInspector({ entry, sources, style, uiStyle, lang, revision, locked, running, copiedKey, enrich, copy, t }) {
+function CiteInspector({ entry, sources, style, uiStyle, lang, revision, locked, running, copiedKey, enrich, copy, onRequestRemove, t }) {
   const [sourceOpen, setSourceOpen] = useState(false);
   const { id, work, bibKey, warnings, crossref } = entry;
   const citation = useCitationOutput({ kind: 'references', id, style, lang, revision });
@@ -247,6 +263,13 @@ function CiteInspector({ entry, sources, style, uiStyle, lang, revision, locked,
           'aria-haspopup': 'dialog',
           onClick: () => setSourceOpen(true),
         }, t('原始输入', 'Raw source')) : null,
+        onRequestRemove ? h(CiteButton, {
+          variant: 'danger',
+          icon: 'trash',
+          disabled: locked,
+          'aria-haspopup': 'dialog',
+          onClick: () => onRequestRemove([id]),
+        }, t('删除', 'Remove')) : null,
       ),
     ),
     h('div', { className: 'cite-inspector-scroll' },

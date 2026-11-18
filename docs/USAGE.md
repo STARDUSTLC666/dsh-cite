@@ -35,9 +35,9 @@ BibTeX 解析使用 Citation.js 的本地解析器，支持宏、嵌套括号、
 | `cite_bibtex` | 生成 BibTeX 条目 | `doi` 必填；`key` 可选 |
 | `cite_check` | 从文本提取 DOI 并并发校验是否存在（并发 3，保持输入顺序） | `text` 必填；`maxChecks` 1-50 默认 10 |
 | `cite_health` | 自检：探测 Crossref 连通性并报告延迟 | 无 |
-| `cite_batch` | 本地文献工作台，与设置页共用文献库 | `action`：list / preview / import / enrich / job / cancel / export |
+| `cite_batch` | 本地文献工作台，与设置页共用文献库 | `action`（或 `operation`）：list / preview / import / enrich / remove / job / cancel / export |
 
-`cite_batch` 的 `preview` 接受 `kind: doi / bibtex`、`text` 和可选 `label`；返回预览编号和零起始行编号。`import` 接受 `preview` 与 `selection` 数组。`enrich` 接受已保存条目的 `ids` 与当前 `revision`，返回 `job` 编号；用 `job` / `cancel` 操作查询或取消。`export` 的 `kind` 为 bibtex / references / backup，可指定 `style`、`lang`；条目选择为可选 `ids`，完整备份不得附带选择。
+`cite_batch` 的 `preview` 接受 `kind: doi / bibtex`、`text` 和可选 `label`；返回预览编号和零起始行编号。`import` 接受 `preview` 与 `selection` 数组。`enrich` 接受已保存条目的 `ids` 与当前 `revision`，返回 `job` 编号；用 `job` / `cancel` 操作查询或取消。`remove` 支持按单条 `id`、`citekey`（唯一匹配时生效）或批量 `ids` 配合 `expectedRevision` 冲突保护原子删除条目。`export` 的 `kind` 为 bibtex / references / backup，可指定 `style`、`lang`；条目选择为可选 `ids`，完整备份不得附带选择。
 
 ## 安装
 

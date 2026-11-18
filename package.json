@@ -1,6 +1,6 @@
 {
   "name": "dsh-cite",
-  "version": "0.9.4",
+  "version": "0.10.0",
   "description": "DeepSeek Harness 引文工作台。支持 DOI / BibTeX 导入去重、Crossref 核查补全、引文导出与原始来源备份，内置 5 套浅色/暖色工作台风格（原生清透 / 米白纸感 / Claude 暖书卷 / 8-Bit 像素 / 晴空薄荷）并兼容浅色与柔和深色模式。欢迎提交 issues 和 PR。",
   "type": "module",
   "main": "lib/index.js",

@@ -69,6 +69,8 @@ window.__ModuleLoader__.load({
       const [error, setError] = useState('');
       const [notice, setNotice] = useState('');
       const [copiedKey, setCopiedKey] = useState('');
+      const [promptStatus, setPromptStatus] = useState('');
+      const [removeModal, setRemoveModal] = useState(null);
       const [search, setSearch] = useState('');
       const [filter, setFilter] = useState('all');
       const [limit, setLimit] = useState(pageSize);
@@ -82,6 +84,8 @@ window.__ModuleLoader__.load({
       const busyRef = useRef(false);
       const dirtyRef = useRef(dirty);
       const copyTimerRef = useRef(null);
+      const promptTimerRef = useRef(null);
+      const lastPromptMsgRef = useRef('');
       const t = (zh, en) => lang === 'en' ? en : zh;
       const jobId = job?.id;
       const running = job?.state === 'running';
@@ -92,10 +96,11 @@ window.__ModuleLoader__.load({
       const setStyle = value => updateForm({ style: value });
 
       // Update protection: dsh-cite
-      __stardustUpdatesGuard(React, "dsh-cite", { dirty, busy: locked, retainOnClose: true });
+      __stardustUpdatesGuard(React, "dsh-cite", { dirty, busy: locked || Boolean(removeModal), retainOnClose: true });
 
       useEffect(() => () => {
         if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+        if (promptTimerRef.current) clearTimeout(promptTimerRef.current);
       }, []);
       useEffect(() => {
         const update = () => setLang(language(locale));
@@ -228,9 +233,18 @@ window.__ModuleLoader__.load({
         });
       }
 
+      async function writeClipboardText(value) {
+        const P = hostPrimitives();
+        if (typeof P?.writeClipboard === 'function') {
+          await P.writeClipboard(value);
+          return;
+        }
+        await navigator.clipboard.writeText(value);
+      }
+
       async function copy(value, format, key = '') {
         try {
-          await navigator.clipboard.writeText(value);
+          await writeClipboardText(value);
           setError('');
           setNotice(t('已复制' + format + '。', 'Copied ' + format + '.'));
           if (key) {
@@ -244,6 +258,79 @@ window.__ModuleLoader__.load({
         }
       }
 
+      async function copyPrompt(value, labelText, key) {
+        try {
+          await writeClipboardText(value);
+          let msg = t('已复制指令：「' + labelText + '」', 'Copied prompt: ' + labelText);
+          if (msg === lastPromptMsgRef.current) msg += '\u00A0';
+          lastPromptMsgRef.current = msg;
+          setPromptStatus(msg);
+          setCopiedKey(key);
+          if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+          if (promptTimerRef.current) clearTimeout(promptTimerRef.current);
+          copyTimerRef.current = setTimeout(() => setCopiedKey(''), 1800);
+          promptTimerRef.current = setTimeout(() => setPromptStatus(''), 2400);
+        } catch {
+          let fail = t('剪贴板不可用，请手动选择复制。', 'Clipboard unavailable.');
+          if (fail === lastPromptMsgRef.current) fail += '\u00A0';
+          lastPromptMsgRef.current = fail;
+          setPromptStatus(fail);
+        }
+      }
+
+      const removeEntries = removeModal
+        ? removeModal.ids.map(id => entries.find(entry => entry.id === id)).filter(Boolean)
+        : [];
+
+      async function confirmRemove() {
+        if (!removeModal || busyRef.current) return;
+        const targetIds = removeModal.ids;
+        const single = targetIds.length === 1 ? entries.find(entry => entry.id === targetIds[0]) : null;
+        busyRef.current = true;
+        setBusy(true);
+        setError('');
+        setNotice('');
+        try {
+          const payload = targetIds.length === 1
+            ? { action: 'remove', operation: 'remove', id: targetIds[0], ...(single?.bibKey ? { citekey: single.bibKey } : {}), expectedRevision: revision }
+            : { action: 'remove', operation: 'remove', ids: targetIds, expectedRevision: revision };
+          const result = await api(payload, lang);
+          const removedSet = new Set(targetIds);
+          setLibrary(result);
+          updateForm({ selected: selected.filter(id => !removedSet.has(id)) });
+          if (removedSet.has(activeId)) setActiveId(result.entries[0]?.id || '');
+          setRemoveModal(null);
+          setNotice(t(
+            '已从文献库删除 ' + targetIds.length + ' 条文献。',
+            'Removed ' + targetIds.length + (targetIds.length === 1 ? ' reference from the library.' : ' references from the library.'),
+          ));
+        } catch (err) {
+          setRemoveModal(old => old ? { ...old, conflict: err.status === 409, error: err.message } : null);
+        } finally {
+          busyRef.current = false;
+          setBusy(false);
+        }
+      }
+
+      async function refreshAfterRemoveConflict() {
+        if (!removeModal || busyRef.current) return;
+        busyRef.current = true;
+        setBusy(true);
+        try {
+          const state = await api({ action: 'list' }, lang);
+          const validIds = new Set(state.entries.map(entry => entry.id));
+          setLibrary(state);
+          setForm(old => ({ ...old, selected: old.selected.filter(id => validIds.has(id)) }));
+          const remaining = removeModal.ids.filter(id => validIds.has(id));
+          setRemoveModal(remaining.length ? { ids: remaining, conflict: false, error: '' } : null);
+        } catch (err) {
+          setRemoveModal(old => old ? { ...old, error: err.message } : null);
+        } finally {
+          busyRef.current = false;
+          setBusy(false);
+        }
+      }
+
       const tabs = [
         { id: 'library', label: t('引文库', 'Library'), count: library ? entries.length : undefined },
         { id: 'import', label: t('导入预览', 'Import') },
@@ -251,6 +338,7 @@ window.__ModuleLoader__.load({
         { id: 'export', label: t('导出备份', 'Export') },
       ];
       const onImport = () => setActiveTab('import');
+      const onRequestRemove = ids => setRemoveModal({ ids: [...ids], conflict: false, error: '' });
 
       let panel;
       switch (activeTab) {
@@ -268,6 +356,18 @@ window.__ModuleLoader__.load({
           panel = h(CiteCheck, {
             t, lang, text: checkText, report: checkReport, onReport: setCheckReport,
             onChange: value => { setCheckText(value); setCheckReport(null); },
+            onSendToImport: validDois => {
+              changeImport({
+                kind: 'doi',
+                text: validDois.join('\n'),
+                label: t('DOI 核查通过', 'Verified DOIs'),
+              });
+              setActiveTab('import');
+              setNotice(t(
+                '已将 ' + validDois.length + ' 个核查通过的 DOI 送入导入区，点击「本地预览」即可去重入库。',
+                'Pre-filled ' + validDois.length + ' verified DOIs in Import. Click Local preview to check duplicates.',
+              ));
+            },
           });
           break;
         case 'export':
@@ -279,7 +379,7 @@ window.__ModuleLoader__.load({
           panel = h(CiteLibrary, {
             t, lang, uiStyle, entries, sources, revision, loading, loaded: !!library, locked, running,
             selected, setSelected, style, setStyle, copiedKey,
-            filter, search, limit, activeId, setActiveId, onImport, enrich, copy,
+            filter, search, limit, activeId, setActiveId, onImport, enrich, copy, onRequestRemove,
             onSearch: value => { setSearch(value); setActiveId(''); setLimit(pageSize); },
             onFilter: value => { setFilter(value); setActiveId(''); setLimit(pageSize); },
             onMore: () => setLimit(n => n + pageSize),
@@ -309,6 +409,7 @@ window.__ModuleLoader__.load({
             }, t('导入 DOI / BibTeX', 'Import DOI / BibTeX')),
           ),
           h(W.Tabs, { label: t('引文工作台', 'Citation workbench'), items: tabs, value: activeTab, onChange: setActiveTab },
+            h(CiteWorkflowGuide, { t, copiedKey, statusText: promptStatus, onCopyPrompt: copyPrompt }),
             error || notice || job ? h('div', { className: 'cite-feedback' },
               error ? h(CiteMessage, { tone: 'error', onClose: () => setError(''), t }, error) : null,
               notice ? h(CiteMessage, { tone: 'success', onClose: () => setNotice(''), t }, notice) : null,
@@ -322,6 +423,40 @@ window.__ModuleLoader__.load({
               ? __stardustUpdatesFooter(React, 'dsh-cite') : null,
           ),
         ),
+        removeModal ? h(W.Dialog, {
+          style: uiStyle,
+          busy,
+          title: removeModal.ids.length === 1 ? t('确认删除文献', 'Remove reference?') : t('确认删除所选文献', 'Remove selected references?'),
+          closeLabel: t('关闭', 'Close'),
+          onClose: () => { if (!busy) setRemoveModal(null); },
+          footer: h('div', { className: 'cite-actions' },
+            h(CiteButton, { variant: 'outline', disabled: busy, onClick: () => setRemoveModal(null) }, t('取消', 'Cancel')),
+            removeModal.conflict
+              ? h(CiteButton, { variant: 'primary', icon: 'refresh', disabled: busy, onClick: refreshAfterRemoveConflict }, t('刷新文献库', 'Refresh library'))
+              : h(CiteButton, { variant: 'danger', icon: 'trash', disabled: locked, onClick: confirmRemove }, t('确认删除', 'Confirm remove')),
+          ),
+        },
+          removeModal.error ? h(W.Status, { tone: 'error' }, removeModal.error) : null,
+          h('p', { className: 'cite-remove-lead' }, removeModal.ids.length === 1
+            ? t('将从本地文献库移除以下文献：', 'This reference will be removed from your local library:')
+            : t('将从本地文献库移除所选 ' + removeModal.ids.length + ' 条文献：', 'These ' + removeModal.ids.length + ' selected references will be removed from your local library:')),
+          removeEntries.length ? h('ul', { className: 'cite-plain-list cite-remove-list' },
+            removeEntries.slice(0, 5).map(entry => h('li', { key: entry.id },
+              h('strong', null, referenceTitle(entry, t)),
+              h('div', { className: 'cite-chips' },
+                entry.bibKey ? h(CiteChip, { tone: 'accent' }, '@' + entry.bibKey) : null,
+                entry.work.doi ? h(CiteChip, null, 'DOI ' + entry.work.doi) : null,
+              ),
+            )),
+            removeEntries.length > 5 ? h('li', { className: 'cite-muted' },
+              t('…以及其余 ' + (removeEntries.length - 5) + ' 条文献', '…and ' + (removeEntries.length - 5) + ' more'),
+            ) : null,
+          ) : null,
+          h('p', { className: 'cite-muted cite-remove-note' }, t(
+            '删除后不会修改你的原始外部文件；如需完整存档，可先在「导出备份」下载全库备份。',
+            'Removing entries does not alter external files. Download a full backup in Export first if you want an archive.',
+          )),
+        ) : null,
       );
     }
 

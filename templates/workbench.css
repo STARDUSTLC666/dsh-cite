@@ -826,6 +826,153 @@
   block-size: 8px;
 }
 
+.cite-workbench .cite-sr-only {
+  position: absolute;
+  clip-path: inset(50%);
+  overflow: hidden;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  white-space: nowrap;
+}
+
+.cite-workbench .cite-workflow-guide {
+  flex: 0 0 auto;
+  padding: 6px 14px;
+  border-block-end: var(--dsh-control-border-width, 0.5px) solid var(--cite-subtle-line);
+  background: var(--cite-layer);
+  font-size: 12px;
+}
+
+.cite-workbench .cite-workflow-summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  cursor: pointer;
+  color: var(--cite-ink);
+  font-size: 12px;
+  font-weight: 600;
+  user-select: none;
+}
+
+.cite-workbench .cite-workflow-summary::-webkit-details-marker {
+  display: none;
+}
+
+.cite-workbench .cite-workflow-summary::after {
+  content: none;
+  display: none;
+}
+
+.cite-workbench .cite-workflow-summary::before {
+  content: "▸";
+  content: "▸" / "";
+  display: inline-block;
+  flex: 0 0 auto;
+  color: var(--cite-accent);
+  rotate: 0deg;
+}
+
+.cite-workbench .cite-workflow-guide[open] > .cite-workflow-summary::before {
+  rotate: 90deg;
+}
+
+.cite-workbench .cite-workflow-badge {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--cite-accent) 12%, transparent);
+  color: var(--cite-accent);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.cite-workbench .cite-workflow-body {
+  margin-block-start: 8px;
+  padding-block-start: 8px;
+  border-block-start: var(--dsh-control-border-width, 0.5px) solid var(--cite-subtle-line);
+  display: grid;
+  gap: 8px;
+}
+
+.cite-workbench .cite-workflow-steps {
+  margin: 0;
+  padding-inline-start: 18px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 16px;
+  color: var(--cite-secondary);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.cite-workbench .cite-prompt-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+}
+
+.cite-workbench .cite-prompt-chips {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.cite-workbench .cite-prompt-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-inline-size: 28px;
+  min-block-size: 26px;
+  padding: 3px 9px;
+  border: var(--dsh-control-border-width, 0.5px) solid var(--cite-line);
+  border-radius: 999px;
+  background: var(--cite-base);
+  color: var(--cite-ink);
+  font-size: 11.5px;
+  line-height: 1.35;
+  cursor: pointer;
+}
+
+.cite-workbench .cite-prompt-chip[data-copied="true"] {
+  border-color: var(--dsw-alias-state-success-primary, #1f7a4c);
+  color: var(--dsw-alias-state-success-primary, #1f7a4c);
+  background: var(--dsw-alias-state-success-tertiary, rgba(31, 122, 76, 0.12));
+}
+
+.cite-workbench[data-dsh-style="pixel8bit"] .cite-prompt-chip {
+  border: 2px solid #1e2826;
+  border-radius: 0px !important;
+  box-shadow: 2px 2px 0px #1e2826;
+}
+
+.cite-workbench .cite-copy-status {
+  color: var(--dsw-alias-state-success-primary, #1f7a4c);
+  font-size: 11.5px;
+  opacity: 1;
+}
+
+.cite-workbench .cite-copy-status:empty {
+  opacity: 0;
+}
+
+.w-dialog .cite-remove-lead {
+  margin-block: 0 8px;
+}
+
+.w-dialog .cite-remove-list {
+  margin-block: 0 10px;
+}
+
+.w-dialog .cite-remove-note {
+  margin-block: 8px 0;
+}
+
 .cite-workbench .cite-job summary {
   width: fit-content;
   cursor: pointer;
@@ -833,6 +980,12 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
+  .cite-workbench .cite-workflow-summary::before {
+    transition: rotate 160ms var(--dsh-ease-out, ease-out);
+  }
+  .cite-workbench .cite-copy-status {
+    transition: opacity 150ms ease-out;
+  }
   .cite-workbench :is(.cite-subpage, .cite-inspector-scroll) {
     opacity: 1;
     translate: 0px 0px;
@@ -863,7 +1016,7 @@
     color: var(--cite-ink);
   }
 
-  .cite-workbench :is(.cite-filter, .cite-download):hover {
+  .cite-workbench :is(.cite-filter, .cite-download, .cite-prompt-chip):hover {
     background: var(--cite-hover);
   }
 
@@ -940,6 +1093,9 @@
 }
 
 @container cite-workbench (max-width: 660px) {
+  .cite-workbench .cite-workflow-steps {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .cite-workbench .cite-shell {
     grid-template:
       "brand import" auto

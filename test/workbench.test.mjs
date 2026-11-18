@@ -161,3 +161,42 @@ test('English error responses and missing-data placeholders do not change biblio
   const withAuthors = { ...work, title: '原始中文标题', authors: Array.from({ length: 4 }, (_, i) => ({ family: 'Name' + i, given: '', name: '' })) }
   assert.match(buildCitation(withAuthors, 'gb-t-7714', 'en'), /et al\. 原始中文标题/); assert.doesNotMatch(buildCitation(withAuthors, 'gb-t-7714', 'en'), /et al\.\./)
 })
+test('operation: remove deletes by id or citekey atomically, prunes orphaned sources, and allows re-import', async t => {
+  const w = await workbench(t), tool = buildBatchTool(w)
+  const batch1 = '@article{alpha2024,title={Alpha study},author={Li, Mei},year={2024},doi={10.1000/alpha}}\n@article{beta2025,title={Beta study},author={Chen, Kai},year={2025},doi={10.1000/beta}}'
+  const s1 = await save(w, batch1, 'bibtex')
+  assert.equal(s1.entries.length, 2); assert.equal(s1.sources.length, 1)
+
+  const r1 = await tool.execute({ operation: 'remove', citekey: '@alpha2024', expectedRevision: s1.revision }, {})
+  assert.equal(r1.removed, 1); assert.equal(r1.entries.length, 1); assert.equal(r1.entries[0].bibKey, 'beta2025')
+  assert.equal(r1.sources.length, 1, 'source stays while beta2025 still references it')
+
+  const rePreview = await w.preview({ kind: 'doi', text: '10.1000/alpha' })
+  assert.equal(rePreview.rows[0].duplicate, undefined, 'removed DOI can be imported again without false library duplicate')
+
+  const r2 = await w.dispatch({ operation: 'remove', id: r1.entries[0].id, expectedRevision: r1.revision })
+  assert.equal(r2.removed, 1); assert.equal(r2.entries.length, 0); assert.equal(r2.sources.length, 0, 'orphaned source is pruned once its last entry is removed')
+  const persisted = JSON.parse(await readFile(w.store.file, 'utf8'))
+  assert.equal(persisted.entries.length, 0); assert.equal(persisted.sources.length, 0); assert.equal(persisted.revision, r2.revision)
+})
+test('operation: remove guards against stale expectedRevision (HTTP 409) and ambiguous citekeys', async t => {
+  const w = await workbench(t)
+  const dupText = '@misc{sharedkey,title={First paper},author={Wang, Lin},year={2023}}\n@misc{sharedkey,title={Second paper},author={Zhao, Qi},year={2024}}'
+  const state = await save(w, dupText, 'bibtex')
+  const beforeDisk = await readFile(w.store.file, 'utf8')
+
+  await assert.rejects(w.dispatch({ operation: 'remove', citekey: 'sharedkey', expectedRevision: state.revision }), /多条文献/)
+  await assert.rejects(w.dispatch({ operation: 'remove', id: state.entries[0].id }), /修订号/)
+
+  const staleRes = await w.fetch(new Request('http://dsh.internal/api/dsh-cite/library', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-dsh-cite': '1' },
+    body: JSON.stringify({ operation: 'remove', id: state.entries[0].id, expectedRevision: state.revision + 9 }),
+  }))
+  assert.equal(staleRes.status, 409)
+  const staleJson = await staleRes.json()
+  assert.equal(staleJson.ok, false)
+  assert.match(staleJson.message, /另一窗口更新/)
+  assert.match(staleJson.messageEn, /nothing was removed/i)
+  assert.equal(await readFile(w.store.file, 'utf8'), beforeDisk)
+})

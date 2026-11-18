@@ -94,6 +94,33 @@ export declare class CitationWorkbench {
     job(id: unknown): EnrichmentJob;
     cancel(id: unknown): EnrichmentJob;
     dispose(): void;
+    private exportedBibKeys;
+    remove(rawTarget: unknown, rawRevision?: unknown, signal?: AbortSignal): Promise<{
+        removed: number;
+        removedIds: string[];
+        revision: number;
+        entries: {
+            warnings: string[];
+            id: string;
+            work: Work;
+            bibKey: string;
+            sourceIds: string[];
+            createdAt: string;
+            updatedAt: string;
+            crossref?: {
+                doi: string;
+                fetchedAt: string;
+                filled: string[];
+                conflicts: FieldConflict[];
+            };
+        }[];
+        sources: {
+            id: string;
+            createdAt: string;
+            kind: "doi" | "bibtex";
+            label: string;
+        }[];
+    }>;
     private check;
     export(kind: unknown, style: unknown, lang: unknown, rawIds?: unknown): Promise<{
         filename: string;

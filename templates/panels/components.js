@@ -162,6 +162,75 @@ function CiteMessage({ tone, children, onClose, t }) {
   );
 }
 
+function CiteWorkflowGuide({ t, copiedKey, statusText = '', onCopyPrompt }) {
+  const prompts = [
+    {
+      id: 'check-draft',
+      label: t('核查初稿引用真伪', 'Check draft citations'),
+      prompt: t(
+        '请用 cite_check 核查我这段论文初稿中的所有 DOI 是否在 Crossref 真实存在，并列出缺失或异常条目：',
+        'Use cite_check to verify every DOI in my draft below against Crossref and list any missing or invalid references:',
+      ),
+    },
+    {
+      id: 'format-gbt',
+      label: t('按 GB/T 7714 排版参考文献', 'Format in GB/T 7714'),
+      prompt: t(
+        '请读取我的本地引文库（cite_batch list），按 GB/T 7714 格式整理成可直接粘贴到论文末尾的参考文献列表，并提醒字段缺失项。',
+        'Read my local citation library (cite_batch list) and format a clean GB/T 7714 bibliography, noting any missing fields.',
+      ),
+    },
+    {
+      id: 'format-apa',
+      label: t('按 APA 格式排版', 'Format in APA'),
+      prompt: t(
+        '请读取我的本地引文库（cite_batch list），按 APA 格式输出参考文献列表，并检查年份、卷期和页码是否完整。',
+        'Read my local citation library (cite_batch list), format the bibliography in APA style, and check year, volume, and page completeness.',
+      ),
+    },
+    {
+      id: 'lookup-doi',
+      label: t('检索论文 DOI 与题录', 'Look up paper DOIs'),
+      prompt: t(
+        '请用 cite_lookup 检索以下论文的正式 DOI 与完整题录信息，不要猜测缺失数据：',
+        'Use cite_lookup to find the official DOIs and bibliographic metadata for these papers without guessing missing fields:',
+      ),
+    },
+  ];
+  return h('details', { className: 'cite-workflow-guide' },
+    h('summary', { className: 'cite-workflow-summary' },
+      h('span', { className: 'cite-workflow-title' }, t('怎么用最顺手：4 步管理论文引用', 'How it works: 4-step citation workflow')),
+      h('span', { className: 'cite-workflow-badge' }, t('附一键对话指令', '1-click chat prompts')),
+    ),
+    h('div', { className: 'cite-workflow-body' },
+      h('ol', { className: 'cite-workflow-steps' },
+        h('li', null, t('核查初稿：在「DOI 核查」粘贴文稿核验真伪，一键送入导入预览。', 'Check draft: Verify manuscript DOIs in DOI check, then send valid DOIs to Import in 1 click.')),
+        h('li', null, t('本地去重：在「导入预览」粘贴或点「填入示例 DOI / BibTeX」，本地预览无误后保存。', 'Preview & dedupe: Paste references or click Fill sample BibTeX / DOI, review locally, then save.')),
+        h('li', null, t('补全与清理：在「引文库」用 Crossref 补全空字段，误导入或重复文献可确认删除。', 'Enrich & clean: Fill empty fields via Crossref in Library, or safely remove unwanted entries.')),
+        h('li', null, t('定稿备份：一键复制 GB/T 7714 / APA 引文，或在「导出备份」下载 .bib 与完整备份。', 'Export & back up: Copy GB/T 7714 or APA citations, or download .bib and full source backups.')),
+      ),
+      h('div', { className: 'cite-prompt-row' },
+        h('span', { className: 'cite-muted' }, t('点按复制对话指令：', 'Copy a chat prompt:')),
+        h('div', { className: 'cite-prompt-chips' }, prompts.map(item => {
+          const key = 'prompt-' + item.id;
+          const copied = copiedKey === key;
+          return h('button', {
+            key: item.id,
+            type: 'button',
+            className: 'cite-prompt-chip',
+            'data-copied': copied ? 'true' : undefined,
+            onClick: () => onCopyPrompt(item.prompt, item.label, key),
+          },
+            h(W.Icon, { name: copied ? 'check' : 'copy', size: 13 }),
+            h('span', null, item.label),
+          );
+        })),
+        h('span', { className: 'cite-copy-status', role: 'status' }, statusText),
+      ),
+    ),
+  );
+}
+
 function useCitationOutput({ kind, id, style, lang, revision }) {
   const key = JSON.stringify([kind, id, style, lang, revision]);
   const [result, setResult] = useState(null);

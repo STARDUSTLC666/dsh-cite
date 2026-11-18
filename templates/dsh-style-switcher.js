@@ -313,11 +313,14 @@ function resolveHostPrimitives(React, requireFn) {
     );
   }
 
-  function FallbackCheckbox({ checked = false, onChange, label, disabled = false, title, className, ...rest }) {
+  function FallbackCheckbox({ id, checked = false, onChange, label, disabled = false, title, className, ...rest }) {
+    const generatedId = typeof React.useId === 'function' ? React.useId() : undefined;
+    const inputId = id || generatedId;
     return h(
       'label',
-      { className: ['dsh-checkbox-label', className].filter(Boolean).join(' '), title },
+      { htmlFor: inputId, className: ['dsh-checkbox-label', className].filter(Boolean).join(' '), title },
       h('input', {
+        id: inputId,
         type: 'checkbox',
         checked: Boolean(checked),
         disabled,

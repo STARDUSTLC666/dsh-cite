@@ -1,5 +1,12 @@
 # 更新记录
 
+## 0.10.0 (2026-11-18)
+
+- 新增文献条目安全删除（`remove` 操作，支持单条与批量删除、二次确认弹窗、修订号 `409` 冲突保护与孤立原始源清理，删除后可干净重导）。
+- 打通「DOI 核查 → 一键送入导入预览」流转，导入页新增「填入示例 DOI / BibTeX」零门槛按钮，并补充可折叠四步论文引用工作流与一键复制对话指令。
+- Add atomic citation removal (`remove` action/operation with single & batch delete confirmation, `409` revision guards, and orphan source pruning).
+- Add 1-click verified-DOI handoff from DOI Check to Import preview, a sample BibTeX/DOI starter button, and a collapsible 4-step workflow guide with copyable chat prompt chips.
+
 ## 0.9.4 (2026-11-18)
 
 - 更新区底部新增克制、无打扰的 GitHub 点赞与问题反馈快捷链接，并完善中英文检索关键词。

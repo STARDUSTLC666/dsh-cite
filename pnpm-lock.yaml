@@ -15,8 +15,8 @@ importers:
         specifier: 0.9.0
         version: 0.9.0(@citation-js/core@0.9.0)
       '@stardustlc/dsh-updates':
-        specifier: 0.2.5
-        version: 0.2.5
+        specifier: 0.2.6
+        version: 0.2.6
       proper-lockfile:
         specifier: 4.1.2
         version: 4.1.2
@@ -51,8 +51,8 @@ packages:
     peerDependencies:
       '@citation-js/core': ^0.9.0
 
-  '@stardustlc/dsh-updates@0.2.5':
-    resolution: {integrity: sha512-Qp0YP00Vi+hd973lCz6npTYpWizGDo87aPrKptd16wdfQWkuaKkO3H8tSBJuoBc/0YWaK8UvIcK9YvYvAHAX5w==}
+  '@stardustlc/dsh-updates@0.2.6':
+    resolution: {integrity: sha512-4+1gMRT+P8x772A2UUO1w4tjVGUPcNVfQHRatfaB1OywUsGQGhPUNBRCdx/JvZHRa3uBRMy0AcJPC3up2wB5nA==}
     engines: {node: ^22.19.0 || >=24.0.0}
 
   '@types/node@24.13.3':
@@ -125,7 +125,7 @@ snapshots:
       '@citation-js/name': 0.4.2
       moo: 0.5.3
 
-  '@stardustlc/dsh-updates@0.2.5':
+  '@stardustlc/dsh-updates@0.2.6':
     dependencies:
       acorn: 8.15.0
       proper-lockfile: 4.1.2

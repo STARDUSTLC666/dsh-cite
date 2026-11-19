@@ -1,5 +1,11 @@
 # 更新记录
 
+
+## 0.11.1 (2026-11-19)
+
+- 修复首次未找到宿主控件后永久使用 fallback 的缓存问题；支持同一加载器下宿主迟到、卸载、替换与重载。
+- Refresh cached controls when the host becomes available, unloads or is replaced.
+
 ## 0.11.0 (2026-11-18)
 
 - **工作台 UI v3：13 套明亮风格 × 8 套双层中英文字体搭配（默认 `幼圆等宽 / YouYuan Mono`）**：

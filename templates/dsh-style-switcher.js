@@ -1061,9 +1061,6 @@ const DSH_PRIMITIVES_CACHE = new WeakMap();
 let fallbackControlSeq = 0;
 
 function resolveHostPrimitives(React, requireFn) {
-  if (typeof requireFn === 'function' && DSH_PRIMITIVES_CACHE.has(requireFn)) {
-    return DSH_PRIMITIVES_CACHE.get(requireFn);
-  }
   const h = React.createElement;
   let host = null;
   if (typeof requireFn === 'function') {
@@ -1073,6 +1070,15 @@ function resolveHostPrimitives(React, requireFn) {
       host = null;
     }
   }
+
+  // Keep component types stable while still discovering host changes on render.
+  let primitivesByHost = DSH_PRIMITIVES_CACHE.get(React);
+  if (!primitivesByHost) {
+    primitivesByHost = new Map();
+    DSH_PRIMITIVES_CACHE.set(React, primitivesByHost);
+  }
+  const cached = primitivesByHost.get(host);
+  if (cached) return cached;
 
   function FallbackButton({ variant = 'ghost', size = 'md', icon, className, children, type = 'button', ...rest }) {
     const cls = ['dsh-btn', `dsh-btn-${variant}`, `dsh-btn-${size}`, className].filter(Boolean).join(' ');
@@ -1448,9 +1454,7 @@ function resolveHostPrimitives(React, requireFn) {
     Menu: WrappedMenu,
     Modal: WrappedModal,
   };
-  if (typeof requireFn === 'function') {
-    DSH_PRIMITIVES_CACHE.set(requireFn, resolved);
-  }
+  primitivesByHost.set(host, resolved);
   return resolved;
 }
 

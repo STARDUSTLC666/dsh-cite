@@ -33,6 +33,10 @@ export type FetchLike = (url: string, init?: { headers?: Record<string, string>;
 
 const CROSSREF_API = 'https://api.crossref.org/works/'
 const DOI_PATTERN = /^10\.\d{4,9}\/[^\s{}\\\u0000-\u001f\u007f]+$/i
+const MAX_RESPONSE_BYTES = 2 * 1024 * 1024
+class CrossrefResponseLimit extends Error {
+  constructor() { super('Crossref 响应超过 2 MiB 大小上限，请缩小查询范围。') }
+}
 
 export function assertDoi(value: string): string {
   const doi = value.trim().replace(/^https?:\/\/(dx\.)?doi\.org\//i, '').replace(/^doi:\s*/i, '')
@@ -107,6 +111,47 @@ function withAbort<T>(value: Promise<T>, signal: AbortSignal): Promise<T> {
   })
 }
 
+function fetchResponse(fetcher: FetchLike, url: string, headers: Record<string, string>, signal: AbortSignal): Promise<Response> {
+  const pending = fetcher(url, { headers, signal }).then(response => {
+    // An injected transport may resolve after the caller has already left.
+    if (signal.aborted) void response.body?.cancel().catch(() => {})
+    return response
+  })
+  return withAbort(pending, signal)
+}
+
+/** Bound both declared and chunked responses before allocating a JSON document. */
+async function responseJson(response: Response, signal: AbortSignal): Promise<unknown> {
+  if (signal.aborted) void response.body?.cancel().catch(() => {})
+  signal.throwIfAborted()
+  if (Number(response.headers?.get('content-length')) > MAX_RESPONSE_BYTES) {
+    void response.body?.cancel().catch(() => {})
+    throw new CrossrefResponseLimit()
+  }
+  // Keep the existing lightweight injected fetch response seam working.
+  if (!response.body) return withAbort(response.json(), signal)
+  const reader = response.body.getReader(), chunks: Uint8Array[] = []
+  let total = 0
+  const abort = () => { void reader.cancel(signal.reason).catch(() => {}) }
+  signal.addEventListener('abort', abort, { once: true })
+  try {
+    for (;;) {
+      signal.throwIfAborted()
+      const chunk = await withAbort(reader.read(), signal)
+      signal.throwIfAborted()
+      if (chunk.done) break
+      total += chunk.value.byteLength
+      if (total > MAX_RESPONSE_BYTES) throw new CrossrefResponseLimit()
+      chunks.push(chunk.value)
+    }
+    return JSON.parse(Buffer.concat(chunks, total).toString('utf8'))
+  } finally {
+    signal.removeEventListener('abort', abort)
+    void reader.cancel().catch(() => {})
+    reader.releaseLock()
+  }
+}
+
 /** 按 DOI 查询 Crossref 并归一化。 */
 export async function lookupDoi(doi: string, cfg: ResolvedCiteConfig, fetchImpl?: FetchLike, signal?: AbortSignal): Promise<Work> {
   const clean = assertDoi(doi)
@@ -115,10 +160,7 @@ export async function lookupDoi(doi: string, cfg: ResolvedCiteConfig, fetchImpl?
   const fetcher = fetchImpl ?? (globalThis.fetch as unknown as FetchLike)
   let response: Response
   try {
-    response = await withAbort(fetcher(CROSSREF_API + encodeURIComponent(clean), {
-      headers: makeHeaders(cfg),
-      signal: deadline,
-    }), deadline)
+    response = await fetchResponse(fetcher, CROSSREF_API + encodeURIComponent(clean), makeHeaders(cfg), deadline)
   } catch (error) {
     signal?.throwIfAborted()
     if (deadline.aborted) throw new Error('Crossref 请求超时，请稍后重试；本地文献已保留。')
@@ -134,10 +176,11 @@ export async function lookupDoi(doi: string, cfg: ResolvedCiteConfig, fetchImpl?
   }
   let payload: unknown
   try {
-    payload = await withAbort(response.json(), deadline)
-  } catch {
+    payload = await responseJson(response, deadline)
+  } catch (error) {
     signal?.throwIfAborted()
     if (deadline.aborted) throw new Error('Crossref 响应读取超时，请稍后重试；本地文献已保留。')
+    if (error instanceof CrossrefResponseLimit) throw error
     throw new Error('Crossref 响应不是合法 JSON。')
   }
   const message = record(payload).message
@@ -157,10 +200,7 @@ export async function searchWorks(query: string, limit: number, cfg: ResolvedCit
   const fetcher = fetchImpl ?? (globalThis.fetch as unknown as FetchLike)
   let response: Response
   try {
-    response = await withAbort(fetcher(url, {
-      headers: makeHeaders(cfg),
-      signal: deadline,
-    }), deadline)
+    response = await fetchResponse(fetcher, url, makeHeaders(cfg), deadline)
   } catch (error) {
     signal?.throwIfAborted()
     if (deadline.aborted) throw new Error('Crossref 请求超时，请稍后重试；本地文献已保留。')
@@ -172,10 +212,11 @@ export async function searchWorks(query: string, limit: number, cfg: ResolvedCit
   }
   let payload: unknown
   try {
-    payload = await withAbort(response.json(), deadline)
-  } catch {
+    payload = await responseJson(response, deadline)
+  } catch (error) {
     signal?.throwIfAborted()
     if (deadline.aborted) throw new Error('Crossref 响应读取超时，请稍后重试；本地文献已保留。')
+    if (error instanceof CrossrefResponseLimit) throw error
     throw new Error('Crossref 响应不是合法 JSON。')
   }
   const items = record(payload).message

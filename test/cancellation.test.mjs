@@ -54,3 +54,53 @@ test('Crossref HTTP errors release unread response bodies without hiding the sta
     }
   }
 })
+
+test('Crossref tool queries stop oversized declared and streamed responses before JSON parsing', async () => {
+  for (const operation of [fetcher => lookupDoi('10.1000/test', cfg, fetcher), fetcher => searchWorks('query', 2, cfg, fetcher)]) {
+    let cancelled = false, parsed = false
+    const declared = new Response(new ReadableStream({ cancel() { cancelled = true } }), { headers: { 'content-length': String(3 * 1024 * 1024) } })
+    declared.json = async () => { parsed = true; return { message: {} } }
+    await assert.rejects(operation(async () => declared), /2 MiB|响应.*过大|大小上限/)
+    assert.equal(parsed, false); assert.equal(cancelled, true)
+    let chunks = 0, streamCancelled = false
+    const response = new Response(new ReadableStream({ pull(controller) { chunks++; controller.enqueue(new Uint8Array(128 * 1024).fill(32)) }, cancel() { streamCancelled = true } }))
+    await assert.rejects(operation(async () => response), /2 MiB|响应.*过大|大小上限/)
+    assert.ok(chunks <= 19, 'reading must stop close to the byte limit')
+    assert.equal(streamCancelled, true)
+  }
+})
+
+test('bounded Crossref streams preserve UTF-8 and release a stalled body on caller cancellation', async () => {
+  const message = { DOI: '10.1000/test', title: ['跨分块的中文标题'], author: [{ family: '测试' }] }
+  const bytes = new TextEncoder().encode(JSON.stringify({ message }))
+  const stream = new ReadableStream({ start(controller) { for (const byte of bytes) controller.enqueue(Uint8Array.of(byte)); controller.close() } })
+  const result = await lookupDoi('10.1000/test', cfg, async () => new Response(stream))
+  assert.equal(result.title, '跨分块的中文标题')
+  let cancelled = false, entered
+  const started = new Promise(resolve => { entered = resolve })
+  const controller = new AbortController(), reason = new Error('stop stalled Crossref stream')
+  const stalled = new Response(new ReadableStream({ pull() { return new Promise(() => {}) }, cancel() { cancelled = true } }))
+  const getReader = stalled.body.getReader.bind(stalled.body)
+  stalled.body.getReader = () => { const reader = getReader(); entered(); return reader }
+  const pending = lookupDoi('10.1000/test', cfg, async () => stalled, controller.signal)
+  const rejected = assert.rejects(pending, error => error === reason)
+  await started; controller.abort(reason); await rejected
+  assert.equal(cancelled, true)
+})
+
+test('Crossref cancellation releases a response arriving after an uncooperative transport', async () => {
+  for (const operation of [
+    (fetcher, signal) => lookupDoi('10.1000/test', cfg, fetcher, signal),
+    (fetcher, signal) => searchWorks('query', 2, cfg, fetcher, signal),
+  ]) {
+    let release, cancelled = false
+    const pendingResponse = new Promise(resolve => { release = resolve })
+    const controller = new AbortController(), reason = new Error('stop pending response')
+    const pending = operation(() => pendingResponse, controller.signal)
+    const rejected = assert.rejects(pending, error => error === reason)
+    controller.abort(reason); await rejected
+    release(new Response(new ReadableStream({ cancel() { cancelled = true } })))
+    await new Promise(resolve => setImmediate(resolve))
+    assert.equal(cancelled, true)
+  }
+})

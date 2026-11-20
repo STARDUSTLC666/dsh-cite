@@ -1,5 +1,10 @@
 # 更新记录
 
+## 0.11.5 (2026-11-20)
+
+- DOI 查询和 Crossref 检索失败时主动释放未读取响应，避免批量错误查询占用连接；清理失败仍保留原始 HTTP 错误。
+- Release unread Crossref error responses without masking their original HTTP status.
+- 同步共享更新组件 0.2.9，修复取消窗口和失败响应清理，并确保运行中旧协调器在空闲后接管修复。
 
 ## 0.11.4 (2026-11-20)
 

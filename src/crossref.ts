@@ -126,6 +126,9 @@ export async function lookupDoi(doi: string, cfg: ResolvedCiteConfig, fetchImpl?
     throw new Error('Crossref 请求失败：' + (error instanceof Error ? error.message : String(error)) + code)
   }
   if (!response.ok) {
+    // Failed lookups/check batches still own a response stream. Release it so
+    // repeated 404/rate-limit responses do not retain the HTTP connection.
+    void response.body?.cancel().catch(() => {})
     if (response.status === 404) throw new Error('DOI 在 Crossref 中不存在：' + clean)
     throw new Error('Crossref 返回 HTTP ' + response.status + '，无法完成查询。')
   }
@@ -163,7 +166,10 @@ export async function searchWorks(query: string, limit: number, cfg: ResolvedCit
     if (deadline.aborted) throw new Error('Crossref 请求超时，请稍后重试；本地文献已保留。')
     throw new Error('Crossref 检索失败：' + (error instanceof Error ? error.message : String(error)))
   }
-  if (!response.ok) throw new Error('Crossref 返回 HTTP ' + response.status + '，无法完成检索。')
+  if (!response.ok) {
+    void response.body?.cancel().catch(() => {})
+    throw new Error('Crossref 返回 HTTP ' + response.status + '，无法完成检索。')
+  }
   let payload: unknown
   try {
     payload = await withAbort(response.json(), deadline)

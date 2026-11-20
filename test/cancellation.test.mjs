@@ -36,3 +36,21 @@ test('Crossref response body cancellation and timeout remain effective', async (
 test('extractDois retains balanced DOI parentheses and removes surrounding prose punctuation', () => {
   assert.deepEqual(extractDois('DOI: 10.1000/article(2020). See (10.1000/other(2021)).'), ['10.1000/article(2020)', '10.1000/other(2021)'])
 })
+
+test('Crossref HTTP errors release unread response bodies without hiding the status', async () => {
+  for (const operation of [
+    fetcher => lookupDoi('10.1000/test', cfg, fetcher),
+    fetcher => searchWorks('query', 2, cfg, fetcher),
+  ]) {
+    for (const status of [404, 429, 503]) {
+      let cancelled = false
+      const body = new ReadableStream({
+        start(controller) { controller.enqueue(new TextEncoder().encode('unread error details')) },
+        cancel() { cancelled = true; throw new Error('body cleanup failed') },
+      })
+      await assert.rejects(operation(async () => new Response(body, { status })),
+        status === 404 ? /不存在|HTTP 404/ : new RegExp('HTTP ' + status))
+      assert.equal(cancelled, true, 'unread HTTP ' + status + ' body must be cancelled')
+    }
+  }
+})

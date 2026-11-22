@@ -63,6 +63,7 @@ window.__ModuleLoader__.load({
       const [uiStyle, setUiStyle] = useDshStyle(React);
       const [uiFont, setUiFont] = useDshFont(React);
       const [activeTab, setActiveTab] = useState('library');
+      const [viewMode, setViewMode] = useState('graph');
       const [library, setLibrary] = useState(null);
       const [job, setJob] = useState(null);
       const [loading, setLoading] = useState(true);
@@ -71,6 +72,8 @@ window.__ModuleLoader__.load({
       const [notice, setNotice] = useState('');
       const [copiedKey, setCopiedKey] = useState('');
       const [removeModal, setRemoveModal] = useState(null);
+      const [editModalEntry, setEditModalEntry] = useState(null);
+      const [rawSourceEntry, setRawSourceEntry] = useState(null);
       const [tour, setTour] = useState({ open: false, step: 0, manual: false });
       const [tourLayout, setTourLayout] = useState(null);
       const [search, setSearch] = useState('');
@@ -86,7 +89,7 @@ window.__ModuleLoader__.load({
       const rootRef = useRef(null);
       const triggerRef = useRef(null);
       const modalOpenRef = useRef(false);
-      modalOpenRef.current = Boolean(removeModal);
+      modalOpenRef.current = Boolean(removeModal || editModalEntry || rawSourceEntry);
       const busyRef = useRef(false);
       const dirtyRef = useRef(dirty);
       const copyTimerRef = useRef(null);
@@ -100,7 +103,7 @@ window.__ModuleLoader__.load({
       const setStyle = value => updateForm({ style: value });
 
       // Update protection: dsh-cite
-      __stardustUpdatesGuard(React, "dsh-cite", { dirty, busy: locked || Boolean(removeModal), retainOnClose: true });
+      __stardustUpdatesGuard(React, "dsh-cite", { dirty, busy: locked || Boolean(removeModal || editModalEntry), retainOnClose: true });
 
       useEffect(() => () => {
         if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
@@ -115,10 +118,10 @@ window.__ModuleLoader__.load({
         return () => clearTimeout(timer);
       }, [workbench]);
       useEffect(() => {
-        if (removeModal && tour.open) {
+        if ((removeModal || editModalEntry || rawSourceEntry) && tour.open) {
           setTour(prev => ({ ...prev, open: false }));
         }
-      }, [removeModal]);
+      }, [removeModal, editModalEntry, rawSourceEntry]);
       useEffect(() => {
         const update = () => setLang(language(locale));
         update();
@@ -300,38 +303,38 @@ window.__ModuleLoader__.load({
 
       const tourSteps = [
         {
-          id: 'import',
-          selector: '.cite-quick-import',
-          fallback: '[data-tab-id="import"]',
-          side: 'bottom',
-          title: t('导入 DOI / BibTeX 文献', 'Import DOI / BibTeX references'),
-          desc: t('点击这里或切换到「导入预览」，批量粘贴 DOI 列表、上传 .bib 或一键填入示例，先在本地去重再保存。', 'Click here or open Import to paste DOIs, upload .bib, or fill a sample—deduplicating locally before saving.'),
+          id: 'capsule',
+          selector: '[data-tour="cite-constellation-capsule"]',
+          fallback: '[data-cite-topbar-view-toggle]',
+          side: 'right',
+          title: t('星图控制台与「星图 / 列表」切换', 'Constellation controls & view toggle'),
+          desc: t('默认以「文献引力星图」呈现整库文献；在此切换 GB/T 7714 / APA / IEEE / MLA / Chicago 引文格式、即时高亮搜索节点、按质量筛选，或一键切回经典三栏「列表」视图。', 'Explore your library in the Spatial Citation Constellation by default—switch GB/T 7714 / APA / IEEE / MLA / Chicago styles, highlight matching nodes on the starfield, filter by quality, or toggle to the classic 3-pane List view in 1 click.'),
         },
         {
-          id: 'check',
-          selector: '[data-tab-id="check"]',
-          fallback: '.w-tabs',
+          id: 'orbit',
+          selector: '[data-tour="cite-constellation-node"]',
+          fallback: '[data-tour="cite-starfield"]',
           side: 'bottom',
-          title: t('核验 DOI 与补全元数据', 'Verify DOIs & enrich metadata'),
-          desc: t('在「DOI 核查」检验文稿引文真伪并一键送入导入预览；也可点击下方按钮复制指令发给助手：', 'Verify manuscript DOIs against Crossref in DOI check and send valid ones to Import—or copy this chat prompt:'),
+          title: t('拖拽编排节点与自动引力连线', 'Draggable nodes & relationship filaments'),
+          desc: t('任意文献节点均可自由拖拽排布，SVG 引力连线实时追踪同作者、同刊物、同期（±2 年）与 Crossref 聚类关联；点击节点即点亮 ✦ 光晕与邻居。也可复制指令让助手核验并导入：', 'Drag any orbital node across the starfield while curved SVG filaments track shared authors, venues, eras (±2y), and Crossref clusters live. Click a node to highlight ✦ neighbors—or copy this chat prompt to verify & import:'),
           prompt: t('帮我核验这篇论文的 DOI 与真实元数据并导入引文库', 'Verify this paper’s DOI and metadata, then import it into my citation library'),
           promptLabel: t('复制核验导入指令', 'Copy verify & import prompt'),
         },
         {
-          id: 'style',
-          selector: '[data-tour="cite-format-picker"]',
-          fallback: '#cite-style-switcher',
-          side: 'right',
-          title: t('切换引文体例（GB/T 7714 / APA）', 'Switch citation styles (GB/T 7714 / APA)'),
-          desc: t('随时切换 GB/T 7714、APA、MLA、Chicago 引文格式，右上角还可切换 13 套明亮护眼工作台风格与字体搭配。', 'Switch between GB/T 7714, APA, MLA, and Chicago formats anytime, plus 13 daylight-friendly workbench styles & font pairings.'),
+          id: 'zettelkasten',
+          selector: '[data-tour="cite-zettelkasten-hud"]',
+          fallback: '[data-tour="cite-copy-actions"]',
+          side: 'left',
+          title: t('悬浮卡片盒：一键复制、补全与编辑', 'Floating Zettelkasten card: copy, enrich & edit'),
+          desc: t('右下角悬浮索引卡实时渲染选中论文的标准引文预览，一键完成「复制引文」「复制 BibTeX」「Crossref 补全」与「编辑元数据」，也可直接查看原始输入或安全删除。', 'The bottom-right Zettelkasten card previews formatted citations live with 1-click Copy citation, Copy BibTeX, Enrich from Crossref, and Edit metadata—plus Raw source inspection and safe removal.'),
         },
         {
-          id: 'export',
-          selector: '[data-tab-id="export"]',
-          fallback: '[data-tour="cite-copy-actions"]',
+          id: 'appearance',
+          selector: '.dsh-style-switcher',
+          fallback: '#cite-style-switcher',
           side: 'bottom',
-          title: t('一键生成引用与导出参考文献列表', 'Copy citations & export bibliography'),
-          desc: t('在文献详情栏一键复制单条标准引文或 BibTeX，或打开「导出备份」批量下载参考文献列表与原始来源备份。', 'Copy formatted citations or BibTeX from the details bar, or open Export to download bibliographies and full backups.'),
+          title: t('13 套工作台风格、8 套字体与导入/导出', '13 visual styles, 8 fonts & batch Import / Export'),
+          desc: t('右上角可随时切换 13 套明亮护眼风格与 8 套字体搭配（跨插件同步）；也可通过「导入 DOI / BibTeX」「DOI 核查」「导出备份」完成批量去重入库与完整来源存档。', 'Switch among 13 daylight-friendly workbench styles and 8 font pairings (synced across plugins), or use Import DOI / BibTeX, DOI check, and Export in the topbar for batch workflows and full backups.'),
         },
       ];
 
@@ -410,6 +413,22 @@ window.__ModuleLoader__.load({
         setRemoveModal({ ids: [...ids], conflict: false, error: '' });
       };
 
+      const onEditMetadata = entry => {
+        setTour(prev => (prev.open ? { ...prev, open: false } : prev));
+        setEditModalEntry(entry);
+      };
+      const onOpenRawSource = entry => {
+        setTour(prev => (prev.open ? { ...prev, open: false } : prev));
+        setRawSourceEntry(entry);
+      };
+      const switchLibraryView = nextView => {
+        setViewMode(nextView);
+        if (activeTab !== 'library') setActiveTab('library');
+      };
+      const rawMatchedSources = rawSourceEntry
+        ? rawSourceEntry.sourceIds.map(sourceId => sources.find(source => source.id === sourceId)).filter(Boolean)
+        : [];
+
       let panel;
       switch (activeTab) {
         case 'import':
@@ -447,9 +466,10 @@ window.__ModuleLoader__.load({
           break;
         default:
           panel = h(CiteLibrary, {
-            t, lang, uiStyle, entries, sources, revision, loading, loaded: !!library, locked, running,
-            selected, setSelected, style, setStyle, copiedKey,
+            t, lang, uiStyle, uiFont, entries, sources, revision, loading, loaded: !!library, locked, running,
+            selected, setSelected, style, setStyle, copiedKey, viewMode, setViewMode,
             filter, search, limit, activeId, setActiveId, onImport, enrich, copy, onRequestRemove,
+            onEditMetadata, onOpenRawSource,
             onModalOpen: () => setTour(prev => (prev.open ? { ...prev, open: false } : prev)),
             onSearch: value => { setSearch(value); setActiveId(''); setLimit(pageSize); },
             onFilter: value => { setFilter(value); setActiveId(''); setLimit(pageSize); },
@@ -500,6 +520,27 @@ window.__ModuleLoader__.load({
               ),
             ),
             h('div', { className: 'dsh-header-actions cite-header-actions' },
+              h('div', {
+                className: 'cite-topbar-view-switch',
+                role: 'group',
+                'aria-label': t('星图或列表视图', 'Constellation or list view'),
+                'data-cite-topbar-view-toggle': '',
+              },
+                h('button', {
+                  type: 'button',
+                  className: 'cite-topbar-view-btn',
+                  'data-view-mode': 'graph',
+                  'aria-pressed': activeTab === 'library' && viewMode === 'graph',
+                  onClick: () => switchLibraryView('graph'),
+                }, t('星图', 'Constellation')),
+                h('button', {
+                  type: 'button',
+                  className: 'cite-topbar-view-btn',
+                  'data-view-mode': 'list',
+                  'aria-pressed': activeTab === 'library' && viewMode === 'list',
+                  onClick: () => switchLibraryView('list'),
+                }, t('列表', 'List')),
+              ),
               h(CiteButton, {
                 ref: triggerRef,
                 variant: 'ghost',
@@ -547,7 +588,7 @@ window.__ModuleLoader__.load({
           workbench && typeof __stardustUpdatesFooter === 'function'
             ? __stardustUpdatesFooter(React, 'dsh-cite') : null,
         ),
-        tour.open && !removeModal ? h(W.CoachmarkTour, {
+        tour.open && !removeModal && !editModalEntry && !rawSourceEntry ? h(W.CoachmarkTour, {
           rootRef,
           steps: tourSteps,
           step: tour.step,
@@ -555,13 +596,48 @@ window.__ModuleLoader__.load({
           style: uiStyle,
           font: uiFont,
           lang,
-          activeKey: activeTab,
+          activeKey: activeTab + ':' + viewMode,
           layout: tourLayout,
           setLayout: setTourLayout,
           onStep: (nextStep, isManual) => setTour({ open: true, step: nextStep, manual: Boolean(isManual) }),
           onClose: closeTour,
           onCopyPrompt: copyTourPrompt,
         }) : null,
+        editModalEntry ? h(CiteMetadataEditorModal, {
+          key: editModalEntry.id + ':' + revision,
+          entry: editModalEntry,
+          revision,
+          uiStyle,
+          uiFont,
+          lang,
+          locked,
+          onClose: () => setEditModalEntry(null),
+          onRefresh: () => perform(refresh),
+          onSaved: nextState => {
+            setLibrary(nextState);
+            setEditModalEntry(null);
+            setNotice(t('已保存文献元数据修改。', 'Saved reference metadata updates.'));
+          },
+          t,
+        }) : null,
+        rawSourceEntry ? h(W.Dialog, {
+          style: uiStyle,
+          font: uiFont,
+          title: t('原始导入来源', 'Original import source'),
+          closeLabel: t('关闭', 'Close'),
+          onClose: () => setRawSourceEntry(null),
+          footer: h(CiteButton, { onClick: () => setRawSourceEntry(null) }, t('完成', 'Done')),
+        }, rawMatchedSources.map(source => h('section', { key: source.id, className: 'cite-source-entry' },
+          h('div', { className: 'cite-card-header' },
+            h('strong', null, source.label || source.id),
+            source.text ? h(CiteButton, {
+              icon: copiedKey === 'source-' + source.id ? 'check' : 'copy',
+              'data-copied': copiedKey === 'source-' + source.id ? 'true' : undefined,
+              onClick: () => copy(source.text, t('原始输入', 'raw source'), 'source-' + source.id),
+            }, copiedKey === 'source-' + source.id ? t('已复制', 'Copied') : t('复制原文', 'Copy source')) : null,
+          ),
+          h('pre', { className: 'cite-code' }, source.text || t('无原文记录', 'No raw text recorded')),
+        ))) : null,
         removeModal ? h(W.Dialog, {
           style: uiStyle,
           font: uiFont,
@@ -650,6 +726,8 @@ window.__ModuleLoader__.load({
         readDshFont,
         writeDshFont,
         subscribeDshFont,
+        computeConstellationEdges,
+        computeConstellationLayout,
       },
     };
   },

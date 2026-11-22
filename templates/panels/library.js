@@ -3,9 +3,10 @@ function referenceTitle(entry, t) {
 }
 
 function CiteLibrary({
-  entries, sources, revision, t, lang, uiStyle, loading, loaded, locked, running,
-  selected, setSelected, style, setStyle, copiedKey,
-  filter, search, limit, activeId, setActiveId, onSearch, onFilter, onMore, onRefresh, onImport, enrich, copy, onRequestRemove, onModalOpen,
+  entries, sources, revision, t, lang, uiStyle, uiFont, loading, loaded, locked, running,
+  selected, setSelected, style, setStyle, copiedKey, viewMode = 'graph', setViewMode,
+  filter, search, limit, activeId, setActiveId, onSearch, onFilter, onMore, onRefresh, onImport,
+  enrich, copy, onRequestRemove, onModalOpen, onEditMetadata, onOpenRawSource,
 }) {
   const [openedId, setOpenedId] = useState('');
   const lastRow = useRef(null);
@@ -99,9 +100,19 @@ function CiteLibrary({
     }
   }
 
+  if (viewMode === 'graph') {
+    return h(CiteConstellation, {
+      entries, sources, revision, t, lang, uiStyle, uiFont, loading, loaded, locked, running,
+      style, setStyle, copiedKey, filter, search, activeId, setActiveId,
+      viewMode, setViewMode, onSearch, onFilter, onRefresh, onImport, enrich, copy,
+      onRequestRemove, onEditMetadata, onOpenRawSource,
+    });
+  }
+
   return h('div', {
     ref: root,
     className: 'cite-library dsh-split-pane',
+    'data-cite-view': 'list',
     'data-open': String(open),
     style: split.paneStyle,
   },
@@ -212,7 +223,8 @@ function CiteLibrary({
       open ? h(CiteButton, { className: 'cite-back', icon: 'left', variant: 'ghost', onClick: back }, t('返回文献列表', 'Back to references')) : null,
       active
         ? h(CiteInspector, {
-          key: active.id, entry: active, sources, style, uiStyle, lang, revision, locked, running, copiedKey, enrich, copy, onRequestRemove, onModalOpen, t,
+          key: active.id, entry: active, sources, style, uiStyle, uiFont, lang, revision, locked, running, copiedKey,
+          enrich, copy, onRequestRemove, onModalOpen, onEditMetadata, onOpenRawSource, t,
         })
         : h('p', { className: 'cite-inspector-empty' }, t('选择文献以查看引文与元数据。', 'Select a reference to view its citation and metadata.')),
     ),
@@ -267,7 +279,7 @@ function CiteReferenceRow({ entry, byline, active, checked, copied, disabled, t,
   );
 }
 
-function CiteInspector({ entry, sources, style, uiStyle, lang, revision, locked, running, copiedKey, enrich, copy, onRequestRemove, onModalOpen, t }) {
+function CiteInspector({ entry, sources, style, uiStyle, uiFont, lang, revision, locked, running, copiedKey, enrich, copy, onRequestRemove, onModalOpen, onEditMetadata, onOpenRawSource, t }) {
   const [sourceOpen, setSourceOpen] = useState(false);
   const { id, work, bibKey, warnings, crossref } = entry;
   const citation = useCitationOutput({ kind: 'references', id, style, lang, revision });
@@ -322,11 +334,20 @@ function CiteInspector({ entry, sources, style, uiStyle, lang, revision, locked,
           disabled: !bibtex.content,
           onClick: () => copy(bibtex.content, 'BibTeX', 'bibtex'),
         }, copiedKey === 'bibtex' ? t('已复制 BibTeX', 'Copied BibTeX') : t('复制 BibTeX', 'Copy BibTeX')),
+        onEditMetadata ? h(CiteButton, {
+          icon: 'edit',
+          disabled: locked,
+          'aria-haspopup': 'dialog',
+          onClick: () => onEditMetadata(entry),
+        }, t('编辑元数据', 'Edit metadata')) : null,
         matchedSources.length ? h(CiteButton, {
           variant: 'ghost',
           icon: 'file',
           'aria-haspopup': 'dialog',
-          onClick: () => { onModalOpen?.(); setSourceOpen(true); },
+          onClick: () => {
+            if (onOpenRawSource) onOpenRawSource(entry);
+            else { onModalOpen?.(); setSourceOpen(true); }
+          },
         }, t('原始输入', 'Raw source')) : null,
         onRequestRemove ? h(CiteButton, {
           variant: 'danger',
@@ -376,6 +397,7 @@ function CiteInspector({ entry, sources, style, uiStyle, lang, revision, locked,
     ),
     sourceOpen ? h(W.Dialog, {
       style: uiStyle,
+      font: uiFont,
       title: t('原始导入来源', 'Original import source'),
       closeLabel: t('关闭', 'Close'),
       onClose: () => setSourceOpen(false),

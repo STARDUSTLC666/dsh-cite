@@ -12,13 +12,13 @@ DOIs with balanced parentheses can be queried directly. Transport or parsing tim
 
 ## Citation workbench
 
-1. Open **Settings → Cite**. Paste one DOI per line, paste BibTeX, or upload a `.bib` file.
-2. Choose **Local preview** and review missing fields and duplicate warnings. Exact DOI duplicates cannot be selected. Possible duplicates without DOIs start unselected; review them before opting in.
-3. **Save selected**. Input survives closing settings, but save it before reloading the browser. Uploading does not modify the original file.
-4. Select saved entries and explicitly request **Crossref online enrichment**. Only empty fields are filled; existing values stay intact and differences appear under **Metadata and sources**. Select failed entries to retry. Cancelling prevents this job's enrichment from being written.
-5. Switch the basic citation style or preview an individual reference in its details. BibTeX / reference downloads include selected entries, or the whole library when none are selected. Full backups always include the whole library and original input.
+1. Open **Reference library** in the sidebar (or **Settings → Cite**) to land on the default **Spatial Citation Constellation** canvas; switch between **Constellation** and the classic 3-pane **List** view anytime via the topbar or floating capsule toggle.
+2. Open **Import** to paste DOIs, paste BibTeX, upload a `.bib` file, or click **Fill sample BibTeX / DOI**. Choose **Local preview** to review duplicates and missing fields offline, then **Save selected**. Uploading does not modify the original file.
+3. On the **Spatial Citation Constellation**, drag any orbital node freely across the dot-matrix starfield while curved SVG filaments track shared authors, venues, eras (±2y), and Crossref clusters in real time. Use the top-left **Floating Control Capsule** to switch citation styles (`GB/T 7714`, `APA`, `IEEE`, `MLA`, `Chicago`), highlight search matches, or filter by metadata status.
+4. Click any node to spotlight its `✦` neighborhood, then use the bottom-right **Floating Zettelkasten Card** for 1-click **Copy citation**, **Copy BibTeX**, **Enrich from Crossref** (fills empty fields only and surfaces conflicts), **Edit metadata** (atomic revision-checked updates with duplicate-DOI guards), **Raw source**, or **Remove**. Switch to **List** view whenever you want multi-select batch enrichment or removal.
+5. Open **Export** to inspect pre-export checks (entire library vs. selected entries, missing title/author/year counts) and download BibTeX, formatted references, or a full JSON backup with original sources.
 
-The UI follows DSH's Chinese / English preference. Bibliographic content stays in its original language and shares one library. The four existing styles are basic templates; check institution, journal and document-type requirements separately.
+The UI follows DSH's Chinese / English preference. Bibliographic content stays in its original language and shares one library. The five built-in styles (`GB/T 7714`, `APA`, `IEEE`, `MLA`, `Chicago`) are basic templates; check institution, journal and document-type requirements separately.
 
 Limits: 256 KiB / 100 entries per batch, 500 saved entries, five seconds for local parsing. Data lives in `DSH_HOME/data/dsh-cite/library.json`. Revision checks prevent stale previews from overwriting concurrent edits. On a conflict, retain input, refresh and preview again. Invalid library files are preserved rather than silently reset.
 
@@ -29,7 +29,7 @@ Local BibTeX parsing uses Citation.js, including macros, nested braces, literal 
 | Tool | Purpose | Key parameters |
 | :-- | :-- | :-- |
 | `cite_lookup` | Look up metadata by DOI or bibliographic query | `doi` or `query`; `limit` 1-10, default 5 |
-| `cite_format` | Generate a basic formatted citation | `doi`; `style`: gb-t-7714 / apa / mla / chicago |
+| `cite_format` | Generate a basic formatted citation | `doi`; `style`: gb-t-7714 / apa / ieee / mla / chicago |
 | `cite_bibtex` | Generate a BibTeX entry | `doi`; `key` optional |
 | `cite_check` | Extract DOIs from text and validate them | `text`; `maxChecks` 1-50, default 10 |
 | `cite_health` | Self-check: probe Crossref connectivity and report latency | none |

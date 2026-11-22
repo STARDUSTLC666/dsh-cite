@@ -121,6 +121,30 @@ export declare class CitationWorkbench {
             label: string;
         }[];
     }>;
+    update(rawTarget: unknown, rawRevision?: unknown, signal?: AbortSignal): Promise<{
+        revision: number;
+        entries: {
+            warnings: string[];
+            id: string;
+            work: Work;
+            bibKey: string;
+            sourceIds: string[];
+            createdAt: string;
+            updatedAt: string;
+            crossref?: {
+                doi: string;
+                fetchedAt: string;
+                filled: string[];
+                conflicts: FieldConflict[];
+            };
+        }[];
+        sources: {
+            id: string;
+            createdAt: string;
+            kind: "doi" | "bibtex";
+            label: string;
+        }[];
+    }>;
     private check;
     export(kind: unknown, style: unknown, lang: unknown, rawIds?: unknown): Promise<{
         filename: string;

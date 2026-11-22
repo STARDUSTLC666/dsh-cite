@@ -1317,3 +1317,627 @@
     padding: 10px;
   }
 }
+
+/* ==========================================================================
+ * Spatial Citation Constellation Canvas («文献引力星图画布»)
+ * ========================================================================== */
+
+.cite-workbench .cite-topbar-view-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: var(--dsh-control-border-width, 0.5px) solid var(--cite-subtle-line);
+  border-radius: var(--cite-radius-sm);
+  background: var(--cite-control);
+  flex-shrink: 0;
+}
+
+.cite-workbench .cite-topbar-view-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: 24px;
+  padding: 2px 9px;
+  border: 0;
+  border-radius: calc(var(--cite-radius-sm) - 2px);
+  background: transparent;
+  color: var(--cite-secondary);
+  font-size: 11.5px;
+  line-height: 1.25;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.cite-workbench .cite-topbar-view-btn[aria-pressed="true"] {
+  background: var(--cite-base);
+  color: var(--cite-ink);
+  font-weight: 600;
+  box-shadow: var(--dsw-elevation-soft, 0 1px 2px rgba(15, 23, 42, 0.08));
+}
+
+.cite-workbench .cite-constellation {
+  position: relative;
+  flex: 1 1 auto;
+  display: flex;
+  min-block-size: 0;
+  min-inline-size: 0;
+  inline-size: 100%;
+  overflow: hidden;
+  border: 0;
+}
+
+.cite-workbench .cite-starfield {
+  position: relative;
+  flex: 1 1 auto;
+  inline-size: 100%;
+  block-size: 100%;
+  min-block-size: 420px;
+  overflow: hidden;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  background-color: var(--cite-layer);
+  background-image: radial-gradient(circle, color-mix(in oklab, var(--cite-ink) 16%, transparent) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.cite-workbench .cite-constellation[data-dragging="true"] .cite-starfield {
+  cursor: grabbing;
+}
+
+.cite-workbench .cite-starfield-halo {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 64% 56% at 48% 44%, color-mix(in oklab, var(--cite-accent) 13%, transparent), transparent 70%),
+    radial-gradient(circle at 82% 84%, color-mix(in oklab, var(--cite-accent) 7%, transparent), transparent 46%);
+}
+
+.cite-workbench .cite-constellation-stage {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  transform-origin: 0 0;
+}
+
+.cite-workbench .cite-filaments {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.cite-workbench .cite-filament {
+  fill: none;
+  stroke: color-mix(in oklab, var(--cite-ink) 34%, transparent);
+  stroke-width: 1.25;
+  stroke-linecap: round;
+  opacity: 0.44;
+}
+
+.cite-workbench .cite-filament[data-dimmed="true"] {
+  opacity: 0.14;
+}
+
+.cite-workbench .cite-filament[data-active="true"] {
+  stroke: var(--cite-accent);
+  stroke-width: 2.3;
+  opacity: 0.94;
+  filter: drop-shadow(0 0 6px color-mix(in oklab, var(--cite-accent) 46%, transparent));
+}
+
+.cite-workbench .cite-filament[data-edge-kind="author"][data-active="true"] {
+  stroke-width: 2.75;
+}
+
+.cite-workbench .cite-node {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 3px;
+  padding: 9px 11px;
+  border: 1px solid color-mix(in oklab, var(--cite-line) 94%, var(--cite-ink) 6%);
+  border-radius: var(--cite-radius-md);
+  background: color-mix(in oklab, var(--cite-base) 95%, transparent);
+  backdrop-filter: blur(8px);
+  color: var(--cite-ink);
+  text-align: start;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  z-index: 2;
+}
+
+.cite-workbench .cite-node[data-neighbor="true"] {
+  z-index: 4;
+  border-color: color-mix(in oklab, var(--cite-accent) 52%, var(--cite-line));
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--cite-accent) 18%, transparent),
+    0 6px 18px rgba(15, 23, 42, 0.08);
+}
+
+.cite-workbench .cite-node[data-active="true"] {
+  z-index: 6;
+  border-color: var(--cite-accent);
+  box-shadow:
+    0 0 0 2px color-mix(in oklab, var(--cite-accent) 28%, transparent),
+    0 12px 30px color-mix(in oklab, var(--cite-accent) 22%, rgba(15, 23, 42, 0.14));
+}
+
+.cite-workbench .cite-node[data-search-match="true"] {
+  z-index: 7;
+  border-color: var(--cite-accent);
+  box-shadow:
+    0 0 0 3px color-mix(in oklab, var(--cite-accent) 28%, transparent),
+    0 10px 24px rgba(15, 23, 42, 0.12);
+}
+
+.cite-workbench .cite-node[data-dragging="true"] {
+  z-index: 10;
+  cursor: grabbing;
+  transition: none !important;
+}
+
+.cite-workbench .cite-node-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-inline-size: 0;
+  font-size: 10.5px;
+  line-height: 1.25;
+  color: var(--cite-secondary);
+}
+
+.cite-workbench .cite-node-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+.cite-workbench .cite-node-author {
+  flex: 0 1 auto;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cite-workbench .cite-node-year {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.cite-workbench .cite-node-star {
+  flex: 0 0 auto;
+  font-size: 9px;
+  line-height: 1;
+  color: var(--cite-accent);
+}
+
+.cite-workbench .cite-node[data-status="success"] .cite-node-star {
+  color: var(--dsw-alias-state-success-primary, #1f7a4c);
+}
+
+.cite-workbench .cite-node[data-status="warn"] .cite-node-star {
+  color: var(--dsw-alias-state-warn-primary, #d97706);
+}
+
+.cite-workbench .cite-node[data-active="true"] .cite-node-star {
+  color: var(--cite-accent);
+  font-size: 12px;
+}
+
+.cite-workbench .cite-node-key {
+  flex: 0 2 auto;
+  min-inline-size: 0;
+  max-inline-size: 64px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  color: var(--cite-accent);
+  opacity: 0.85;
+}
+
+.cite-workbench .cite-node-title {
+  font-size: 12px;
+  line-height: 1.32;
+  font-weight: 620;
+  color: var(--cite-ink);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.cite-workbench .cite-node-foot {
+  font-size: 10.5px;
+  line-height: 1.3;
+  color: var(--cite-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Top-Left Floating Control Capsule */
+.cite-workbench .cite-capsule {
+  position: absolute;
+  inset-block-start: 16px;
+  inset-inline-start: 16px;
+  z-index: 12;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  inline-size: min(432px, calc(100% - 32px));
+  padding: 10px 12px;
+  border: var(--dsh-control-border-width, 0.5px) solid var(--cite-line);
+  border-radius: calc(var(--cite-radius-md) + 2px);
+  background: color-mix(in oklab, var(--dsw-alias-bg-overlay, var(--cite-base)) 92%, transparent);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--dsw-elevation-panel, 0 8px 26px rgba(15, 23, 42, 0.09));
+}
+
+.cite-workbench .cite-capsule-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-inline-size: 0;
+}
+
+.cite-workbench .cite-view-toggle {
+  flex: 0 1 auto;
+  inline-size: auto;
+  min-inline-size: 0;
+}
+
+.cite-workbench .cite-capsule-picker {
+  flex: 1 1 108px;
+  min-inline-size: 98px;
+}
+
+.cite-workbench .cite-capsule-search {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+.cite-workbench.dshw .cite-capsule-search .cite-search input {
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.cite-workbench .cite-capsule-filters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.cite-workbench .cite-pill-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-block-size: 25px;
+  padding: 2px 9px;
+  border: var(--dsh-control-border-width, 0.5px) solid transparent;
+  border-radius: 999px;
+  background: var(--cite-control);
+  color: var(--cite-secondary);
+  font-size: 11.5px;
+  line-height: 1.3;
+  cursor: pointer;
+}
+
+.cite-workbench .cite-pill-filter[aria-pressed="true"] {
+  background: var(--cite-active);
+  color: var(--cite-ink);
+  border-color: color-mix(in oklab, var(--cite-accent) 44%, transparent);
+  font-weight: 600;
+}
+
+.cite-workbench .cite-pill-reset {
+  margin-inline-start: auto;
+  color: var(--cite-accent);
+  background: transparent;
+  border-color: color-mix(in oklab, var(--cite-accent) 34%, transparent);
+}
+
+/* Bottom-Left Constellation Legend & Zoom Pill */
+.cite-workbench .cite-constellation-legend {
+  position: absolute;
+  inset-block-end: 16px;
+  inset-inline-start: 16px;
+  z-index: 11;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 10px;
+  border: var(--dsh-control-border-width, 0.5px) solid var(--cite-line);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--dsw-alias-bg-overlay, var(--cite-base)) 90%, transparent);
+  backdrop-filter: blur(10px);
+  color: var(--cite-secondary);
+  font-size: 11px;
+  line-height: 1.35;
+  box-shadow: var(--dsw-elevation-soft, 0 2px 10px rgba(15, 23, 42, 0.06));
+}
+
+.cite-workbench .cite-legend-stat {
+  font-weight: 600;
+  color: var(--cite-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.cite-workbench .cite-zoom-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding-inline-start: 6px;
+  border-inline-start: var(--dsh-control-border-width, 0.5px) solid var(--cite-line);
+}
+
+.cite-workbench .cite-zoom-btn {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 20px;
+  block-size: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--cite-control);
+  color: var(--cite-ink);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.cite-workbench .cite-zoom-readout {
+  min-inline-size: 36px;
+  text-align: center;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Center Empty / Loading State over Starfield */
+.cite-workbench .cite-constellation-empty {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  inline-size: min(380px, calc(100% - 32px));
+  padding: 18px 20px;
+  border: var(--dsh-control-border-width, 0.5px) solid var(--cite-line);
+  border-radius: var(--cite-radius-md);
+  background: color-mix(in oklab, var(--dsw-alias-bg-overlay, var(--cite-base)) 95%, transparent);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--dsw-elevation-panel, 0 12px 32px rgba(15, 23, 42, 0.1));
+}
+
+.cite-workbench .cite-constellation-empty .w-empty {
+  min-block-size: 0;
+  padding: 8px 4px;
+}
+
+/* Bottom-Right Floating Zettelkasten Index Card HUD */
+.cite-workbench .cite-zettelkasten {
+  position: absolute;
+  inset-block-end: 16px;
+  inset-inline-end: 16px;
+  z-index: 12;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-inline-size: 420px;
+  inline-size: min(420px, calc(100% - 32px));
+  max-block-size: calc(100% - 172px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 13px 15px 12px;
+  border: var(--dsh-control-border-width, 0.5px) solid var(--cite-line);
+  border-block-start: 3px solid var(--cite-accent);
+  border-radius: var(--cite-radius-md);
+  background: color-mix(in oklab, var(--dsw-alias-bg-overlay, var(--cite-base)) 96%, transparent);
+  backdrop-filter: blur(14px);
+  box-shadow: var(--dsw-elevation-prominent, 0 14px 36px rgba(15, 23, 42, 0.14));
+}
+
+.cite-workbench .cite-zettel-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.cite-workbench .cite-zettelkasten[data-collapsed="true"] .cite-zettel-collapse svg {
+  transform: rotate(180deg);
+}
+
+.cite-workbench .cite-zettel-title {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.38;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.cite-workbench .cite-zettel-meta {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--cite-secondary);
+  overflow-wrap: anywhere;
+}
+
+.cite-workbench .cite-zettel-doi {
+  margin: -4px 0 0;
+  font-size: 11px;
+  color: var(--cite-accent);
+  overflow-wrap: anywhere;
+}
+
+.cite-workbench .cite-zettel-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cite-workbench .cite-zettel-preview .cite-label {
+  margin: 0;
+}
+
+.cite-workbench .cite-zettel-preview .cite-formatted {
+  max-block-size: 98px;
+  overflow: auto;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.55;
+  background: var(--cite-layer);
+}
+
+.cite-workbench .cite-zettel-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.cite-workbench .cite-zettel-actions .cite-button {
+  inline-size: 100%;
+  justify-content: center;
+}
+
+.cite-workbench .cite-zettel-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding-block-start: 6px;
+  border-block-start: var(--dsh-control-border-width, 0.5px) solid var(--cite-subtle-line);
+}
+
+.cite-workbench .cite-zettel-footer .cite-button {
+  min-block-size: 26px;
+  font-size: 11.5px;
+}
+
+.w-dialog .cite-meta-form {
+  display: block;
+}
+
+/* Theme-specific Constellation Materiality (13 Presets) */
+.cite-workbench[data-dsh-style="pixel8bit"] :is(.cite-node, .cite-capsule, .cite-zettelkasten, .cite-constellation-legend, .cite-constellation-empty, .cite-topbar-view-switch, .cite-pill-filter) {
+  border-radius: 0px !important;
+  border: 2px solid #1e2826;
+  box-shadow: 3px 3px 0px #1e2826;
+  backdrop-filter: none;
+}
+
+.cite-workbench[data-dsh-style="pixel8bit"] .cite-topbar-view-btn {
+  border-radius: 0px !important;
+}
+
+.cite-workbench[data-dsh-style="risograph"] :is(.cite-node, .cite-capsule, .cite-zettelkasten) {
+  border: 2px solid #18181b;
+  box-shadow: 3px 3px 0px color-mix(in oklab, var(--cite-accent) 42%, #18181b);
+  backdrop-filter: none;
+}
+
+.cite-workbench[data-dsh-style="eink"] :is(.cite-node, .cite-capsule, .cite-zettelkasten, .cite-constellation-legend) {
+  backdrop-filter: none;
+  box-shadow: none;
+  border-width: 1px;
+}
+
+.cite-workbench[data-dsh-style="blueprint"] .cite-starfield {
+  background-image:
+    linear-gradient(to right, color-mix(in oklab, var(--cite-accent) 13%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklab, var(--cite-accent) 13%, transparent) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.cite-workbench[data-dsh-style="win98"] :is(.cite-node, .cite-capsule, .cite-zettelkasten) {
+  border-radius: 0px;
+  border: 2px outset #ffffff;
+  backdrop-filter: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .cite-workbench .cite-node {
+    transition:
+      opacity 180ms var(--dsh-ease-out, ease-out),
+      transform 180ms var(--dsh-ease-out, ease-out),
+      border-color 150ms ease,
+      box-shadow 180ms var(--dsh-ease-out, ease-out);
+  }
+
+  .cite-workbench .cite-node[data-active="true"] {
+    transform: translate(-50%, -50%) scale(1.06);
+  }
+
+  .cite-workbench .cite-filament {
+    transition: stroke 160ms ease, opacity 180ms ease, stroke-width 160ms ease;
+  }
+
+  .cite-workbench .cite-zettel-collapse svg {
+    transition: transform 160ms var(--dsh-ease-out, ease-out);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cite-workbench :is(.cite-node, .cite-filament, .cite-zettelkasten, .cite-capsule, .cite-constellation-stage) {
+    scale: none !important;
+    animation: none !important;
+    transition-property: background-color, border-color, color, opacity;
+    transition-duration: 90ms;
+  }
+
+  .cite-workbench .cite-node[data-active="true"] {
+    transform: translate(-50%, -50%);
+  }
+}
+
+@media (hover: hover) {
+  .cite-workbench .cite-topbar-view-btn:hover,
+  .cite-workbench .cite-pill-filter:hover,
+  .cite-workbench .cite-zoom-btn:hover {
+    color: var(--cite-ink);
+    background: var(--cite-hover);
+  }
+
+  .cite-workbench .cite-node:hover:not([data-active="true"]) {
+    border-color: color-mix(in oklab, var(--cite-accent) 60%, var(--cite-line));
+  }
+}
+
+@container cite-workbench (max-width: 860px) {
+  .cite-workbench .cite-legend-hint {
+    display: none;
+  }
+}
+
+@container cite-workbench (max-width: 640px) {
+  .cite-workbench .cite-constellation-legend {
+    display: none;
+  }
+
+  .cite-workbench .cite-zettelkasten {
+    max-block-size: 52%;
+  }
+
+  .cite-workbench .cite-zettel-actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

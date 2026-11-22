@@ -107,6 +107,7 @@ function CitePicker({ id, label, value, options, onChange, disabled }) {
 const citationStyles = [
   { id: 'gb-t-7714', label: 'GB/T 7714' },
   { id: 'apa', label: 'APA' },
+  { id: 'ieee', label: 'IEEE' },
   { id: 'mla', label: 'MLA' },
   { id: 'chicago', label: 'Chicago' },
 ];
@@ -236,5 +237,183 @@ function CiteEnrichment({ t, job, busy, onCancel, onDismiss }) {
         ),
       )),
     ) : null,
+  );
+}
+
+function formatAuthorsInput(work) {
+  return (work?.authors || []).map(author => {
+    if (author.name) return author.name;
+    if (author.family && author.given) return author.family + ', ' + author.given;
+    return author.family || author.given || '';
+  }).filter(Boolean).join('; ');
+}
+
+function parseAuthorsInput(raw) {
+  return String(raw || '')
+    .split(/[;\n]+/)
+    .map(part => part.trim())
+    .filter(Boolean)
+    .map(part => {
+      if (part.includes(',')) {
+        const [family, ...rest] = part.split(',');
+        return { family: family.trim(), given: rest.join(',').trim(), name: '' };
+      }
+      return { family: '', given: '', name: part };
+    });
+}
+
+function CiteMetadataEditorModal({ entry, revision, uiStyle, uiFont, lang, locked, onClose, onSaved, onRefresh, t }) {
+  const fieldId = typeof React.useId === 'function' ? React.useId() : 'cite-meta-edit';
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+  const [conflict, setConflict] = useState(false);
+  const [draftWork, setDraftWork] = useState(() => ({
+    bibKey: entry.bibKey || '',
+    title: entry.work.title || '',
+    authorsText: formatAuthorsInput(entry.work),
+    year: entry.work.year ? String(entry.work.year) : '',
+    containerTitle: entry.work.containerTitle || '',
+    type: entry.work.type || 'journal-article',
+    volume: entry.work.volume || '',
+    issue: entry.work.issue || '',
+    page: entry.work.page || '',
+    doi: entry.work.doi || '',
+    publisher: entry.work.publisher || '',
+    url: entry.work.url || '',
+  }));
+
+  const setField = (key, value) => setDraftWork(prev => ({ ...prev, [key]: value }));
+
+  async function submit(event) {
+    event?.preventDefault?.();
+    if (saving || locked) return;
+    setSaving(true);
+    setErr('');
+    setConflict(false);
+    try {
+      const parsedYear = draftWork.year.trim() ? Number.parseInt(draftWork.year.trim(), 10) : 0;
+      const workPatch = {
+        title: draftWork.title.trim(),
+        authors: parseAuthorsInput(draftWork.authorsText),
+        year: Number.isInteger(parsedYear) && parsedYear > 0 && parsedYear <= 9999 ? parsedYear : 0,
+        containerTitle: draftWork.containerTitle.trim(),
+        type: draftWork.type || 'other',
+        volume: draftWork.volume.trim(),
+        issue: draftWork.issue.trim(),
+        page: draftWork.page.trim(),
+        doi: draftWork.doi.trim(),
+        publisher: draftWork.publisher.trim(),
+        url: draftWork.url.trim(),
+      };
+      const nextState = await api({
+        action: 'update',
+        id: entry.id,
+        expectedRevision: revision,
+        bibKey: draftWork.bibKey.trim() || entry.bibKey || 'work',
+        work: workPatch,
+      }, lang);
+      onSaved(nextState);
+    } catch (error) {
+      setConflict(error?.status === 409);
+      setErr(error?.message || t('无法保存元数据。', 'Could not save metadata.'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const workTypes = [
+    { value: 'journal-article', label: t('期刊论文 (journal-article)', 'Journal article') },
+    { value: 'proceedings-article', label: t('会议论文 (proceedings-article)', 'Conference paper') },
+    { value: 'book', label: t('专著 (book)', 'Book') },
+    { value: 'report', label: t('研究报告 (report)', 'Report') },
+    { value: 'dissertation', label: t('学位论文 (dissertation)', 'Dissertation') },
+    { value: 'posted-content', label: t('预印本 / 网络资源', 'Preprint / online') },
+    { value: 'other', label: t('其他 (other)', 'Other') },
+  ];
+
+  return h(W.Dialog, {
+    style: uiStyle,
+    font: uiFont,
+    busy: saving,
+    className: 'cite-meta-dialog',
+    title: t('编辑文献元数据', 'Edit reference metadata'),
+    closeLabel: t('关闭', 'Close'),
+    onClose: () => { if (!saving) onClose(); },
+    footer: h('div', { className: 'cite-actions' },
+      h(CiteButton, { variant: 'outline', disabled: saving, onClick: onClose }, t('取消', 'Cancel')),
+      conflict && onRefresh
+        ? h(CiteButton, {
+          variant: 'primary',
+          icon: 'refresh',
+          disabled: saving,
+          onClick: async () => { setConflict(false); setErr(''); await onRefresh(); },
+        }, t('刷新文献库', 'Refresh library'))
+        : h(CiteButton, {
+          variant: 'primary',
+          icon: 'check',
+          disabled: saving || locked,
+          onClick: submit,
+        }, t('保存元数据', 'Save metadata')),
+    ),
+  },
+    err ? h(W.Status, { tone: 'error' }, err) : null,
+    h('form', { className: 'cite-meta-form', onSubmit: submit },
+      h('div', { className: 'cite-form-grid' },
+        h('div', { className: 'cite-field-wide' },
+          h('label', { className: 'cite-label', htmlFor: fieldId + '-title' }, t('标题', 'Title')),
+          h(CiteInput, { id: fieldId + '-title', value: draftWork.title, disabled: saving, onChange: e => setField('title', e.target.value) }),
+        ),
+        h('div', { className: 'cite-field-wide' },
+          h('label', { className: 'cite-label', htmlFor: fieldId + '-authors' }, t('作者（用分号 ; 分隔，支持 姓, 名）', 'Authors (separate with ; e.g. Family, Given)')),
+          h(CiteInput, { id: fieldId + '-authors', value: draftWork.authorsText, disabled: saving, onChange: e => setField('authorsText', e.target.value) }),
+        ),
+        h('div', null,
+          h('label', { className: 'cite-label', htmlFor: fieldId + '-year' }, t('年份', 'Year')),
+          h(CiteInput, { id: fieldId + '-year', value: draftWork.year, disabled: saving, placeholder: '2026', onChange: e => setField('year', e.target.value) }),
+        ),
+        h('div', null,
+          h('label', { className: 'cite-label', htmlFor: fieldId + '-type' }, t('文献类型', 'Type')),
+          h('select', {
+            id: fieldId + '-type',
+            className: 'cite-field',
+            value: draftWork.type,
+            disabled: saving,
+            onChange: e => setField('type', e.target.value),
+          }, workTypes.map(item => h('option', { key: item.value, value: item.value }, item.label))),
+        ),
+        h('div', { className: 'cite-field-wide' },
+          h('label', { className: 'cite-label', htmlFor: fieldId + '-venue' }, t('期刊 / 会议 / 文集', 'Journal / conference / collection')),
+          h(CiteInput, { id: fieldId + '-venue', value: draftWork.containerTitle, disabled: saving, onChange: e => setField('containerTitle', e.target.value) }),
+        ),
+        h('div', null,
+          h('label', { className: 'cite-label', htmlFor: fieldId + '-volume' }, t('卷', 'Volume')),
+          h(CiteInput, { id: fieldId + '-volume', value: draftWork.volume, disabled: saving, onChange: e => setField('volume', e.target.value) }),
+        ),
+        h('div', null,
+          h('label', { className: 'cite-label', htmlFor: fieldId + '-issue' }, t('期', 'Issue')),
+          h(CiteInput, { id: fieldId + '-issue', value: draftWork.issue, disabled: saving, onChange: e => setField('issue', e.target.value) }),
+        ),
+        h('div', null,
+          h('label', { className: 'cite-label', htmlFor: fieldId + '-page' }, t('页码', 'Pages')),
+          h(CiteInput, { id: fieldId + '-page', value: draftWork.page, disabled: saving, onChange: e => setField('page', e.target.value) }),
+        ),
+        h('div', null,
+          h('label', { className: 'cite-label', htmlFor: fieldId + '-bibkey' }, t('引用键', 'Citation key')),
+          h(CiteInput, { id: fieldId + '-bibkey', className: 'cite-mono', value: draftWork.bibKey, disabled: saving, onChange: e => setField('bibKey', e.target.value) }),
+        ),
+        h('div', null,
+          h('label', { className: 'cite-label', htmlFor: fieldId + '-doi' }, 'DOI'),
+          h(CiteInput, { id: fieldId + '-doi', className: 'cite-mono', value: draftWork.doi, disabled: saving, onChange: e => setField('doi', e.target.value) }),
+        ),
+        h('div', null,
+          h('label', { className: 'cite-label', htmlFor: fieldId + '-publisher' }, t('出版社', 'Publisher')),
+          h(CiteInput, { id: fieldId + '-publisher', value: draftWork.publisher, disabled: saving, onChange: e => setField('publisher', e.target.value) }),
+        ),
+        h('div', { className: 'cite-field-wide' },
+          h('label', { className: 'cite-label', htmlFor: fieldId + '-url' }, 'URL'),
+          h(CiteInput, { id: fieldId + '-url', className: 'cite-mono', value: draftWork.url, disabled: saving, onChange: e => setField('url', e.target.value) }),
+        ),
+      ),
+    ),
   );
 }

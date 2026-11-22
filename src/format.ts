@@ -6,12 +6,12 @@
 
 import type { CiteAuthor, Work } from './crossref.js'
 
-export type CiteStyle = 'gb-t-7714' | 'apa' | 'mla' | 'chicago'
+export type CiteStyle = 'gb-t-7714' | 'apa' | 'ieee' | 'mla' | 'chicago'
 
 export function readStyle(raw: unknown): CiteStyle {
   if (raw === undefined || raw === null || raw === '') return 'gb-t-7714'
-  if (raw === 'gb-t-7714' || raw === 'apa' || raw === 'mla' || raw === 'chicago') return raw
-  throw new Error('style 只支持 gb-t-7714 / apa / mla / chicago，收到：' + String(raw))
+  if (raw === 'gb-t-7714' || raw === 'apa' || raw === 'ieee' || raw === 'mla' || raw === 'chicago') return raw
+  throw new Error('style 只支持 gb-t-7714 / apa / ieee / mla / chicago，收到：' + String(raw))
 }
 
 function fullName(author: CiteAuthor): string {
@@ -71,6 +71,21 @@ function chicagoAuthors(authors: CiteAuthor[]): string {
   const noteName = (author: CiteAuthor) => author.name || (author.given && author.family ? author.given + ' ' + author.family : fullName(author))
   if (authors.length <= 3) return authors.map(noteName).join(', ')
   return noteName(authors[0]!) + ', et al.'
+}
+
+function ieeeName(author: CiteAuthor): string {
+  if (author.name !== '') return author.name
+  const givenInitials = author.given !== '' ? initials(author.given) : ''
+  if (givenInitials !== '' && author.family !== '') return givenInitials + ' ' + author.family
+  return author.family || author.given
+}
+
+function ieeeAuthors(authors: CiteAuthor[]): string {
+  if (authors.length === 0) return 'Anonymous'
+  const names = authors.map(ieeeName)
+  if (names.length === 1) return names[0]!
+  if (names.length <= 6) return names.slice(0, -1).join(', ') + ', and ' + names[names.length - 1]
+  return names[0] + ' et al.'
 }
 
 function gbtTypeLabel(type: string, work: Work): string {
@@ -182,12 +197,34 @@ function buildChicago(work: Work): string {
   return text
 }
 
+/** 生成基本 IEEE 参考文献条目。 */
+function buildIeee(work: Work): string {
+  const authors = ieeeAuthors(work.authors)
+  const title = titleOf(work)
+  const parts: string[] = [authors + ', "' + title + ',"']
+  if (work.containerTitle !== '') {
+    parts.push(work.type === 'proceedings-article' ? 'in ' + work.containerTitle : work.containerTitle)
+  } else if (work.publisher !== '') {
+    parts.push(work.publisher)
+  }
+  if (work.volume !== '') parts.push('vol. ' + work.volume)
+  if (work.issue !== '') parts.push('no. ' + work.issue)
+  if (work.page !== '') parts.push('pp. ' + work.page)
+  if (work.year > 0) parts.push(String(work.year))
+  let text = parts.join(', ').replace(',",', ',"')
+  if (!text.endsWith('.')) text += '.'
+  if (work.doi !== '') text += ' doi: ' + work.doi + '.'
+  else if (work.url !== '') text += ' [Online]. Available: ' + work.url
+  return text
+}
+
 /** 按样式生成引文。 */
 export function buildCitation(work: Work, style: CiteStyle, lang = 'zh'): string {
   if (!work.title && lang === 'en') work = { ...work, title: '(Untitled)' }
   switch (style) {
     case 'gb-t-7714': return buildGbt(work, lang)
     case 'apa': return buildApa(work)
+    case 'ieee': return buildIeee(work)
     case 'mla': return buildMla(work)
     case 'chicago': return buildChicago(work)
   }

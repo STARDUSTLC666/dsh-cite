@@ -200,3 +200,42 @@ test('operation: remove guards against stale expectedRevision (HTTP 409) and amb
   assert.match(staleJson.messageEn, /nothing was removed/i)
   assert.equal(await readFile(w.store.file, 'utf8'), beforeDisk)
 })
+test('action: update edits metadata atomically with revision conflict & duplicate DOI checks', async t => {
+  const w = await workbench(t)
+  const bib = '@article{alpha2024,title={Alpha Paper},author={Smith, Jane},journal={Nature},year={2024},doi={10.1000/alpha}}\n@article{beta2025,title={Beta Paper},author={Chen, Wei},journal={Science},year={2025},doi={10.1000/beta}}'
+  const s1 = await save(w, bib, 'bibtex')
+  const target = s1.entries[0]
+
+  const updated = await w.dispatch({
+    action: 'update',
+    id: target.id,
+    expectedRevision: s1.revision,
+    bibKey: 'alpha2026',
+    work: { title: 'Alpha Paper Revised', year: 2026, containerTitle: 'Nature Methods' },
+  })
+  assert.equal(updated.revision, s1.revision + 1)
+  const after = updated.entries.find(e => e.id === target.id)
+  assert.equal(after.bibKey, 'alpha2026')
+  assert.equal(after.work.title, 'Alpha Paper Revised')
+  assert.equal(after.work.year, 2026)
+  assert.equal(after.work.containerTitle, 'Nature Methods')
+  assert.equal(after.work.doi, '10.1000/alpha')
+
+  // Duplicate DOI check against sibling entry
+  await assert.rejects(w.dispatch({
+    action: 'update',
+    id: target.id,
+    expectedRevision: updated.revision,
+    work: { doi: '10.1000/beta' },
+  }), /该 DOI 已存在于另一条文献/)
+
+  // Stale expectedRevision returns HTTP 409
+  const staleRes = await w.fetch(new Request('http://dsh.internal/api/dsh-cite/library', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-dsh-cite': '1' },
+    body: JSON.stringify({ action: 'update', id: target.id, expectedRevision: s1.revision, work: { title: 'Stale' } }),
+  }))
+  assert.equal(staleRes.status, 409)
+  const staleJson = await staleRes.json()
+  assert.match(staleJson.messageEn, /metadata edits were not saved/i)
+})

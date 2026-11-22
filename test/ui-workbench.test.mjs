@@ -6,7 +6,7 @@ import { apply as applyCiteServer } from '../lib/index.js'
 
 const CLIENT_BUNDLE = readFileSync(new URL('../lib/client.js', import.meta.url), 'utf8')
 
-function createMiniEnv({ withPrimitives = false, initialStyle = null, onApi } = {}) {
+function createMiniEnv({ withPrimitives = false, initialStyle = null, initialLibrary = null, onApi } = {}) {
   const storage = new Map()
   if (initialStyle) storage.set('dsh-stardust:ui-style', initialStyle)
   const listeners = new Map()
@@ -115,7 +115,7 @@ function createMiniEnv({ withPrimitives = false, initialStyle = null, onApi } = 
   let focusedNode = null
   const popoverOpenedNodes = new Set()
 
-  const sampleLibrary = {
+  const sampleLibrary = initialLibrary || {
     revision: 2,
     jobs: [],
     sources: [{ id: 'src-1', kind: 'bibtex', label: 'references.bib', importedAt: '2026-11-18T00:00:00Z', text: '@article{smith2026, title={Airy Design Systems}}' }],
@@ -355,6 +355,14 @@ test('dsh-cite CSS bundle enforces Never-Too-Dark slate, 13 [data-dsh-style] pre
     assert.match(cssText, /--dsh-frame-leading-clearance/)
     assert.match(cssText, /\[data-window-drag-exclude\]/)
     assert.match(cssText, /@media \(prefers-reduced-motion: reduce\)/)
+    assert.match(cssText, /\.cite-constellation/)
+    assert.match(cssText, /\.cite-starfield/)
+    assert.match(cssText, /\.cite-filament/)
+    assert.match(cssText, /\.cite-node\[data-active="true"\]/)
+    assert.match(cssText, /scale\(1\.06\)/)
+    assert.match(cssText, /\.cite-capsule/)
+    assert.match(cssText, /\.cite-zettelkasten/)
+    assert.match(cssText, /max-inline-size:\s*420px/)
     assert.match(CLIENT_BUNDLE, /__stardustUpdatesFooter\(React, 'dsh-cite'\)/)
   } finally {
     mounted.cleanup()
@@ -375,16 +383,26 @@ test('dsh-cite renders in standalone fallback mode, syncs all 13 styles + 8 font
     assert.equal(root.attrs['data-dsh-font'], 'arcade')
     assert.equal(root.attrs['data-main'], 'true')
 
-    // Verify unified 48px single-row header, sliding tab indicator, and materiality hooks
+    // Verify unified 48px single-row header, sliding tab indicator, and default Spatial Constellation view
     assert.ok(findNodes(root, n => Object.hasOwn(n.attrs || {}, 'data-dsh-header')).length === 1)
     assert.ok(findNodes(root, n => String(n.attrs?.className || '').includes('dsh-tab-indicator')).length === 1)
     assert.ok(findNodes(root, n => Object.hasOwn(n.attrs || {}, 'data-dsh-tab-panel')).length === 1)
     assert.ok(findNodes(root, n => Object.hasOwn(n.attrs || {}, 'data-dsh-serif')).length >= 2)
+    assert.ok(findNodes(root, n => n.attrs?.['data-cite-view'] === 'graph').length === 1, 'Spatial Constellation must be the default landing view')
+    assert.ok(findNodes(root, n => n.attrs?.['data-cite-node'] === 'entry-1').length === 1, 'orbital node renders on default starfield')
+    assert.ok(findNodes(root, n => String(n.attrs?.className || '').includes('cite-zettelkasten')).length === 1, 'Floating Zettelkasten HUD renders by default')
+
+    // Switch to classic List view via topbar 星图 / 列表 toggle and verify classic 3-column list remains 100% intact
+    const listToggleBtn = findNodes(root, n => n.tag === 'button' && n.attrs?.['data-view-mode'] === 'list')[0]
+    assert.ok(listToggleBtn, 'Topbar List toggle button must render')
+    listToggleBtn.attrs.onClick()
+    root = mounted.rerender()
+    assert.ok(findNodes(root, n => n.attrs?.['data-cite-view'] === 'list').length === 1)
     assert.ok(findNodes(root, n => String(n.attrs?.className || '').includes('dsh-pixel-cursor')).length >= 1)
 
     // Verify DshSplitResizer keyboard resize + double-click reset + localStorage persistence
     const resizer = findNodes(root, n => n.attrs?.role === 'separator' && Object.hasOwn(n.attrs || {}, 'data-dsh-resizer'))[0]
-    assert.ok(resizer, 'DshSplitResizer must render in CiteLibrary')
+    assert.ok(resizer, 'DshSplitResizer must render in CiteLibrary list view')
     assert.equal(resizer.attrs['aria-valuenow'], 320)
     resizer.attrs.onKeyDown({ key: 'ArrowRight', preventDefault() {} })
     root = mounted.rerender()
@@ -499,9 +517,21 @@ test('dsh-cite integrates host @deepseek-ai/dsh-client-ui-primitives when availa
   try {
     let root = mounted.tree
     assert.equal(root.attrs['data-dsh-style'], 'claude')
-    for (const primitive of ['Button', 'Input', 'Checkbox', 'Menu']) {
+    assert.ok(findNodes(root, n => n.attrs?.['data-cite-view'] === 'graph').length === 1, 'default host view is constellation')
+    for (const primitive of ['Button', 'Input', 'Menu', 'SegmentedControl']) {
       assert.ok(env.primitiveCalls.includes(primitive), 'expected host primitive ' + primitive)
     }
+
+    // Switch to classic List view to verify host Checkbox primitive too
+    const listToggleBtn = findNodes(root, n => n.tag === 'button' && n.attrs?.['data-view-mode'] === 'list')[0]
+    listToggleBtn.attrs.onClick()
+    root = mounted.rerender()
+    assert.ok(env.primitiveCalls.includes('Checkbox'), 'expected host primitive Checkbox in list view')
+
+    // Switch back to Constellation view to verify host Menu & Modal from Constellation HUD
+    const graphToggleBtn = findNodes(root, n => n.tag === 'button' && n.attrs?.['data-view-mode'] === 'graph')[0]
+    graphToggleBtn.attrs.onClick()
+    root = mounted.rerender()
 
     // Open StyleSwitcher Menu in host mode and verify HostMenuWithStyle stamps data-dsh-style + data-window-drag-exclude
     const switcher = findNodes(root, n => n.attrs.id === 'cite-style-switcher')[0]
@@ -669,14 +699,18 @@ test('dsh-cite CoachmarkTour (? Tour), inline prompt copy, sample filler, DOI-ch
     tourCard = findNodes(tourLayer, n => n.attrs?.['data-tour-card'])[0]
     assert.equal(tourCard.attrs.role, 'dialog')
     assert.equal(tourCard.attrs['aria-modal'], 'false')
+    assert.equal(tourCard.attrs['data-tour-card'], 'capsule')
     assert.match(textOf(tourCard), /1 \/ 4/)
     assert.ok(findNodes(tourCard, n => n.attrs?.['data-tour-arrow'])[0], 'directional arrow [data-tour-arrow] rendered')
     assert.ok(env.focusedNode && Object.hasOwn(env.focusedNode.attrs || {}, 'data-tour-next'), 'manual open focuses [data-tour-next]')
 
-    // Step 2: DOI verification + inline 1-click prompt copy
+    // Step 2: Draggable constellation node & live filaments + inline 1-click prompt copy
     findNodes(tourCard, n => Object.hasOwn(n.attrs || {}, 'data-tour-next'))[0].attrs.onClick()
     root = mounted.rerender()
+    root = mounted.rerender()
     tourCard = findNodes(root, n => n.attrs?.['data-tour-card'])[0]
+    assert.equal(tourCard.attrs['data-tour-card'], 'orbit')
+    assert.ok(findNodes(root, n => n.attrs?.['data-tour-spotlight'] === 'orbit')[0], 'Step 2 spotlight highlights orbital node')
     assert.match(textOf(tourCard), /2 \/ 4/)
     const inlineCopyBtn = findNodes(tourCard, n => n.attrs?.['data-copy-prompt'] === 'Verify this paper’s DOI and metadata, then import it into my citation library')[0]
     assert.ok(inlineCopyBtn, 'Step 2 renders inline 1-click prompt copy button')
@@ -684,14 +718,20 @@ test('dsh-cite CoachmarkTour (? Tour), inline prompt copy, sample filler, DOI-ch
     root = mounted.rerender()
     assert.equal(env.copiedClipboard, 'Verify this paper’s DOI and metadata, then import it into my citation library')
 
-    // Step 3 -> Step 4 -> Finish ('Done') persists localStorage['dsh-cite.tour.v1'] = 'done' and restores focus
+    // Step 3 (Zettelkasten HUD) -> Step 4 (StyleSwitcher + FontSwitcher) -> Finish ('Done') persists localStorage['dsh-cite.tour.v1'] = 'done' and restores focus
     findNodes(root, n => Object.hasOwn(n.attrs || {}, 'data-tour-next'))[0].attrs.onClick()
     root = mounted.rerender()
+    root = mounted.rerender()
+    assert.equal(findNodes(root, n => n.attrs?.['data-tour-card'])[0].attrs['data-tour-card'], 'zettelkasten')
+    assert.ok(findNodes(root, n => n.attrs?.['data-tour-spotlight'] === 'zettelkasten')[0], 'Step 3 spotlight highlights Zettelkasten HUD')
     assert.match(textOf(findNodes(root, n => n.attrs?.['data-tour-card'])[0]), /3 \/ 4/)
 
     findNodes(root, n => Object.hasOwn(n.attrs || {}, 'data-tour-next'))[0].attrs.onClick()
     root = mounted.rerender()
+    root = mounted.rerender()
     tourCard = findNodes(root, n => n.attrs?.['data-tour-card'])[0]
+    assert.equal(tourCard.attrs['data-tour-card'], 'appearance')
+    assert.ok(findNodes(root, n => n.attrs?.['data-tour-spotlight'] === 'appearance')[0], 'Step 4 spotlight highlights StyleSwitcher + FontSwitcher')
     assert.match(textOf(tourCard), /4 \/ 4/)
     assert.match(textOf(tourCard), /Done/)
 
@@ -808,6 +848,257 @@ test('dsh-cite renders DshSkeleton shimmer placeholders during pending DOI check
     await pendingCheck
     root = mounted.rerender()
     assert.match(textOf(root), /Deep learning/)
+  } finally {
+    mounted.cleanup()
+  }
+})
+
+test('Spatial Citation Constellation deterministic layout produces zero overlaps for 1, 8, 25, and 50 papers at 1440x900', () => {
+  const env = createMiniEnv({ withPrimitives: false })
+  const { computeConstellationEdges, computeConstellationLayout } = env.client.__internals
+  assert.equal(typeof computeConstellationEdges, 'function')
+  assert.equal(typeof computeConstellationLayout, 'function')
+
+  for (const count of [1, 8, 25, 50]) {
+    const entries = Array.from({ length: count }, (_, idx) => ({
+      id: 'paper-' + String(idx + 1).padStart(3, '0'),
+      bibKey: 'author' + (2015 + (idx % 12)) + '_' + idx,
+      sourceIds: ['src-1'],
+      warnings: idx % 5 === 0 ? ['missing_doi'] : [],
+      crossref: idx % 3 === 0 ? { doi: '10.1000/p-' + idx, fetchedAt: '2026-11-18T00:00:00Z', filled: [], conflicts: [] } : null,
+      work: {
+        title: 'Constellation Paper #' + (idx + 1),
+        doi: idx % 5 === 0 ? '' : '10.1000/p-' + idx,
+        year: 2015 + (idx % 12),
+        containerTitle: ['Nature', 'NeurIPS', 'CHI', 'Science'][idx % 4],
+        authors: [{ family: ['LeCun', 'Vaswani', 'Hinton', 'Bengio', 'Lovelace'][idx % 5], given: 'A', name: '' }],
+      },
+    }))
+    const { edges } = computeConstellationEdges(entries)
+    const layoutA = computeConstellationLayout(entries, edges, { width: 1440, height: 820 })
+    const layoutB = computeConstellationLayout(entries, edges, { width: 1440, height: 820 })
+    assert.deepEqual(layoutA.positions, layoutB.positions, `layout must be deterministic for N=${count}`)
+
+    const list = entries.map(e => ({ id: e.id, ...layoutA.positions[e.id] }))
+    for (let i = 0; i < list.length; i++) {
+      for (let j = i + 1; j < list.length; j++) {
+        const dx = Math.abs(list[i].x - list[j].x)
+        const dy = Math.abs(list[i].y - list[j].y)
+        const overlaps = dx < layoutA.nodeWidth && dy < layoutA.nodeHeight
+        assert.equal(overlaps, false, `overlap detected for N=${count} between ${list[i].id} and ${list[j].id} (dx=${dx}, dy=${dy})`)
+      }
+    }
+  }
+
+  // Verify 8-paper constellation stays 100% clear of floating top-left capsule, bottom-right Zettelkasten HUD (~420x440), and bottom-left legend pill on both 1160x840 (sidebar open) and 1440x820
+  const demo8 = Array.from({ length: 8 }, (_, idx) => ({
+    id: 'demo-' + (idx + 1),
+    bibKey: 'paper201' + idx,
+    sourceIds: ['src-1'],
+    warnings: idx < 2 ? ['missing_doi'] : [],
+    crossref: idx >= 2 ? { doi: '10.1000/d-' + idx, fetchedAt: '2026-11-18T00:00:00Z', filled: [], conflicts: [] } : null,
+    work: {
+      title: 'Demo Constellation Paper ' + (idx + 1),
+      doi: idx < 2 ? '' : '10.1000/d-' + idx,
+      year: 2016 + (idx % 5),
+      containerTitle: ['CVPR', 'NeurIPS', 'NAACL'][idx % 3],
+      authors: [{ family: ['Vaswani', 'Devlin', 'He', 'Dosovitskiy', 'Brown', 'Huang', 'Radford', 'Kaiming'][idx], given: 'A', name: '' }],
+    },
+  }))
+  const { edges: demoEdges } = computeConstellationEdges(demo8)
+  for (const vp of [{ width: 1160, height: 840 }, { width: 1440, height: 820 }]) {
+    const layout = computeConstellationLayout(demo8, demoEdges, vp)
+    const halfW = layout.nodeWidth / 2
+    const halfH = layout.nodeHeight / 2
+    const rects = [
+      { name: 'capsule', left: 0, top: 0, right: 436, bottom: 188 },
+      { name: 'zettelkasten', left: layout.stageWidth - 448, top: layout.stageHeight - 460, right: layout.stageWidth, bottom: layout.stageHeight },
+      { name: 'legend', left: 0, top: layout.stageHeight - 64, right: 412, bottom: layout.stageHeight },
+    ]
+    for (const entry of demo8) {
+      const pos = layout.positions[entry.id]
+      for (const rect of rects) {
+        const hit = (pos.x + halfW > rect.left) && (pos.x - halfW < rect.right) && (pos.y + halfH > rect.top) && (pos.y - halfH < rect.bottom)
+        assert.equal(hit, false, `node ${entry.id} at (${pos.x},${pos.y}) overlaps ${rect.name} HUD on ${vp.width}x${vp.height}`)
+      }
+    }
+  }
+})
+
+test('Spatial Citation Constellation renders SVG filaments, pointer drag (setPointerCapture), node focus/dimming, search highlights, quality filters, and Zettelkasten metadata editing', async () => {
+  const apiCalls = []
+  let multiLibrary = {
+    revision: 4,
+    jobs: [],
+    sources: [{ id: 'src-1', kind: 'bibtex', label: 'constellation.bib', importedAt: '2026-11-18T00:00:00Z', text: '@article{lecun2015deep, title={Deep learning}}' }],
+    entries: [
+      {
+        id: 'p-1',
+        bibKey: 'lecun2015deep',
+        sourceIds: ['src-1'],
+        warnings: [],
+        crossref: { doi: '10.1038/nature14539', fetchedAt: '2026-11-18T00:00:00Z', filled: [], conflicts: [] },
+        work: {
+          title: 'Deep learning',
+          doi: '10.1038/nature14539',
+          year: 2015,
+          containerTitle: 'Nature',
+          type: 'journal-article',
+          authors: [{ family: 'LeCun', given: 'Yann', name: '' }, { family: 'Bengio', given: 'Yoshua', name: '' }],
+        },
+      },
+      {
+        id: 'p-2',
+        bibKey: 'vaswani2017attention',
+        sourceIds: ['src-1'],
+        warnings: ['missing_doi'],
+        crossref: null,
+        work: {
+          title: 'Attention Is All You Need',
+          doi: '',
+          year: 2017,
+          containerTitle: 'NeurIPS',
+          type: 'proceedings-article',
+          authors: [{ family: 'Vaswani', given: 'Ashish', name: '' }],
+        },
+      },
+      {
+        id: 'p-3',
+        bibKey: 'shannon1948math',
+        sourceIds: ['src-1'],
+        warnings: [],
+        crossref: null,
+        work: {
+          title: 'A Mathematical Theory of Communication',
+          doi: '10.1002/j.1538-7305.1948.tb01338.x',
+          year: 1948,
+          containerTitle: 'Bell System Technical Journal',
+          type: 'journal-article',
+          authors: [{ family: 'Shannon', given: 'Claude', name: '' }],
+        },
+      },
+    ],
+  }
+
+  const env = createMiniEnv({
+    withPrimitives: false,
+    initialLibrary: multiLibrary,
+    onApi: async body => {
+      apiCalls.push(body)
+      if (body.action === 'list') {
+        return { ok: true, status: 200, json: async () => ({ ok: true, value: multiLibrary }) }
+      }
+      if (body.action === 'update') {
+        multiLibrary = {
+          ...multiLibrary,
+          revision: multiLibrary.revision + 1,
+          entries: multiLibrary.entries.map(e => (
+            e.id === body.id ? { ...e, bibKey: body.bibKey || e.bibKey, work: { ...e.work, ...body.work } } : e
+          )),
+        }
+        return { ok: true, status: 200, json: async () => ({ ok: true, value: multiLibrary }) }
+      }
+      if (body.action === 'export') {
+        return { ok: true, status: 200, json: async () => ({ ok: true, value: { content: body.kind === 'bibtex' ? '@article{lecun2015deep, title={Deep learning}}' : '[1] LeCun Y, Bengio Y. Deep learning[J]. Nature, 2015.' } }) }
+      }
+      return null
+    },
+  })
+
+  const mounted = await env.mountWorkbench(true, 'zh-CN')
+  try {
+    let root = mounted.tree
+    assert.ok(findNodes(root, n => n.attrs?.['data-cite-view'] === 'graph').length === 1)
+
+    // 1. Verify SVG filaments link era neighbors (p-1 2015 <-> p-2 2017) while unrelated p-3 (1948) is dimmed to opacity 0.38
+    const filaments = findNodes(root, n => n.tag === 'path' && String(n.attrs?.className || '').includes('cite-filament'))
+    assert.ok(filaments.length >= 1, 'SVG relationship filaments must render')
+    const p1Node = findNodes(root, n => n.attrs?.['data-cite-node'] === 'p-1')[0]
+    const p2Node = findNodes(root, n => n.attrs?.['data-cite-node'] === 'p-2')[0]
+    const p3Node = findNodes(root, n => n.attrs?.['data-cite-node'] === 'p-3')[0]
+    assert.equal(p1Node.attrs['data-active'], 'true')
+    assert.match(textOf(p1Node), /✦/)
+    const p1AuthorSpan = findNodes(p1Node, n => String(n.attrs?.className || '').includes('cite-node-author'))[0]
+    const p1YearSpan = findNodes(p1Node, n => String(n.attrs?.className || '').includes('cite-node-year'))[0]
+    assert.ok(p1AuthorSpan && p1YearSpan, 'node header must separate truncatable author and non-shrinking year spans')
+    assert.match(textOf(p1YearSpan), /2015/)
+    assert.equal(p2Node.attrs['data-neighbor'], 'true')
+    assert.equal(p2Node.attrs.style.opacity, 1)
+    assert.equal(p3Node.attrs['data-dimmed'], 'true')
+    assert.equal(p3Node.attrs.style.opacity, 0.38)
+    assert.ok(filaments.some(f => f.attrs['data-active'] === 'true'), 'active filament connected to selected node glows')
+
+    // 2. Real Direct Manipulation: drag p-1 via setPointerCapture & verify node + SVG filament update in real time
+    const beforeLeft = parseInt(p1Node.attrs.style.left, 10)
+    const beforeTop = parseInt(p1Node.attrs.style.top, 10)
+    const beforePath = filaments[0].attrs.d
+    let capturedId = null
+    let releasedId = null
+    const mockTarget = {
+      setPointerCapture(id) { capturedId = id },
+      releasePointerCapture(id) { releasedId = id },
+    }
+    p1Node.attrs.onPointerDown({ button: 0, pointerId: 7, clientX: 300, clientY: 250, currentTarget: mockTarget, stopPropagation() {} })
+    p1Node.attrs.onPointerMove({ pointerId: 7, clientX: 390, clientY: 310, currentTarget: mockTarget })
+    root = mounted.rerender()
+    const draggedP1 = findNodes(root, n => n.attrs?.['data-cite-node'] === 'p-1')[0]
+    assert.equal(capturedId, 7, 'setPointerCapture must be invoked on node pointerdown')
+    assert.equal(parseInt(draggedP1.attrs.style.left, 10), beforeLeft + 90)
+    assert.equal(parseInt(draggedP1.attrs.style.top, 10), beforeTop + 60)
+    const updatedPath = findNodes(root, n => n.tag === 'path' && String(n.attrs?.className || '').includes('cite-filament'))[0].attrs.d
+    assert.notEqual(updatedPath, beforePath, 'SVG relationship filament path must track dragged node in real time')
+    draggedP1.attrs.onPointerUp({ pointerId: 7, currentTarget: mockTarget })
+    root = mounted.rerender()
+    assert.equal(releasedId, 7)
+
+    // 3. Instant search highlights matching node on starfield
+    const searchInput = findNodes(root, n => n.tag === 'input' && n.attrs?.type === 'search')[0]
+    searchInput.attrs.onChange({ target: { value: 'Shannon' } })
+    root = mounted.rerender()
+    assert.equal(findNodes(root, n => n.attrs?.['data-cite-node'] === 'p-3')[0].attrs['data-search-match'], 'true')
+    assert.match(textOf(root), /匹配 1 \/ 3/)
+    searchInput.attrs.onChange({ target: { value: '' } })
+    root = mounted.rerender()
+
+    // 4. Quality filter pill ('有字段缺失') filters to p-2
+    const missingPill = findNodes(root, n => n.tag === 'button' && String(n.attrs?.className || '').includes('cite-pill-filter') && textOf(n).includes('有字段缺失'))[0]
+    assert.ok(missingPill)
+    missingPill.attrs.onClick()
+    root = mounted.rerender()
+    assert.equal(findNodes(root, n => Object.hasOwn(n.attrs || {}, 'data-cite-node')).length, 1)
+    assert.ok(findNodes(root, n => n.attrs?.['data-cite-node'] === 'p-2').length === 1)
+
+    // Reset filter to 全部 and verify Zettelkasten HUD 4 primary actions + Metadata Editor modal
+    findNodes(root, n => n.tag === 'button' && String(n.attrs?.className || '').includes('cite-pill-filter') && textOf(n).includes('全部'))[0].attrs.onClick()
+    root = mounted.rerender()
+    const zettel = findNodes(root, n => String(n.attrs?.className || '').includes('cite-zettelkasten'))[0]
+    assert.ok(zettel)
+    for (const label of ['复制引文', '复制 BibTeX', 'Crossref 补全', '编辑元数据']) {
+      assert.ok(findNodes(zettel, n => n.tag === 'button' && textOf(n).includes(label)).length >= 1, 'missing Zettelkasten button ' + label)
+    }
+
+    // Open 编辑元数据 modal, verify labels, update title, and save
+    const editBtn = findNodes(zettel, n => n.tag === 'button' && textOf(n).includes('编辑元数据'))[0]
+    editBtn.attrs.onClick()
+    root = mounted.rerender()
+    const dialog = findNodes(root, n => n.attrs?.role === 'dialog')[0]
+    assert.ok(dialog, 'Metadata editor modal should open')
+    const ids = new Set(findNodes(dialog, n => Boolean(n.attrs?.id)).map(n => n.attrs.id))
+    for (const lbl of findNodes(dialog, n => n.tag === 'label')) {
+      assert.ok(lbl.attrs.htmlFor && ids.has(lbl.attrs.htmlFor), 'every metadata editor label must match a control id')
+    }
+    const titleInput = findNodes(dialog, n => n.tag === 'input' && String(n.attrs?.id || '').endsWith('-title'))[0]
+    assert.ok(titleInput)
+    titleInput.attrs.onChange({ target: { value: 'Deep learning (2nd ed.)' } })
+    root = mounted.rerender()
+    const saveMetaBtn = findNodes(root, n => n.tag === 'button' && textOf(n).includes('保存元数据'))[0]
+    await saveMetaBtn.attrs.onClick({ preventDefault() {} })
+    root = mounted.rerender()
+    assert.equal(findNodes(root, n => n.attrs?.role === 'dialog').length, 0, 'Metadata editor modal closes after save')
+    const updateCall = apiCalls.find(c => c.action === 'update')
+    assert.ok(updateCall, 'action: update must be called')
+    assert.equal(updateCall.work.title, 'Deep learning (2nd ed.)')
+    assert.match(textOf(findNodes(root, n => String(n.attrs?.className || '').includes('cite-zettelkasten'))[0]), /Deep learning \(2nd ed\.\)/)
   } finally {
     mounted.cleanup()
   }

@@ -4,7 +4,7 @@
  * @module dsh-cite/format
  */
 import type { Work } from './crossref.js';
-export type CiteStyle = 'gb-t-7714' | 'apa' | 'mla' | 'chicago';
+export type CiteStyle = 'gb-t-7714' | 'apa' | 'ieee' | 'mla' | 'chicago';
 export declare function readStyle(raw: unknown): CiteStyle;
 /** 按样式生成引文。 */
 export declare function buildCitation(work: Work, style: CiteStyle, lang?: string): string;

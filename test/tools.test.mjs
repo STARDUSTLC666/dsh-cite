@@ -29,8 +29,9 @@ test('GB/T 7714 引文格式', () => {
   assert.match(citation, /Nature, 2024, 600\(12\): 1-9/)
 })
 
-test('APA / MLA / Chicago 引文格式', () => {
+test('APA / IEEE / MLA / Chicago 引文格式', () => {
   assert.match(buildCitation(work, 'apa'), /Lovelace, A\.\, & Hopper, G\. \(2024\)/)
+  assert.match(buildCitation(work, 'ieee'), /A\. Lovelace, and G\. Hopper, "Deep learning for citation," Nature, vol\. 600, no\. 12, pp\. 1-9, 2024\. doi: 10\.1038\/nature12345\./)
   assert.match(buildCitation(work, 'mla'), /Lovelace, Ada, and Grace Hopper/)
   assert.match(buildCitation(work, 'chicago'), /Ada Lovelace, Grace Hopper, "Deep learning for citation", Nature/)
 })

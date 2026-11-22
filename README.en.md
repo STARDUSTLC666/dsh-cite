@@ -2,9 +2,9 @@
 
 # Cite
 
-**DeepSeek Harness citation workbench: organize references, check DOIs, export citations, and back up original sources in a three-pane library.**
+**DeepSeek Harness citation workbench: arrange papers on an interactive Spatial Citation Constellation, preview live citations on a floating Zettelkasten card, or switch to the classic 3-pane list in 1 click.**
 
-Built for DeepSeek Harness `>=0.2.2-rc.3`, with five switchable light/warm workbench styles (Harness Native, Cream Paper, Claude Warm, 8-Bit Pixel, Mint Air) synced across plugins plus a soft-slate dark mode.
+Built for DeepSeek Harness `>=0.2.2-rc.3`, with 13 switchable daylight-friendly workbench styles and 8 font pairings (defaulting to YouYuan Mono, synced across plugins) plus a soft-slate dark mode.
 
 [![npm](https://img.shields.io/npm/v/dsh-cite)](https://www.npmjs.com/package/dsh-cite) [![downloads](https://raw.githubusercontent.com/STARDUSTLC666/dsh-suite/npm-downloads/assets/dsh-cite-downloads.svg)](https://www.npmjs.com/package/dsh-cite) [![total downloads](https://raw.githubusercontent.com/STARDUSTLC666/dsh-suite/npm-downloads/assets/dsh-cite-total-downloads.svg)](https://www.npmjs.com/package/dsh-cite)
 
@@ -12,22 +12,22 @@ Built for DeepSeek Harness `>=0.2.2-rc.3`, with five switchable light/warm workb
 
 ## Screenshots
 
-[![Three-pane reference library with a citation preview and BibTeX entry](docs/assets/screenshots/library-en.jpg)](docs/assets/screenshots/library-en.jpg)
+[![Spatial Citation Constellation showing draggable paper nodes, live SVG filaments, floating control capsule, and Zettelkasten index card HUD](docs/assets/screenshots/library-en.jpg)](docs/assets/screenshots/library-en.jpg)
 
 | Import preview and deduplication | DOI check |
 | --- | --- |
-| [![Import preview flags DOIs already in the library or repeated in the batch](docs/assets/screenshots/import-en.jpg)](docs/assets/screenshots/import-en.jpg) | [![Crossref lookup results for three public DOIs](docs/assets/screenshots/doi-check-en.jpg)](docs/assets/screenshots/doi-check-en.jpg) |
+| [![Import preview flags DOIs already in the library or repeated in the batch](docs/assets/screenshots/import-en.jpg)](docs/assets/screenshots/import-en.jpg) | [![Crossref lookup results for public DOIs](docs/assets/screenshots/doi-check-en.jpg)](docs/assets/screenshots/doi-check-en.jpg) |
 
-*Captured with `dsh-cite 0.9.3` running in Harness Web `0.2.2-rc.3` (Claude Warm style).*
+*Captured with `dsh-cite` Spatial Citation Constellation running in Harness Web `0.2.2-rc.3`.*
 
 ## Features
 
-- Filter, search, and inspect references in a three-pane library, copy formatted citations or BibTeX entries, inspect raw records in a native modal, and safely remove single or selected entries with revision-conflict protection.
-- Preview duplicates and missing fields locally before importing a DOI list or BibTeX, with a 1-click **Fill sample BibTeX / DOI** starter.
-- Check manuscript DOIs against Crossref (and send verified DOIs directly to Import preview in 1 click), or fill gaps in saved references and review differences.
-- Launch the interactive **`? Tour`** spotlight coachmark guide from the topbar (with first-visit onboarding and 1-click chat prompt copy).
-- Export selected references or the entire library. Download a full backup with the original sources.
-- Switch between five workbench styles (Harness Native, Cream Paper, Claude Warm, 8-Bit Pixel, Mint Air) synced to portaled dialogs and menus, adapted to DSH `>=0.2.2-rc.3` host primitives and frame clearances.
+- **Default Spatial Citation Constellation + 1-click classic List toggle**: Papers lay out deterministically without overlapping across a full-bleed dot-matrix starfield, connected by curved SVG filaments for shared authors, venues, eras (±2y), and Crossref clusters. Drag any node smoothly while filaments follow in real time, click to spotlight `✦` neighbors while dimming unrelated works, or toggle back to the classic 3-pane **List** view anytime.
+- **Floating Zettelkasten Index Card & inline metadata editing**: Preview live `GB/T 7714`, `APA`, `IEEE`, `MLA`, or `Chicago` citations in the bottom-right HUD with 1-click **Copy citation**, **Copy BibTeX**, **Enrich from Crossref**, and **Edit metadata** (atomic revision-checked updates with duplicate-DOI guards), plus Raw source inspection and safe removal.
+- **Offline import preview & deduplication**: Preview duplicates and missing fields locally before importing a DOI list or BibTeX, with a 1-click **Fill sample BibTeX / DOI** starter.
+- **Crossref DOI check & 1-click handoff**: Verify manuscript DOIs against Crossref and send valid DOIs straight to Import preview, or fill missing fields on saved references while keeping local conflict diffs.
+- **Interactive `? Tour` spotlight coachmark**: 4-step constellation-aware guide in the topbar covering the floating capsule, draggable nodes & filaments, Zettelkasten card actions, and appearance/batch tools, with 1-click chat prompt copy.
+- **13 workbench styles & 8 font pairings**: Synced across plugins and portaled modals/menus, honoring DSH `>=0.2.2-rc.3` host primitives, frame clearances, and `prefers-reduced-motion: reduce`.
 
 ## Install
 
@@ -45,15 +45,15 @@ For the web profile, replace `desktop` with `web`. Restart that DSH profile afte
   <source media="(prefers-color-scheme: dark) and (max-width: 640px)" srcset="https://raw.githubusercontent.com/STARDUSTLC666/dsh-cite/master/docs/assets/intro/workflow-en-mobile-dark.svg">
   <source media="(max-width: 640px)" srcset="https://raw.githubusercontent.com/STARDUSTLC666/dsh-cite/master/docs/assets/intro/workflow-en-mobile-light.svg">
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/STARDUSTLC666/dsh-cite/master/docs/assets/intro/workflow-en-dark.svg">
-  <img src="https://raw.githubusercontent.com/STARDUSTLC666/dsh-cite/master/docs/assets/intro/workflow-en-light.svg" alt="Turn scattered DOIs and BibTeX into a reference library. · workflow illustration" width="100%">
+  <img src="https://raw.githubusercontent.com/STARDUSTLC666/dsh-cite/master/docs/assets/intro/workflow-en-light.svg" alt="Arrange papers on a Citation Constellation, enrich via Crossref, and export. · workflow illustration" width="100%">
 </picture>
 
-### Typical workflow: from finding papers to final bibliography
+### Typical workflow: from Spatial Constellation to submission-ready bibliography
 
-1. **Check your draft or load a sample**: Open **Reference library** in the sidebar. Paste manuscript text in **DOI check** to verify DOIs against Crossref and click **Send to Import preview** to carry valid DOIs over—or click **Fill sample BibTeX / DOI** in **Import** to test the flow immediately.
-2. **Preview & deduplicate locally**: Run **Local preview** offline to catch library duplicates, repeated batch DOIs, and missing fields before saving selected references.
-3. **Enrich & clean up**: Select entries in **Library** to run **Crossref enrichment** (preserving local edits and highlighting differences), or click **Remove** to delete unwanted/duplicate entries with confirmation and revision protection.
-4. **Format & back up for submission**: Switch between `GB/T 7714`, `APA`, `MLA`, and `Chicago` to copy formatted citations, or open **Export** to download `.bib`, `.txt`, and full `.json` source backups.
+1. **Check your draft or load a sample**: Open **Reference library** in the sidebar to land on the **Spatial Citation Constellation**. Paste manuscript text in **DOI check** to verify DOIs against Crossref and click **Send to Import preview** to carry valid DOIs over—or click **Fill sample BibTeX / DOI** in **Import** to populate the starfield right away.
+2. **Explore & arrange the Constellation**: Drag any paper node across the dot-matrix canvas while curved SVG filaments follow shared authors, venues, publication eras (±2y), and Crossref clusters live. Use the top-left **Floating Control Capsule** to highlight search matches or filter by quality, or toggle to the classic 3-pane **List** view in 1 click for multi-select batch actions.
+3. **Enrich & refine on the Floating Zettelkasten Card**: Click any node to spotlight its `✦` neighborhood, then click **Enrich from Crossref** (filling empty fields while retaining local diffs) or **Edit metadata** in the bottom-right Zettelkasten HUD to revise title, authors, year, venue, or DOI; click **Remove** to delete entries safely with revision-conflict protection.
+4. **Copy citations & export backups**: Switch between `GB/T 7714`, `APA`, `IEEE`, `MLA`, and `Chicago` to copy formatted citations or BibTeX in 1 click, or open **Export** to download `.bib`, `.txt`, and full `.json` source backups.
 
 Reopen **`? Tour`** in the topbar anytime for an interactive walkthrough, or send ready-made prompts to DSH chat:
 

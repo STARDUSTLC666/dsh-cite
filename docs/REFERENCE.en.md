@@ -18,9 +18,10 @@ Open the workbench from the native DSH sidebar. See the [workbench guide](WORKBE
 
 ## What it does
 
+- Arrange references on the default **Spatial Citation Constellation** canvas with pointer-draggable orbital nodes, live SVG relationship filaments, and a floating Zettelkasten card for 1-click citation copy, Crossref enrichment, and metadata editing—with a 1-click toggle back to the classic 3-pane **List** view.
 - Paste DOI lists or upload `.bib` files. Preview locally before choosing entries to save, with duplicate and missing-field warnings.
 - Explicitly enrich empty fields through Crossref. Keep existing values, inspect differences and retry failed entries.
-- Switch between basic GB/T 7714, APA, MLA and Chicago formats; download BibTeX, reference text or a full backup with original sources.
+- Switch between basic GB/T 7714, APA, IEEE, MLA and Chicago formats; download BibTeX, reference text or a full backup with original sources.
 - Existing DOI lookup, bibliographic search and DOI-checking tools remain available.
 
 ## Install

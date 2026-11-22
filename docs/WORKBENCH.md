@@ -1,8 +1,8 @@
 # dsh-cite 工作台 / Workbench
 
-引文库分为格式与状态筛选、文献列表、详情三栏。可按 DOI、标题、作者或引用键搜索，并在详情复制当前格式的引文或 BibTeX。
+引文库默认以**「文献引力星图画布」**呈现：整库文献以无重叠节点分布在点阵星域画布上，自动绘制同作者、同刊物、同期（±2 年）与 Crossref 聚类 SVG 引力连线，支持指针拖拽实时联动、左上悬浮控制台（引文格式切换 `GB/T 7714 / APA / IEEE / MLA / Chicago`、即时高亮搜索、质量筛选与 `星图 / 列表` 切换）以及右下悬浮 Zettelkasten 索引卡（一键复制引文、复制 BibTeX、Crossref 补全、编辑元数据、查看原始来源与删除）。通过顶栏或悬浮胶囊可 1 键切回经典三栏「列表」视图进行批量选择与可拖拽分栏浏览。
 
-The library has three panes for format and status filters, references, and details. Search by DOI, title, author, or citation key. Copy the formatted citation or BibTeX from the details pane.
+The library opens by default in the **Spatial Citation Constellation** canvas: non-overlapping pointer-draggable paper nodes connected by live curved SVG relationship filaments (shared authors, venues, ±2-year eras, Crossref/quality clusters), paired with a top-left Floating Control Capsule (citation format switcher `GB/T 7714 / APA / IEEE / MLA / Chicago`, instant search highlighting, quality filters, and `Constellation / List` toggle) and a bottom-right Floating Zettelkasten Index Card HUD (Copy citation, Copy BibTeX, Enrich from Crossref, Edit metadata, Raw source, and Remove). Switch to the classic 3-pane **List** view in 1 click anytime for multi-select batch operations and resizable split-pane inspection.
 
 ## 使用 / Use
 

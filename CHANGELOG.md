@@ -1,5 +1,17 @@
 # 更新记录
 
+## 0.12.0 (2026-11-22)
+
+- **全新默认视图「文献引力星图画布」Spatial Citation Constellation（支持一键切回经典三栏「列表」视图）**：
+  - 全幅点阵星域画布与柔和径向光晕，采用确定性无重叠布局算法平稳适配 1–50+ 篇文献，自动避开悬浮控制台与悬浮卡片盒，告别传统三栏表格边界束缚。
+  - 实时计算并绘制曲线 SVG 文献引力连线，自动关联同作者、同刊物、同期（±2 年）与 Crossref 质量聚类；点击任意节点点亮 `✦` 光晕、邻域与主色发光连线并柔化无关节点，支持 `setPointerCapture` 指针拖拽任意节点实时带动连线追踪。
+  - 左上悬浮星图控制台集成 `星图 / 列表` 切换、`GB/T 7714 / APA / IEEE / MLA / Chicago` 格式切换（新增 `IEEE` 引文格式）、即时高亮搜索与质量筛选胶囊；右下悬浮 Zettelkasten 索引卡支持实时引文预览与一键「复制引文」「复制 BibTeX」「Crossref 补全」「编辑元数据」（新增带 HTTP 409 版本冲突保护与重复 DOI 校验的原子 `update` 接口）。
+  - 同步升级顶栏 `? 引导` 4 步星图聚光灯导览、使用流程文档与中英文界面截图，完整保留经典三栏「列表」视图、13 套工作台风格、8 套字体搭配与 `prefers-reduced-motion: reduce` 适配。
+- **New Default Spatial Citation Constellation View (with 1-Click Classic 3-Pane List Toggle)**:
+  - Full-bleed dot-matrix starfield canvas with deterministic non-overlapping orbital layout (1–50+ papers) and HUD clearance, live curved SVG relationship filaments (shared authors, venues, ±2-year eras, Crossref/quality clusters), and real-time `setPointerCapture` node dragging.
+  - Top-left Floating Control Capsule with `Constellation / List` toggle, citation format switcher (adding `IEEE` alongside `GB/T 7714`, `APA`, `MLA`, and `Chicago`), live starfield search highlighting, and quality filter pills; bottom-right Floating Zettelkasten Card HUD with live citation preview and 1-click Copy citation, Copy BibTeX, Enrich from Crossref, and atomic revision-guarded Edit metadata (`action: "update"`).
+  - Updated 4-step `? Tour` constellation coachmark spotlights, workflow guides/SVGs, and refreshed ZH/EN README screenshots while preserving the classic 3-pane List view, all 13 styles, 8 font pairings, and reduced-motion compliance.
+
 ## 0.11.6 (2026-11-20)
 
 - 升级共享更新组件至 0.2.10，移除跨插件右下角浮动提醒，保留工作台及插件详情页更新控制。

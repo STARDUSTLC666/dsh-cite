@@ -2,9 +2,9 @@
 
 # Cite
 
-**DeepSeek Harness 引文工作台：在三栏工作台中整理文献、核查 DOI、导出引文并备份原始来源。**
+**DeepSeek Harness 引文工作台：在「文献引力星图画布」中拖拽编排文献、实时预览引文与关联网络，并支持一键切回经典三栏「列表」视图。**
 
-适配 DeepSeek Harness `>=0.2.2-rc.3`，提供原生清透、米白纸感、Claude 暖书卷、8-Bit 像素与晴空薄荷 5 套可切换浅色/暖色工作台风格（支持跨插件同步）及柔和岩板深色模式。
+适配 DeepSeek Harness `>=0.2.2-rc.3`，内置 13 套明亮护眼工作台风格（原生清透 / 米白纸感 / Claude 暖书卷 / 8-Bit 掌机 / 晴空薄荷 / 晴昼琉璃 / 护眼墨水屏 / 工程晒图 / 波普孔版 / 千禧复古 / 宋韵朱砂 / 晴空水晶 / 铅字晨报）与 8 套中英字体搭配（默认幼圆等宽，跨插件同步）及柔和岩板深色模式。
 
 [![npm](https://img.shields.io/npm/v/dsh-cite)](https://www.npmjs.com/package/dsh-cite) [![downloads](https://raw.githubusercontent.com/STARDUSTLC666/dsh-suite/npm-downloads/assets/dsh-cite-downloads.svg)](https://www.npmjs.com/package/dsh-cite) [![total downloads](https://raw.githubusercontent.com/STARDUSTLC666/dsh-suite/npm-downloads/assets/dsh-cite-total-downloads.svg)](https://www.npmjs.com/package/dsh-cite)
 
@@ -12,22 +12,22 @@
 
 ## 界面截图
 
-[![三栏文献库显示文献列表、引文预览和 BibTeX](docs/assets/screenshots/library-zh.jpg)](docs/assets/screenshots/library-zh.jpg)
+[![文献引力星图画布展示可拖拽文献节点、SVG 引力连线、悬浮星图控制台与悬浮 Zettelkasten 索引卡](docs/assets/screenshots/library-zh.jpg)](docs/assets/screenshots/library-zh.jpg)
 
 | 导入预览与去重 | DOI 核查 |
 | --- | --- |
-| [![导入预览标出库内重复和同批重复的 DOI](docs/assets/screenshots/import-zh.jpg)](docs/assets/screenshots/import-zh.jpg) | [![Crossref 返回三条公开 DOI 的核查结果](docs/assets/screenshots/doi-check-zh.jpg)](docs/assets/screenshots/doi-check-zh.jpg) |
+| [![导入预览标出库内重复和同批重复的 DOI](docs/assets/screenshots/import-zh.jpg)](docs/assets/screenshots/import-zh.jpg) | [![Crossref 返回公开 DOI 的核查结果](docs/assets/screenshots/doi-check-zh.jpg)](docs/assets/screenshots/doi-check-zh.jpg) |
 
-*截图来自 Harness Web `0.2.2-rc.3` 中运行的 `dsh-cite 0.9.3`（Claude 暖书卷风格）。*
+*截图来自 Harness Web `0.2.2-rc.3` 中运行的 `dsh-cite` 文献引力星图工作台。*
 
 ## 功能
 
-- 在三栏文献库筛选、搜索和查看文献，复制引文或 BibTeX，在详情弹窗查看原始题录来源，并支持带版本冲突保护的单条/批量删除。
-- 导入 DOI 列表或 BibTeX 前，支持一键填入示例题录，并在本地预览重复项与缺失字段。
-- 通过 Crossref 核查文稿中的 DOI（核查通过后可一键送入导入预览），或补全已存文献的空字段并查看差异。
-- 工作台右上角内置 **`? 引导`** 交互式聚光灯导览（首次打开自动展示 4 步核心动线，支持一键复制对话核验指令）。
-- 导出所选文献或全库引文，下载包含原始来源的完整备份。
-- 内置 5 套工作台视觉风格（原生清透 / 米白纸感 / Claude 暖书卷 / 8-Bit 像素 / 晴空薄荷），同步至弹层菜单与弹窗，适配 DSH `>=0.2.2-rc.3` 宿主控件与窗口留白。
+- **默认「文献引力星图画布」+ 一键切回经典「列表」**：整库文献以无重叠引力星图平铺在点阵星域画布上，自动绘制同作者、同刊物、同期（±2 年）与 Crossref 聚类 SVG 引力连线；任意节点可自由指针拖拽排布、点击点亮 `✦` 邻域并柔化无关节点，顶栏与左上悬浮胶囊均支持 1 键切回经典三栏「列表」视图。
+- **悬浮 Zettelkasten 索引卡与原生元数据编辑**：右下角悬浮卡片盒实时预览当前论文的 `GB/T 7714` / `APA` / `IEEE` / `MLA` / `Chicago` 引文，一键完成**「复制引文」「复制 BibTeX」「Crossref 补全」「编辑元数据」**（带版本冲突保护与重复 DOI 校验的原子修改），并支持查看原始来源与安全确认删除。
+- **离线导入预览与去重**：导入 DOI 列表或 BibTeX 前，支持一键填入示例题录，离线检查库内重复、同批重复与缺失字段。
+- **Crossref DOI 核查与一键送入导入**：批量核查文稿中的 DOI（核查通过后一键送入导入预览），或补全已存文献的空字段并保留本地差异对比。
+- **交互式 `? 引导` 聚光灯导览**：顶栏内置 4 步星图专属聚光灯导览（覆盖悬浮控制台、拖拽星图节点、Zettelkasten 卡片盒与风格/导入导出），内置一键复制对话核验指令。
+- **13 套工作台风格 + 8 套字体搭配**：跨插件同步至弹层菜单与弹窗，适配 DSH `>=0.2.2-rc.3` 宿主控件、窗口留白与 `prefers-reduced-motion: reduce`。
 
 ## 安装
 
@@ -45,15 +45,15 @@ dsh plugin --profile desktop add dsh-cite
   <source media="(prefers-color-scheme: dark) and (max-width: 640px)" srcset="https://raw.githubusercontent.com/STARDUSTLC666/dsh-cite/master/docs/assets/intro/workflow-zh-mobile-dark.svg">
   <source media="(max-width: 640px)" srcset="https://raw.githubusercontent.com/STARDUSTLC666/dsh-cite/master/docs/assets/intro/workflow-zh-mobile-light.svg">
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/STARDUSTLC666/dsh-cite/master/docs/assets/intro/workflow-zh-dark.svg">
-  <img src="https://raw.githubusercontent.com/STARDUSTLC666/dsh-cite/master/docs/assets/intro/workflow-zh-light.svg" alt="把零散 DOI 和 BibTeX 整理成可用的文献库。 · 流程示意" width="100%">
+  <img src="https://raw.githubusercontent.com/STARDUSTLC666/dsh-cite/master/docs/assets/intro/workflow-zh-light.svg" alt="在「文献引力星图」中拖拽编排文献、核查 DOI 与导出引文。 · 流程示意" width="100%">
 </picture>
 
-### 典型使用流程：从查文献到定稿排版
+### 典型使用流程：从星图梳理文献到定稿排版
 
-1. **核查初稿或试水示例**：从左侧栏打开「引文库」。若手上已有论文初稿，切到「DOI 核查」粘贴文稿校验真伪，核查通过的 DOI 可点**「送入导入预览」**一键带入；首次体验也可直接在「导入预览」点**「填入示例 DOI / BibTeX」**。
-2. **本地预览去重后入库**：点击「本地预览」，离线检查库内重复、同批重复与缺失字段，勾选确认无误的文献保存入库。
-3. **Crossref 补全与清理误导入**：在「引文库」勾选缺字段条目执行「Crossref 补全」（保留本地已有值并对比差异）；若导入了错误或多余文献，可在详情栏或批量栏点击「删除」并在弹窗确认移除。
-4. **一键定稿排版与来源备份**：切换 `GB/T 7714`、`APA`、`MLA` 或 `Chicago` 直接复制标准引文，或在「导出备份」下载 `.bib`、参考文献文本与含原始输入的完整 `.json` 备份。
+1. **核查初稿或试水示例**：从左侧栏打开「引文库」，默认进入**「文献引力星图」**画布。若手上已有论文初稿，切到「DOI 核查」粘贴文稿校验真伪，核查通过的 DOI 可点**「送入导入预览」**一键带入；首次体验也可在「导入预览」点**「填入示例 DOI / BibTeX」**快速入库。
+2. **在引力星图中梳理与筛选**：回到「引文库」星图画布，直接**拖拽任意文献节点**调整空间排布（SVG 引力连线实时追踪同作者、同刊物、同期 ±2 年与 Crossref 聚类）；在左上**悬浮控制台**输入关键词即时高亮星图节点、按「有字段缺失 / 已查询 Crossref」筛选，需要批量勾选操作时可 1 键切到经典三栏**「列表」**视图。
+3. **在悬浮索引卡完成 Crossref 补全与元数据修订**：点击任意文献节点点亮 `✦` 邻域，在右下角**悬浮 Zettelkasten 索引卡**中点击**「Crossref 补全」**（只补空字段并保留本地差异）或**「编辑元数据」**直接修订标题、作者、年份、刊物与 DOI；误导入的条目可点击「删除」在弹窗确认移除。
+4. **一键定稿排版与来源备份**：在左上控制台切换 `GB/T 7714`、`APA`、`IEEE`、`MLA` 或 `Chicago`，在悬浮索引卡 1 键**「复制引文」**或**「复制 BibTeX」**，或打开「导出备份」批量下载 `.bib`、参考文献文本与含原始输入的完整 `.json` 备份。
 
 随时可点击工作台右上角的 **`? 引导`** 重新打开分步导览，或在对话中直接发给 DSH 助手：
 

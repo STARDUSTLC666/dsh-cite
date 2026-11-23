@@ -57,6 +57,17 @@ dsh plugin --profile web remove dsh-cite
 
 Then restart the web service. To clean up fully, also remove the plugin entry from your profile `cordis.patch.yml` if you overrode it.
 
+## Configuration
+
+```yaml
+- id: cite
+  name: 'dsh-cite'
+  config:
+    timeoutMs: 15000      # Crossref request timeout in ms (default 15000; or DSH_CITE_TIMEOUT_MS)
+    # userAgent: ''       # Custom User-Agent (contact email recommended; or DSH_CITE_USER_AGENT)
+    hideWorkbench: false  # Set to true to hide the sidebar Reference library entry (keeps Settings & tools)
+```
+
 ## License
 
 MIT (see [LICENSE](../LICENSE))

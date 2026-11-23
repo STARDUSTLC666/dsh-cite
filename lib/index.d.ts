@@ -1,9 +1,9 @@
 /**
  * dsh-cite —— 参考文献工具插件（node 半身，配置走 cordis.patch.yml）。
  *
- * 插件导出 apply(ctx, config)：注册原有五个面向模型的工具（cite_lookup / cite_format /
- * cite_bibtex / cite_check / cite_health），通过 Crossref API 查询元数据并生成
- * GB/T 7714 / APA / MLA / Chicago 基本引文，并提供本地批量文献工作台。
+ * 插件导出 apply(ctx, config)：注册六个面向模型的工具（cite_lookup / cite_format /
+ * cite_bibtex / cite_check / cite_health / cite_batch），通过 Crossref API 查询元数据并生成
+ * GB/T 7714 / APA / IEEE / MLA / Chicago 基本引文，并提供本地批量文献工作台。
  *
  * @module dsh-cite
  */

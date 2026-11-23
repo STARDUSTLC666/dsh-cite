@@ -47,6 +47,18 @@ export class CitationWorkbench {
   constructor(readonly cfg: ResolvedCiteConfig, root?: string, readonly fetchImpl: FetchLike = fetchCrossref) { this.store = new CitationStore(root) }
   private live(): void { this.lifetime.signal.throwIfAborted() }
   async list() { this.live(); return { ...summary(await this.store.read()), jobs: [...this.jobs.values()].map(j => structuredClone(j.view)) } }
+  async source(raw: unknown) {
+    this.live()
+    const opts = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : { id: raw }
+    const ids = opts.ids !== undefined ? readSelection(opts.ids) : [citationId(opts.id ?? opts.sourceId)]
+    const state = await this.store.read()
+    const sources = ids.map(id => {
+      const found = state.sources.find(s => s.id === id)
+      if (!found) throw new Error('所选原始来源已不存在，请刷新。')
+      return structuredClone(found)
+    })
+    return opts.ids !== undefined ? { sources, ...(sources.length === 1 ? { source: sources[0] } : {}) } : { source: sources[0]!, sources }
+  }
   async preview(raw: unknown, signal?: AbortSignal) {
     this.live()
     if (this.parsing) throw new Error('正在解析上一批输入，请稍后重试。')
@@ -267,6 +279,7 @@ export class CitationWorkbench {
     const op = v.action ?? v.operation
     switch (op) {
       case 'list': return this.list()
+      case 'source': return this.source(v)
       case 'preview': return this.preview({ kind: v.kind, text: v.text, label: v.label }, signal)
       case 'import': return this.import(v.preview, v.selection)
       case 'enrich': return this.enrich(v.ids, v.expectedRevision ?? v.revision)

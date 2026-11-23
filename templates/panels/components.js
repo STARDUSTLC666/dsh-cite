@@ -324,12 +324,22 @@ function CiteMetadataEditorModal({ entry, revision, uiStyle, uiFont, lang, locke
   const workTypes = [
     { value: 'journal-article', label: t('期刊论文 (journal-article)', 'Journal article') },
     { value: 'proceedings-article', label: t('会议论文 (proceedings-article)', 'Conference paper') },
+    { value: 'proceedings', label: t('会议论文集 (proceedings)', 'Conference proceedings') },
     { value: 'book', label: t('专著 (book)', 'Book') },
+    { value: 'monograph', label: t('专著 / 单行本 (monograph)', 'Monograph') },
+    { value: 'edited-book', label: t('编著 (edited-book)', 'Edited book') },
+    { value: 'book-chapter', label: t('图书章节 (book-chapter)', 'Book chapter') },
     { value: 'report', label: t('研究报告 (report)', 'Report') },
     { value: 'dissertation', label: t('学位论文 (dissertation)', 'Dissertation') },
-    { value: 'posted-content', label: t('预印本 / 网络资源', 'Preprint / online') },
+    { value: 'dataset', label: t('数据集 (dataset)', 'Dataset') },
+    { value: 'patent', label: t('专利 (patent)', 'Patent') },
+    { value: 'standard', label: t('标准 (standard)', 'Standard') },
+    { value: 'posted-content', label: t('预印本 / 网络资源 (posted-content)', 'Preprint / online') },
     { value: 'other', label: t('其他 (other)', 'Other') },
   ];
+  if (draftWork.type && !workTypes.some(item => item.value === draftWork.type)) {
+    workTypes.push({ value: draftWork.type, label: draftWork.type });
+  }
 
   return h(W.Dialog, {
     style: uiStyle,
@@ -415,5 +425,84 @@ function CiteMetadataEditorModal({ entry, revision, uiStyle, uiFont, lang, locke
         ),
       ),
     ),
+  );
+}
+
+function useRawSources({ entryId, sourceIds, lang, revision, attempt }) {
+  const ids = Array.isArray(sourceIds) ? sourceIds.filter(Boolean) : [];
+  const key = JSON.stringify([entryId || '', ids, lang, revision, attempt]);
+  const [result, setResult] = useState(null);
+  useEffect(() => {
+    if (!ids.length) return;
+    const controller = new AbortController();
+    const payload = ids.length === 1
+      ? { action: 'source', id: ids[0] }
+      : { action: 'source', ids };
+    api(payload, lang, controller.signal)
+      .then(value => {
+        if (controller.signal.aborted) return;
+        const list = Array.isArray(value?.sources)
+          ? value.sources
+          : (value?.source ? [value.source] : []);
+        const byId = {};
+        for (const item of list) {
+          if (item && item.id) byId[item.id] = item;
+        }
+        setResult({ key, byId, error: '' });
+      })
+      .catch(error => {
+        if (!controller.signal.aborted) setResult({ key, byId: {}, error: error.message });
+      });
+    return () => controller.abort();
+  }, [key]);
+  if (!ids.length) return { loading: false, byId: {}, error: '' };
+  if (result?.key === key) return { loading: false, byId: result.byId, error: result.error };
+  return { loading: true, byId: {}, error: '' };
+}
+
+function CiteRawSourceModal({ entry, sources, revision, uiStyle, uiFont, lang, copiedKey, copy, onClose, t }) {
+  const [attempt, setAttempt] = useState(0);
+  const matchedSources = (entry?.sourceIds || [])
+    .map(sourceId => sources.find(source => source.id === sourceId) || { id: sourceId, label: sourceId })
+    .filter(Boolean);
+  const missingIds = matchedSources
+    .filter(source => typeof source.text !== 'string')
+    .map(source => source.id);
+  const rawState = useRawSources({ entryId: entry?.id, sourceIds: missingIds, lang, revision, attempt });
+
+  return h(W.Dialog, {
+    style: uiStyle,
+    font: uiFont,
+    title: t('原始导入来源', 'Original import source'),
+    closeLabel: t('关闭', 'Close'),
+    onClose,
+    footer: h(CiteButton, { onClick: onClose }, t('完成', 'Done')),
+  },
+    rawState.loading
+      ? h('div', { role: 'status', 'aria-busy': 'true', 'aria-label': t('正在读取原始输入…', 'Loading original source…') },
+        h(W.Skeleton, { variant: 'text', lines: 3, label: t('正在读取原始输入…', 'Loading original source…') }),
+      )
+      : rawState.error
+        ? h('div', { className: 'cite-source-error' },
+          h(W.Status, { tone: 'error' }, rawState.error),
+          h(CiteButton, { icon: 'refresh', onClick: () => setAttempt(n => n + 1) }, t('重试', 'Retry')),
+        )
+        : matchedSources.length
+          ? matchedSources.map(source => {
+            const resolved = rawState.byId[source.id] || source;
+            const rawText = typeof resolved.text === 'string' ? resolved.text : '';
+            return h('section', { key: source.id, className: 'cite-source-entry' },
+              h('div', { className: 'cite-card-header' },
+                h('strong', null, resolved.label || source.label || source.id),
+                rawText ? h(CiteButton, {
+                  icon: copiedKey === 'source-' + source.id ? 'check' : 'copy',
+                  'data-copied': copiedKey === 'source-' + source.id ? 'true' : undefined,
+                  onClick: () => copy(rawText, t('原始输入', 'raw source'), 'source-' + source.id),
+                }, copiedKey === 'source-' + source.id ? t('已复制', 'Copied') : t('复制原文', 'Copy source')) : null,
+              ),
+              h('pre', { className: 'cite-code' }, rawText || t('无原文记录', 'No raw text recorded')),
+            );
+          })
+          : h('p', { className: 'cite-muted' }, t('无原文记录', 'No raw text recorded')),
   );
 }

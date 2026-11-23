@@ -28,6 +28,7 @@ export function englishCitationError(raw: string): string {
   if (/解析失败|没有找到可导入|解析未完成/.test(raw)) return 'The input could not be parsed. Check BibTeX braces and commas, or use one DOI per line. Your original input is retained.'
   if (/解析超过/.test(raw)) return 'Local parsing took more than five seconds. Split the input and retry.'
   if (/正在解析|已有补全/.test(raw)) return 'A job is already running. Wait for it or cancel it before continuing.'
+  if (/所选原始来源已不存在/.test(raw)) return 'The requested original source is no longer available. Refresh the library and try again.'
   if (/不存在或 DSH|所选文献已不存在|不存在的文献/.test(raw)) return 'The selection or job is no longer available. Saved entries are retained; refresh the library.'
   if (/输入类型/.test(raw)) return 'Input type must be DOI or BibTeX.'
   if (/请先粘贴|请提供 DOI/.test(raw)) return 'Paste DOI / BibTeX input, or choose a .bib file first.'

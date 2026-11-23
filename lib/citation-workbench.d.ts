@@ -58,6 +58,10 @@ export declare class CitationWorkbench {
             label: string;
         }[];
     }>;
+    source(raw: unknown): Promise<{
+        source?: import("./citation-model.js").SourceRecord | undefined;
+        sources: import("./citation-model.js").SourceRecord[];
+    }>;
     preview(raw: unknown, signal?: AbortSignal): Promise<{
         id: string;
         revision: number;

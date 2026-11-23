@@ -1,5 +1,12 @@
 # 更新记录
 
+## 0.12.1 (2026-11-23)
+
+- 修复「原始输入 / Raw source」弹窗前后端契约：后端新增按需读取接口 `action: "source"`（保持 `summary()` 轻量不返回整库原文），星图卡片与列表详情共用 `CiteRawSourceModal` 按需加载真实原始输入并恢复「复制原文 / Copy source」按钮。
+- 补齐元数据编辑弹窗全部 14 种后端文献类型（新增 `book-chapter`、`dataset`、`patent`、`standard`、`monograph`、`edited-book`、`proceedings` 等）；清理构建脚本死代码与测试临时目录残留，并同步更新中英文使用与参考文档及源码注释。
+- Fix the **Raw source** modal backend contract by adding on-demand `action: "source"` (keeping `summary()` lightweight) and loading real raw import text with the **Copy source** button across both Constellation and List views.
+- Add all missing backend `workTypes` (`book-chapter`, `dataset`, `patent`, `standard`, `monograph`, `edited-book`, `proceedings`) to the metadata editor, clean up dead build-script code and test temp dirs, and align bilingual usage/reference docs and source comments.
+
 ## 0.12.0 (2026-11-22)
 
 - **全新默认视图「文献引力星图画布」Spatial Citation Constellation（支持一键切回经典三栏「列表」视图）**：

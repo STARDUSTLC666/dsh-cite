@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdir, mkdtemp, readFile, writeFile, access } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, writeFile, access, rm } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import { CitationWorkbench, CitationStore, LibraryConflict, parseCitationInput, resolveConfig, buildBatchTool, buildCitation } from '../lib/index.js'
@@ -9,7 +9,15 @@ import { englishCitationError } from '../lib/citation-errors.js'
 const root = fileURLToPath(new URL('../.test-data/', import.meta.url))
 await mkdir(root, { recursive: true })
 const cfg = resolveConfig({ timeoutMs: 2000 })
-async function workbench(t, fetcher = async () => { assert.fail('This operation must not contact the network.') }) { const w = new CitationWorkbench(cfg, await mkdtemp(join(root, 'case-')), fetcher); t.after(() => w.dispose()); return w }
+async function workbench(t, fetcher = async () => { assert.fail('This operation must not contact the network.') }) {
+  const dir = await mkdtemp(join(root, 'case-'))
+  const w = new CitationWorkbench(cfg, dir, fetcher)
+  t.after(async () => {
+    w.dispose()
+    await rm(dir, { recursive: true, force: true })
+  })
+  return w
+}
 async function finish(w, id) { for (let i = 0; i < 250; i++) { const j = w.job(id); if (j.state !== 'running') return j; await new Promise(r => setTimeout(r, 10)) } assert.fail('Enrichment did not settle') }
 async function save(w, text, kind = 'doi') { const p = await w.preview({ kind, text, label: 'Original source' }); return w.import(p.id, p.rows.filter(r => r.selectedDefault).map(r => r.index)) }
 const payload = (doi, extra = {}) => new Response(JSON.stringify({ message: { DOI: doi, type: 'journal-article', title: ['Provider title'], author: [{ family: 'Smith', given: 'Jane' }], issued: { 'date-parts': [[2024]] }, 'container-title': ['Journal'], publisher: 'Publisher', ...extra } }))
@@ -238,4 +246,41 @@ test('action: update edits metadata atomically with revision conflict & duplicat
   assert.equal(staleRes.status, 409)
   const staleJson = await staleRes.json()
   assert.match(staleJson.messageEn, /metadata edits were not saved/i)
+})
+test('action: source fetches raw import text on demand while summary() omits text', async t => {
+  const w = await workbench(t)
+  const bib = '@article{raw2026,title={Raw Source Verification},author={Lin, Wei},year={2026},doi={10.1000/raw2026}}'
+  const s1 = await save(w, bib, 'bibtex')
+  const s2 = await save(w, '10.1000/raw-doi', 'doi')
+  const listed = await w.list()
+  assert.equal(listed.sources.length, 2)
+  assert.equal(listed.sources[0].text, undefined, 'summary() must stay lightweight and omit source.text')
+  assert.equal(listed.sources[1].text, undefined)
+
+  const singleRes = await w.fetch(new Request('http://dsh.internal/api/dsh-cite/library', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-dsh-cite': '1' },
+    body: JSON.stringify({ action: 'source', id: s1.sources[0].id }),
+  }))
+  assert.equal(singleRes.status, 200)
+  const singleJson = await singleRes.json()
+  assert.equal(singleJson.ok, true)
+  assert.equal(singleJson.value.source.id, s1.sources[0].id)
+  assert.equal(singleJson.value.source.text, bib)
+  assert.equal(singleJson.value.sources.length, 1)
+
+  const multi = await w.dispatch({ action: 'source', ids: [s1.sources[0].id, s2.sources[1].id] })
+  assert.equal(multi.sources.length, 2)
+  assert.equal(multi.sources[0].text, bib)
+  assert.equal(multi.sources[1].text, '10.1000/raw-doi')
+
+  const missingRes = await w.fetch(new Request('http://dsh.internal/api/dsh-cite/library', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-dsh-cite': '1' },
+    body: JSON.stringify({ action: 'source', id: '00000000-0000-4000-8000-000000000000' }),
+  }))
+  assert.equal(missingRes.status, 400)
+  const missingJson = await missingRes.json()
+  assert.equal(missingJson.ok, false)
+  assert.match(missingJson.messageEn, /original source is no longer available/i)
 })

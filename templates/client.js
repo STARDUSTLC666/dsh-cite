@@ -425,9 +425,6 @@ window.__ModuleLoader__.load({
         setViewMode(nextView);
         if (activeTab !== 'library') setActiveTab('library');
       };
-      const rawMatchedSources = rawSourceEntry
-        ? rawSourceEntry.sourceIds.map(sourceId => sources.find(source => source.id === sourceId)).filter(Boolean)
-        : [];
 
       let panel;
       switch (activeTab) {
@@ -620,24 +617,19 @@ window.__ModuleLoader__.load({
           },
           t,
         }) : null,
-        rawSourceEntry ? h(W.Dialog, {
-          style: uiStyle,
-          font: uiFont,
-          title: t('原始导入来源', 'Original import source'),
-          closeLabel: t('关闭', 'Close'),
+        rawSourceEntry ? h(CiteRawSourceModal, {
+          key: rawSourceEntry.id + ':' + revision,
+          entry: rawSourceEntry,
+          sources,
+          revision,
+          uiStyle,
+          uiFont,
+          lang,
+          copiedKey,
+          copy,
           onClose: () => setRawSourceEntry(null),
-          footer: h(CiteButton, { onClick: () => setRawSourceEntry(null) }, t('完成', 'Done')),
-        }, rawMatchedSources.map(source => h('section', { key: source.id, className: 'cite-source-entry' },
-          h('div', { className: 'cite-card-header' },
-            h('strong', null, source.label || source.id),
-            source.text ? h(CiteButton, {
-              icon: copiedKey === 'source-' + source.id ? 'check' : 'copy',
-              'data-copied': copiedKey === 'source-' + source.id ? 'true' : undefined,
-              onClick: () => copy(source.text, t('原始输入', 'raw source'), 'source-' + source.id),
-            }, copiedKey === 'source-' + source.id ? t('已复制', 'Copied') : t('复制原文', 'Copy source')) : null,
-          ),
-          h('pre', { className: 'cite-code' }, source.text || t('无原文记录', 'No raw text recorded')),
-        ))) : null,
+          t,
+        }) : null,
         removeModal ? h(W.Dialog, {
           style: uiStyle,
           font: uiFont,

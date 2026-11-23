@@ -2,7 +2,7 @@
 
 # dsh-cite
 
-[中文](../README.md)
+[中文](./REFERENCE.zh.md)
 
 ![dsh-cite whale girl plugin cover](https://raw.githubusercontent.com/STARDUSTLC666/dsh-cite/master/assets/cover-whale-girl.png)
 
@@ -36,7 +36,7 @@ For the web version, replace `desktop` with `web`. Restart DSH after installatio
 
 ## Start using it
 
-1. Open Citations in the sidebar and prepare DOI entries or a BibTeX file.
+1. Open Reference library in the sidebar and prepare DOI entries or a BibTeX file.
 2. Preview the import locally; inspect entries, duplicates and fields before saving selected references.
 3. Select entries and explicitly request Crossref enrichment when needed, then review the returned fields.
 4. Select references, export a bibliography or BibTeX, and download a library backup when needed.
@@ -58,7 +58,7 @@ Detailed configuration, tool arguments and troubleshooting are in the [usage gui
 
 ## Plugin updates
 
-Requires DSH 0.2.2-rc.3 or newer. Update controls sit at the bottom of the existing workbench, or native plugin details for plugins without a workbench. Checks, release notes and preferences expand in place, with no separate update page or settings menu. Automatic checks are on by default; **automatic installation is off by default**. Only explicit opt-in permits compatible stable patches while idle with no unsaved changes. Preferences are independent, with per-plugin disable, deferral and ignore controls. No forced DSH restart or upgrade, and local-source installations stay unchanged. Suite components explain and operate on the whole Suite in the same footer.
+Requires DSH 0.2.2-rc.3 or newer. Update controls sit at the bottom of the existing workbench, or native plugin details for plugins without a workbench. Checks, release notes and preferences expand in place, with no separate update page or settings menu. Automatic checks are on by default; **automatic installation is off by default**. Only explicit opt-in permits compatible updates (compatible minor and patch updates by default, or patch-only if configured) while idle with no unsaved changes. Preferences are independent, with per-plugin disable, deferral and ignore controls. No forced DSH restart or upgrade, and local-source installations stay unchanged. Suite components explain and operate on the whole Suite in the same footer.
 
 Older releases need one manual update in native plugin management to acquire these controls. Publishing to npm does not replace an existing user installation.
 

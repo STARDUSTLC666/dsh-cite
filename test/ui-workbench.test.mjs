@@ -1,8 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { runInNewContext } from 'node:vm'
-import { apply as applyCiteServer } from '../lib/index.js'
+import { apply as applyCiteServer, CitationWorkbench, resolveConfig } from '../lib/index.js'
 
 const CLIENT_BUNDLE = readFileSync(new URL('../lib/client.js', import.meta.url), 'utf8')
 
@@ -115,10 +118,15 @@ function createMiniEnv({ withPrimitives = false, initialStyle = null, initialLib
   let focusedNode = null
   const popoverOpenedNodes = new Set()
 
+  const rawSourceStore = new Map([
+    ['src-1', { id: 'src-1', kind: 'bibtex', label: 'references.bib', createdAt: '2026-11-18T00:00:00Z', text: '@article{smith2026, title={Airy Design Systems}}' }],
+  ])
+
   const sampleLibrary = initialLibrary || {
     revision: 2,
     jobs: [],
-    sources: [{ id: 'src-1', kind: 'bibtex', label: 'references.bib', importedAt: '2026-11-18T00:00:00Z', text: '@article{smith2026, title={Airy Design Systems}}' }],
+    // Matches real CitationWorkbench summary() output: sources omit raw text until fetched via action: 'source'.
+    sources: [{ id: 'src-1', kind: 'bibtex', label: 'references.bib', createdAt: '2026-11-18T00:00:00Z' }],
     entries: [{
       id: 'entry-1',
       bibKey: 'smith2026',
@@ -158,6 +166,11 @@ function createMiniEnv({ withPrimitives = false, initialStyle = null, initialLib
         if (custom) return custom
       }
       if (body.action === 'list') return { ok: true, status: 200, json: async () => ({ ok: true, value: sampleLibrary }) }
+      if (body.action === 'source') {
+        const ids = Array.isArray(body.ids) ? body.ids : [body.id]
+        const found = ids.map(id => rawSourceStore.get(id)).filter(Boolean)
+        return { ok: true, status: 200, json: async () => ({ ok: true, value: { ...(found.length === 1 ? { source: found[0] } : {}), sources: found } }) }
+      }
       if (body.action === 'export') return { ok: true, status: 200, json: async () => ({ ok: true, value: { content: 'Smith, J. (2026). Airy Design Systems.' } }) }
       return { ok: true, status: 200, json: async () => ({ ok: true, value: sampleLibrary }) }
     },
@@ -472,12 +485,19 @@ test('dsh-cite renders in standalone fallback mode, syncs all 13 styles + 8 font
     assert.ok(rawBtn, 'Raw source modal trigger should render for entry with saved source')
     rawBtn.attrs.onClick()
     root = mounted.rerender()
+    await new Promise(r => setTimeout(r, 15))
+    root = mounted.rerender()
 
     const dialog = findNodes(root, n => n.attrs.role === 'dialog')[0]
     assert.ok(dialog, 'Fallback Modal dialog should open')
     assert.equal(dialog.attrs['data-dsh-style'], 'harness')
     assert.equal(dialog.attrs['data-dsh-font'], 'arcade')
     assert.equal(dialog.attrs['data-window-drag-exclude'], '')
+    assert.match(textOf(dialog), /@article\{smith2026, title=\{Airy Design Systems\}\}/, 'Raw source modal must fetch and render raw source text on demand')
+    const copySourceBtn = findNodes(dialog, n => n.tag === 'button' && textOf(n).includes('Copy source'))[0]
+    assert.ok(copySourceBtn, 'Copy source button must render after raw source text loads')
+    await copySourceBtn.attrs.onClick()
+    assert.equal(env.copiedClipboard, '@article{smith2026, title={Airy Design Systems}}')
 
     env.win.localStorage.setItem('dsh-stardust:ui-style', 'pixel8bit')
     env.win.dispatchEvent(new env.win.CustomEvent('dsh-stardust-style', { detail: { style: 'pixel8bit' } }))
@@ -930,7 +950,7 @@ test('Spatial Citation Constellation renders SVG filaments, pointer drag (setPoi
   let multiLibrary = {
     revision: 4,
     jobs: [],
-    sources: [{ id: 'src-1', kind: 'bibtex', label: 'constellation.bib', importedAt: '2026-11-18T00:00:00Z', text: '@article{lecun2015deep, title={Deep learning}}' }],
+    sources: [{ id: 'src-1', kind: 'bibtex', label: 'constellation.bib', createdAt: '2026-11-18T00:00:00Z' }],
     entries: [
       {
         id: 'p-1',
@@ -1099,6 +1119,80 @@ test('Spatial Citation Constellation renders SVG filaments, pointer drag (setPoi
     assert.ok(updateCall, 'action: update must be called')
     assert.equal(updateCall.work.title, 'Deep learning (2nd ed.)')
     assert.match(textOf(findNodes(root, n => String(n.attrs?.className || '').includes('cite-zettelkasten'))[0]), /Deep learning \(2nd ed\.\)/)
+  } finally {
+    mounted.cleanup()
+  }
+})
+
+test('Raw source modal loads real text from CitationWorkbench backend (end-to-end) and metadata editor exposes all backend workTypes', async t => {
+  const dir = await mkdtemp(join(tmpdir(), 'dsh-cite-ui-e2e-'))
+  const wb = new CitationWorkbench(resolveConfig({ timeoutMs: 2000 }), dir)
+  t.after(async () => {
+    wb.dispose()
+    await rm(dir, { recursive: true, force: true })
+  })
+
+  const rawBibtex = '@incollection{chap2026,title={Chapter on Spatial Libraries},author={Chen, Lin},booktitle={Handbook of Knowledge Tools},year={2026},doi={10.1000/chap-2026}}'
+  const preview = await wb.preview({ kind: 'bibtex', text: rawBibtex, label: 'chapters.bib' })
+  await wb.import(preview.id, [0])
+
+  const listed = await wb.list()
+  assert.equal(listed.sources.length, 1)
+  assert.equal(listed.sources[0].text, undefined, 'real backend list() strips source.text')
+
+  const requestedActions = []
+  const env = createMiniEnv({
+    withPrimitives: false,
+    onApi: async body => {
+      requestedActions.push(body.action)
+      const res = await wb.fetch(new Request('http://127.0.0.1:62041/api/dsh-cite/library', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-dsh-cite': '1' },
+        body: JSON.stringify(body),
+      }))
+      const data = await res.json()
+      return { ok: res.ok, status: res.status, json: async () => data }
+    },
+  })
+
+  const mounted = await env.mountWorkbench(true, 'zh-CN')
+  try {
+    let root = mounted.tree
+    const rawBtn = findNodes(root, n => n.tag === 'button' && textOf(n).includes('原始输入'))[0]
+    assert.ok(rawBtn, '原始输入 button must render from Zettelkasten card')
+    rawBtn.attrs.onClick()
+    root = mounted.rerender()
+    await new Promise(r => setTimeout(r, 25))
+    root = mounted.rerender()
+
+    assert.ok(requestedActions.includes('source'), 'opening Raw source modal must call backend action: source')
+    const dialog = findNodes(root, n => n.attrs?.role === 'dialog')[0]
+    assert.ok(dialog, 'Raw source dialog must render')
+    assert.match(textOf(dialog), /Chapter on Spatial Libraries/)
+    assert.ok(textOf(dialog).includes(rawBibtex), 'Raw source dialog must display exact raw BibTeX from backend')
+    const copyBtn = findNodes(dialog, n => n.tag === 'button' && textOf(n).includes('复制原文'))[0]
+    assert.ok(copyBtn, '复制原文 button must render once backend returns raw text')
+    await copyBtn.attrs.onClick()
+    assert.equal(env.copiedClipboard, rawBibtex)
+
+    // Close Raw source modal and verify Metadata Editor includes all backend workTypes (incl. book-chapter)
+    const doneBtn = findNodes(dialog, n => n.tag === 'button' && textOf(n).includes('完成'))[0]
+    doneBtn.attrs.onClick()
+    root = mounted.rerender()
+
+    const editBtn = findNodes(root, n => n.tag === 'button' && textOf(n).includes('编辑元数据'))[0]
+    assert.ok(editBtn)
+    editBtn.attrs.onClick()
+    root = mounted.rerender()
+    const editDialog = findNodes(root, n => n.attrs?.role === 'dialog')[0]
+    assert.ok(editDialog)
+    const select = findNodes(editDialog, n => n.tag === 'select')[0]
+    assert.ok(select)
+    assert.equal(select.attrs.value, 'book-chapter')
+    const optionValues = new Set(findNodes(select, n => n.tag === 'option').map(o => o.attrs.value))
+    for (const expectedType of ['journal-article', 'proceedings-article', 'proceedings', 'book', 'monograph', 'edited-book', 'book-chapter', 'report', 'dissertation', 'dataset', 'patent', 'standard', 'posted-content', 'other']) {
+      assert.ok(optionValues.has(expectedType), 'missing workType option: ' + expectedType)
+    }
   } finally {
     mounted.cleanup()
   }

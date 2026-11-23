@@ -1,6 +1,6 @@
 /**
- * 四个面向模型的参考文献工具：
- * cite_lookup / cite_format / cite_bibtex / cite_check。
+ * 五个面向模型的参考文献工具：
+ * cite_lookup / cite_format / cite_bibtex / cite_check / cite_health。
  *
  * @module dsh-cite/tools
  */

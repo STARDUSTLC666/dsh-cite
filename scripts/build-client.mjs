@@ -9,11 +9,6 @@ const themesCss = normalize(readFileSync(join(root, 'templates/dsh-themes-motion
 const workbenchCss = normalize(readFileSync(join(root, 'templates/workbench.css'), 'utf8'))
 const css = themesCss + '\n' + workbenchCss
 let client = normalize(readFileSync(join(root, 'templates/client.js'), 'utf8'))
-if (client.includes('__ENGINE__')) {
-  const name = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).name
-  if (!['dsh-hyperframes', 'dsh-remotion'].includes(name)) throw new Error('Unknown media engine package')
-  client = client.replaceAll('__ENGINE__', name.slice(4))
-}
 const directory = join(root, 'templates/panels')
 const parts = existsSync(directory) ? readdirSync(directory).filter(name => name.endsWith('.js')).sort().map(name => normalize(readFileSync(join(directory, name), 'utf8'))).join('\n') : ''
 const marker = 'const W = createWorkbenchUI(React, require);'

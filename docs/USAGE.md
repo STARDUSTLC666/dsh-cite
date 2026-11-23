@@ -74,9 +74,9 @@ Agent：
 - id: cite
   name: 'dsh-cite'
   config:
-    timeoutMs: 15000   # Crossref 请求超时（也可用 DSH_CITE_TIMEOUT_MS）
-    # userAgent: ...   # 自定义 User-Agent（也可用 DSH_CITE_USER_AGENT）
-    userAgent: ''      # 自定义 UA（建议带上可联系邮箱）
+    timeoutMs: 15000      # Crossref 请求超时（毫秒，默认 15000，也可用 DSH_CITE_TIMEOUT_MS）
+    # userAgent: ''       # 自定义 User-Agent（建议带上可联系邮箱，也可用 DSH_CITE_USER_AGENT）
+    hideWorkbench: false  # 设为 true 可隐藏左侧栏「引文库」入口（仍保留设置页与模型工具）
 ```
 
 ## 说明

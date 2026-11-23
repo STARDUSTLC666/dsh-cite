@@ -2,13 +2,13 @@
 
 # Cite
 
-**DeepSeek Harness citation workbench: arrange papers on an interactive Spatial Citation Constellation, preview live citations on a floating Zettelkasten card, or switch to the classic 3-pane list in 1 click.**
+> **Arrange papers on a Spatial Citation Constellation, verify DOIs via Crossref, and export submission-ready citations.**
 
-Built for DeepSeek Harness `>=0.2.2-rc.3`, with 13 switchable daylight-friendly workbench styles and 8 font pairings (defaulting to YouYuan Mono, synced across plugins) plus a soft-slate dark mode.
+Citation workbench for DeepSeek Harness (`>=0.2.2-rc.3`) combining an interactive constellation canvas, a floating Zettelkasten index card HUD, 1-click classic 3-pane List toggle, and 13 bright styles × 8 fonts.
 
 [![npm](https://img.shields.io/npm/v/dsh-cite)](https://www.npmjs.com/package/dsh-cite) [![downloads](https://raw.githubusercontent.com/STARDUSTLC666/dsh-suite/npm-downloads/assets/dsh-cite-downloads.svg)](https://www.npmjs.com/package/dsh-cite) [![total downloads](https://raw.githubusercontent.com/STARDUSTLC666/dsh-suite/npm-downloads/assets/dsh-cite-total-downloads.svg)](https://www.npmjs.com/package/dsh-cite)
 
-**[Install](#install) · [Workflow](#start-using-it) · [Full guide](https://github.com/STARDUSTLC666/dsh-cite/blob/master/docs/REFERENCE.en.md)**
+**[Features](#features) · [Screenshots](#screenshots) · [Install](#install) · [Workflow](#start-using-it) · [Full guide](https://github.com/STARDUSTLC666/dsh-cite/blob/master/docs/REFERENCE.en.md)**
 
 ## Screenshots
 
@@ -22,22 +22,23 @@ Built for DeepSeek Harness `>=0.2.2-rc.3`, with 13 switchable daylight-friendly 
 
 ## Features
 
-- **Default Spatial Citation Constellation + 1-click classic List toggle**: Papers lay out deterministically without overlapping across a full-bleed dot-matrix starfield, connected by curved SVG filaments for shared authors, venues, eras (±2y), and Crossref clusters. Drag any node smoothly while filaments follow in real time, click to spotlight `✦` neighbors while dimming unrelated works, or toggle back to the classic 3-pane **List** view anytime.
-- **Floating Zettelkasten Index Card & inline metadata editing**: Preview live `GB/T 7714`, `APA`, `IEEE`, `MLA`, or `Chicago` citations in the bottom-right HUD with 1-click **Copy citation**, **Copy BibTeX**, **Enrich from Crossref**, and **Edit metadata** (atomic revision-checked updates with duplicate-DOI guards), plus Raw source inspection and safe removal.
-- **Offline import preview & deduplication**: Preview duplicates and missing fields locally before importing a DOI list or BibTeX, with a 1-click **Fill sample BibTeX / DOI** starter.
-- **Crossref DOI check & 1-click handoff**: Verify manuscript DOIs against Crossref and send valid DOIs straight to Import preview, or fill missing fields on saved references while keeping local conflict diffs.
-- **Interactive `? Tour` spotlight coachmark**: 4-step constellation-aware guide in the topbar covering the floating capsule, draggable nodes & filaments, Zettelkasten card actions, and appearance/batch tools, with 1-click chat prompt copy.
-- **13 workbench styles & 8 font pairings**: Synced across plugins and portaled modals/menus, honoring DSH `>=0.2.2-rc.3` host primitives, frame clearances, and `prefers-reduced-motion: reduce`.
+| Pillar | Capabilities |
+| :--- | :--- |
+| **Spatial Citation Constellation** | Deterministic non-overlapping starfield with live curved SVG filaments for shared authors, venues, eras (±2y) & Crossref clusters; drag nodes, spotlight `✦` neighbors, or toggle to classic 3-pane **List** |
+| **Zettelkasten Index Card HUD** | Live `GB/T 7714` / `APA` / `IEEE` / `MLA` / `Chicago` preview with 1-click Copy citation, Copy BibTeX, Crossref enrich & atomic metadata editing (revision & duplicate-DOI guarded) |
+| **Offline Import Preview** | Detects in-library duplicates, batch duplicates, and missing fields offline before importing DOI lists or BibTeX, with a 1-click sample starter |
+| **Crossref DOI Check** | Verifies manuscript DOIs and sends valid matches straight to Import preview; fills empty fields while preserving local diffs and raw source backups |
+| **Tour & Synced Themes** | 4-step `? Tour` spotlight guide, 13 bright styles & 8 font pairings (default: YouYuan Mono) synced across plugins and portaled dialogs |
 
 ## Install
 
-Open **Plugins** in the DSH desktop app and install `dsh-cite`. If the CLI is available:
+Open **Plugins** in the DSH desktop app and install `dsh-cite`, or use the CLI:
 
 ```bash
 dsh plugin --profile desktop add dsh-cite
 ```
 
-For the web profile, replace `desktop` with `web`. Restart that DSH profile after installation. The package’s DSH requirement is `>=0.2.2-rc.3`.
+For the web profile, replace `desktop` with `web` and restart DSH. Requires DSH `>=0.2.2-rc.3`.
 
 ## Start using it
 
@@ -48,38 +49,30 @@ For the web profile, replace `desktop` with `web`. Restart that DSH profile afte
   <img src="https://raw.githubusercontent.com/STARDUSTLC666/dsh-cite/master/docs/assets/intro/workflow-en-light.svg" alt="Arrange papers on a Citation Constellation, enrich via Crossref, and export. · workflow illustration" width="100%">
 </picture>
 
-### Typical workflow: from Spatial Constellation to submission-ready bibliography
+1. **Check a draft or load a sample**: Open **Reference library**; paste manuscript DOIs into **DOI check** and send valid matches to Import preview, or click **Fill sample BibTeX / DOI**.
+2. **Explore the Constellation**: Drag paper nodes to arrange clusters, search or filter from the top-left capsule, and switch to **List** view in 1 click for multi-select batch actions.
+3. **Enrich & edit metadata**: Click a node to spotlight its `✦` neighborhood, then click **Enrich from Crossref**, **Edit metadata**, or safe **Remove** on the Zettelkasten card.
+4. **Export citations & backups**: Switch across 5 citation styles for 1-click copy, or download `.bib`, bibliography text, and full `.json` source backups in **Export**.
 
-1. **Check your draft or load a sample**: Open **Reference library** in the sidebar to land on the **Spatial Citation Constellation**. Paste manuscript text in **DOI check** to verify DOIs against Crossref and click **Send to Import preview** to carry valid DOIs over—or click **Fill sample BibTeX / DOI** in **Import** to populate the starfield right away.
-2. **Explore & arrange the Constellation**: Drag any paper node across the dot-matrix canvas while curved SVG filaments follow shared authors, venues, publication eras (±2y), and Crossref clusters live. Use the top-left **Floating Control Capsule** to highlight search matches or filter by quality, or toggle to the classic 3-pane **List** view in 1 click for multi-select batch actions.
-3. **Enrich & refine on the Floating Zettelkasten Card**: Click any node to spotlight its `✦` neighborhood, then click **Enrich from Crossref** (filling empty fields while retaining local diffs) or **Edit metadata** in the bottom-right Zettelkasten HUD to revise title, authors, year, venue, or DOI; click **Remove** to delete entries safely with revision-conflict protection.
-4. **Copy citations & export backups**: Switch between `GB/T 7714`, `APA`, `IEEE`, `MLA`, and `Chicago` to copy formatted citations or BibTeX in 1 click, or open **Export** to download `.bib`, `.txt`, and full `.json` source backups.
+### Ready-to-copy prompts
 
-Reopen **`? Tour`** in the topbar anytime for an interactive walkthrough, or send ready-made prompts to DSH chat:
-
-- `Verify this paper’s DOI and metadata, then import it into my citation library`
-- `Read my local citation library (cite_batch list) and format a clean GB/T 7714 bibliography, noting any missing fields.`
-- `Read my local citation library (cite_batch list), format the bibliography in APA style, and check year, volume, and page completeness.`
+- **Verify & import**: `Verify this paper’s DOI and metadata, then import it into my citation library`
+- **GB/T 7714 list**: `Read my local citation library (cite_batch list) and format a clean GB/T 7714 bibliography, noting any missing fields.`
+- **APA check**: `Read my local citation library (cite_batch list), format the bibliography in APA style, and check year, volume, and page completeness.`
 
 ## Before you start
 
-Enrichment requires Crossref access; verify bibliographic fields and citation formatting before delivery.
-
-Configuration, detailed tools and troubleshooting: [full reference](https://github.com/STARDUSTLC666/dsh-cite/blob/master/docs/REFERENCE.en.md).
+- Online lookup requires Crossref access; review metadata and citation formatting before final submission.
+- Full configuration, tools, and troubleshooting: [full reference](https://github.com/STARDUSTLC666/dsh-cite/blob/master/docs/REFERENCE.en.md).
 
 ## Plugin updates
 
-Check updates at the bottom of the workbench or native plugin details. Automatic checks are on by default; **automatic installation is off**. You choose whether to install and when to restart. Suite-managed components update with their bundle. [Update behavior](https://github.com/STARDUSTLC666/dsh-cite/blob/master/docs/REFERENCE.en.md).
+Check updates at the bottom of the workbench or native plugin details. Automatic checks are on by default; **automatic installation is off**. Suite-managed components update with their bundle.
 
-## Documentation
+## Documentation & feedback
 
-- [Full usage, configuration and limits](https://github.com/STARDUSTLC666/dsh-cite/blob/master/docs/REFERENCE.en.md)
-- [Release notes](https://github.com/STARDUSTLC666/dsh-cite/blob/master/CHANGELOG.md)
-- [Validation scope and history](https://github.com/STARDUSTLC666/dsh-cite/blob/master/docs/VALIDATION.md)
-
-## Feedback and contributions
-
-If the plugin helps, a Star makes it easier for others to discover. Report problems or suggest improvements in [Issues](https://github.com/STARDUSTLC666/dsh-cite/issues); code and documentation [PRs](https://github.com/STARDUSTLC666/dsh-cite/pulls) are welcome. Include versions and reproduction steps, and remove credentials from reports.
+- [Full usage, configuration and limits](https://github.com/STARDUSTLC666/dsh-cite/blob/master/docs/REFERENCE.en.md) · [Release notes](https://github.com/STARDUSTLC666/dsh-cite/blob/master/CHANGELOG.md) · [Validation history](https://github.com/STARDUSTLC666/dsh-cite/blob/master/docs/VALIDATION.md)
+- Stars, [Issues](https://github.com/STARDUSTLC666/dsh-cite/issues), and [PRs](https://github.com/STARDUSTLC666/dsh-cite/pulls) are welcome (strip credentials first).
 
 ## License
 

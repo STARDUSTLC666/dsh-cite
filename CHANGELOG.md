@@ -1,5 +1,10 @@
 # 更新记录
 
+## 0.12.2 (2026-11-25)
+
+- 修复引文导入表单、元数据双列网格与窄屏筛选栏排版：为 `.cite-metadata`、`.cite-form-grid` 与 `.cite-filters` 补充 `align-items: start`，避免分段控件与输入框同行时纵向拉伸错位。
+- Fix multi-column form and filter alignment by adding `align-items: start` to `.cite-metadata`, `.cite-form-grid`, and `.cite-filters` so segmented controls and inputs align cleanly along the top edge.
+
 ## 0.12.1 (2026-11-23)
 
 - 修复「原始输入 / Raw source」弹窗前后端契约：后端新增按需读取接口 `action: "source"`（保持 `summary()` 轻量不返回整库原文），星图卡片与列表详情共用 `CiteRawSourceModal` 按需加载真实原始输入并恢复「复制原文 / Copy source」按钮。

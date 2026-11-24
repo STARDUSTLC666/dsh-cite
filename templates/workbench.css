@@ -699,6 +699,7 @@
 .cite-workbench :is(.cite-metadata, .cite-form-grid) {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
   gap: 10px 12px;
   margin: 0;
 }
@@ -1256,6 +1257,7 @@
 
   .cite-workbench .cite-filters {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: start;
   }
 
   .cite-workbench .cite-filters > h2,

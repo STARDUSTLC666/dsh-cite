@@ -23,7 +23,8 @@
   font-size: 13px;
   line-height: 1.5;
   color: var(--cite-ink);
-  background: var(--cite-base);
+  /* background-color only, so each skin's backdrop (aurora mesh, mica tint, paper grain, grid) stays visible */
+  background-color: var(--cite-base);
 }
 
 .cite-workbench[data-main="true"] {

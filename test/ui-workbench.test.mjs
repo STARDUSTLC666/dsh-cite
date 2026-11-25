@@ -387,13 +387,13 @@ test('dsh-cite renders in standalone fallback mode, syncs all 13 styles + 8 font
   assert.equal(env.primitivesRequestedAtLoad, false, 'must never eagerly require host primitives at load time')
   assert.equal(env.client.__internals.DSH_STYLES.length, 13)
   assert.equal(env.client.__internals.DSH_FONTS.length, 8)
-  assert.equal(env.client.__internals.DSH_DEFAULT_FONT, 'arcade')
+  assert.equal(env.client.__internals.DSH_DEFAULT_FONT, 'auto')
 
   const mounted = await env.mountWorkbench(true, 'en-US')
   try {
     let root = mounted.tree
     assert.equal(root.attrs['data-dsh-style'], 'harness')
-    assert.equal(root.attrs['data-dsh-font'], 'arcade')
+    assert.equal(root.attrs['data-dsh-font'], 'auto')
     assert.equal(root.attrs['data-main'], 'true')
 
     // Verify unified 48px single-row header, sliding tab indicator, and default Spatial Constellation view
@@ -560,7 +560,7 @@ test('dsh-cite integrates host @deepseek-ai/dsh-client-ui-primitives when availa
     const hostMenu = findNodes(root, n => n.attrs['data-host-menu'] === 'true')[0]
     assert.ok(hostMenu)
     assert.equal(hostMenu.attrs['data-dsh-style'], 'claude')
-    assert.equal(hostMenu.attrs['data-dsh-font'], 'arcade')
+    assert.equal(hostMenu.attrs['data-dsh-font'], 'auto')
     assert.equal(hostMenu.attrs['data-window-drag-exclude'], '')
 
     // Open Raw source Modal and verify createOverlaySyncRef stamps data-dsh-style + data-dsh-font + data-window-drag-exclude onto host Modal dialog
@@ -571,7 +571,7 @@ test('dsh-cite integrates host @deepseek-ai/dsh-client-ui-primitives when availa
     const hostModal = findNodes(root, n => n.attrs['data-host-modal'] === 'true')[0]
     assert.ok(hostModal)
     assert.equal(hostModal.attrs['data-dsh-style'], 'claude')
-    assert.equal(hostModal.attrs['data-dsh-font'], 'arcade')
+    assert.equal(hostModal.attrs['data-dsh-font'], 'auto')
     assert.equal(hostModal.attrs['data-window-drag-exclude'], '')
 
     // Switch to Import tab to verify host SegmentedControl

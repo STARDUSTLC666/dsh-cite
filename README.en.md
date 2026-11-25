@@ -28,7 +28,7 @@ Citation workbench for DeepSeek Harness (`>=0.2.2-rc.3`) combining an interactiv
 | **Zettelkasten Index Card HUD** | Live `GB/T 7714` / `APA` / `IEEE` / `MLA` / `Chicago` preview with 1-click Copy citation, Copy BibTeX, Crossref enrich & atomic metadata editing (revision & duplicate-DOI guarded) |
 | **Offline Import Preview** | Detects in-library duplicates, batch duplicates, and missing fields offline before importing DOI lists or BibTeX, with a 1-click sample starter |
 | **Crossref DOI Check** | Verifies manuscript DOIs and sends valid matches straight to Import preview; fills empty fields while preserving local diffs and raw source backups |
-| **Tour & Synced Themes** | 4-step `? Tour` spotlight guide, 13 bright styles & 8 font pairings (default: YouYuan Mono) synced across plugins and portaled dialogs |
+| **Tour & Synced Themes** | 4-step `? Tour` spotlight guide, 13 bright styles & 8 font pairings (default: style-matched font) synced across plugins and portaled dialogs |
 
 ## Install
 

@@ -1,5 +1,10 @@
 # 更新记录
 
+## 0.12.3 (2026-11-25)
+
+- Crossref 健康检查读取响应状态后立即释放响应体，覆盖成功和失败响应，避免反复检查时占用网络连接。
+- Release successful and failed Crossref health response bodies immediately after checking their status so repeated checks do not retain network connections.
+
 ## 0.12.2 (2026-11-25)
 
 - 修复引文导入表单、元数据双列网格与窄屏筛选栏排版：为 `.cite-metadata`、`.cite-form-grid` 与 `.cite-filters` 补充 `align-items: start`，避免分段控件与输入框同行时纵向拉伸错位。

@@ -1,5 +1,11 @@
 # 更新记录
 
+## 0.12.5 (2026-11-25)
+
+- 为文献库读取设置字节上限，并在解析前核对已打开文件的身份。
+- Bound citation-library reads and verify opened file identity before parsing.
+
+
 ## 0.12.4 (2026-11-25)
 
 - 修复读库期间的并发请求绕过单任务限制：解析与 Crossref 补全在异步读取前预留任务，失败或取消后释放；插件卸载后不再启动延迟补全任务。

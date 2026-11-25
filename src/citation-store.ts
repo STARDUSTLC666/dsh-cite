@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto'
-import { mkdir, readFile, writeFile, rename, lstat, unlink } from 'node:fs/promises'
+import { constants, type Stats } from 'node:fs'
+import fs from 'node:fs/promises'
+import { mkdir, writeFile, rename, lstat, unlink } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { homedir } from 'node:os'
 import lockfile from 'proper-lockfile'
@@ -8,6 +10,36 @@ import { LibraryConflict, MAX_LIBRARY, MAX_BATCH, MAX_INPUT_BYTES, citationId, n
 const MAX_FILE = 8 * 1024 * 1024
 const empty = (): CitationLibrary => ({ version: 1, revision: 0, entries: [], sources: [] })
 function validTime(v: unknown): boolean { return typeof v === 'string' && Number.isFinite(Date.parse(v)) }
+function sameFile(left: Stats, right: Stats): boolean { return left.dev === right.dev && left.ino === right.ino }
+
+async function readBounded(file: string, expected: Stats): Promise<string> {
+  const failChanged = () => new Error('文献库文件在读取期间已更换，原文件已保留。')
+  const failLarge = () => new Error('文献库文件无效或过大，原文件已保留。')
+  if (!expected.isFile() || expected.isSymbolicLink() || expected.size > MAX_FILE) throw failLarge()
+  const flags = constants.O_RDONLY | (process.platform === 'win32' ? 0 : constants.O_NOFOLLOW ?? 0)
+  let handle
+  try { handle = await fs.open(file, flags) } catch { throw failChanged() }
+  try {
+    const opened = await handle.stat()
+    let current: Stats
+    try { current = await fs.lstat(file) } catch { throw failChanged() }
+    if (!opened.isFile() || !sameFile(expected, opened) || !current.isFile() || current.isSymbolicLink() || !sameFile(opened, current)) throw failChanged()
+    if (opened.size > MAX_FILE) throw failLarge()
+    const chunks: Buffer[] = []
+    let size = 0
+    for (;;) {
+      const buffer = Buffer.allocUnsafe(Math.min(64 * 1024, MAX_FILE + 1 - size))
+      const { bytesRead } = await handle.read(buffer, 0, buffer.length, null)
+      if (bytesRead === 0) return Buffer.concat(chunks, size).toString('utf8')
+      size += bytesRead
+      if (size > MAX_FILE) throw failLarge()
+      chunks.push(buffer.subarray(0, bytesRead))
+    }
+  } finally {
+    await handle.close()
+  }
+}
+
 export class CitationStore {
   readonly root: string
   readonly file: string
@@ -15,9 +47,9 @@ export class CitationStore {
   private async init(): Promise<void> { await mkdir(this.root, { recursive: true, mode: 0o700 }); if ((await lstat(this.root)).isSymbolicLink()) throw new Error('文献库目录不能是符号链接。') }
   async read(): Promise<CitationLibrary> {
     await this.init()
-    let text: string
-    try { const info = await lstat(this.file); if (!info.isFile() || info.isSymbolicLink() || info.size > MAX_FILE) throw new Error('文献库文件无效或过大，原文件已保留。'); text = await readFile(this.file, 'utf8') }
-    catch (e: any) { if (e.code === 'ENOENT') return empty(); throw e }
+    let info: Stats
+    try { info = await lstat(this.file) } catch (error: any) { if (error.code === 'ENOENT') return empty(); throw error }
+    const text = await readBounded(this.file, info)
     try {
       const v = JSON.parse(text) as CitationLibrary
       if (v.version !== 1 || !Number.isInteger(v.revision) || v.revision < 0 || !Array.isArray(v.entries) || v.entries.length > MAX_LIBRARY || !Array.isArray(v.sources) || v.sources.length > MAX_LIBRARY) throw new Error('结构不符')

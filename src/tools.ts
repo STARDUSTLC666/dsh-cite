@@ -278,6 +278,8 @@ export function buildCiteTools(cfg: ResolvedCiteConfig, fetchImpl?: FetchLike): 
             ? AbortSignal.timeout(Math.min(cfg.timeoutMs, 15000))
             : AbortSignal.any([signal, AbortSignal.timeout(Math.min(cfg.timeoutMs, 15000))]),
         })
+        // Health only needs the status line; release the response stream immediately.
+        await response.body?.cancel().catch(() => {})
         signal?.throwIfAborted()
         if (response.ok) {
           checks.push({ name: 'Crossref API', ok: true, detail: 'HTTP ' + response.status + '，' + (Date.now() - startedAt) + 'ms' })

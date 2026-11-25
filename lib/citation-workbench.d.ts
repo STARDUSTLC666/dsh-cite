@@ -31,6 +31,7 @@ export declare class CitationWorkbench {
     private jobs;
     private lifetime;
     private parsing;
+    private startingEnrichment;
     constructor(cfg: ResolvedCiteConfig, root?: string, fetchImpl?: FetchLike);
     private live;
     list(): Promise<{
@@ -94,6 +95,7 @@ export declare class CitationWorkbench {
         }[];
     }>;
     enrich(rawIds: unknown, revision: unknown): Promise<EnrichmentJob>;
+    private enrichmentActive;
     private runEnrichment;
     job(id: unknown): EnrichmentJob;
     cancel(id: unknown): EnrichmentJob;

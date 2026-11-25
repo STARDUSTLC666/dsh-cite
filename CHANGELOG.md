@@ -1,5 +1,10 @@
 # 更新记录
 
+## 0.12.4 (2026-11-25)
+
+- 修复读库期间的并发请求绕过单任务限制：解析与 Crossref 补全在异步读取前预留任务，失败或取消后释放；插件卸载后不再启动延迟补全任务。
+- Reserve parser and Crossref enrichment jobs before asynchronous library reads, release reservations after failures or cancellation, and reject delayed starts after plugin disposal.
+
 ## 0.12.3 (2026-11-25)
 
 - Crossref 健康检查读取响应状态后立即释放响应体，覆盖成功和失败响应，避免反复检查时占用网络连接。

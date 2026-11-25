@@ -44,6 +44,7 @@ export class CitationWorkbench {
   private jobs = new Map<string, RunningJob>()
   private lifetime = new AbortController()
   private parsing = false
+  private startingEnrichment = false
   constructor(readonly cfg: ResolvedCiteConfig, root?: string, readonly fetchImpl: FetchLike = fetchCrossref) { this.store = new CitationStore(root) }
   private live(): void { this.lifetime.signal.throwIfAborted() }
   async list() { this.live(); return { ...summary(await this.store.read()), jobs: [...this.jobs.values()].map(j => structuredClone(j.view)) } }
@@ -62,10 +63,16 @@ export class CitationWorkbench {
   async preview(raw: unknown, signal?: AbortSignal) {
     this.live()
     if (this.parsing) throw new Error('正在解析上一批输入，请稍后重试。')
-    const input = readImportInput(raw), state = await this.store.read()
+    const input = readImportInput(raw)
+    // Reserve before reading: another request can arrive during this await.
     this.parsing = true
+    let state: Awaited<ReturnType<CitationStore['read']>>
     let rows: ImportRow[]
-    try { rows = await parseCitationInput(input, signal ? AbortSignal.any([signal, this.lifetime.signal]) : this.lifetime.signal) } finally { this.parsing = false }
+    try {
+      state = await this.store.read()
+      this.live()
+      rows = await parseCitationInput(input, signal ? AbortSignal.any([signal, this.lifetime.signal]) : this.lifetime.signal)
+    } finally { this.parsing = false }
     const dois = new Set<string>(), candidates = new Set<string>(), libraryDois = new Set(state.entries.filter(e => e.work.doi).map(e => e.work.doi.toLowerCase())), libraryKeys = new Set(state.entries.map(e => candidateKey(e.work)).filter(Boolean))
     for (const row of rows) {
       if (!row.work) { row.selectedDefault = false; if (row.error) row.errorEn = englishCitationError(row.error); continue }
@@ -93,16 +100,21 @@ export class CitationWorkbench {
   }
   async enrich(rawIds: unknown, revision: unknown): Promise<EnrichmentJob> {
     this.live()
-    if ([...this.jobs.values()].some(j => j.view.state === 'running')) throw new Error('已有补全任务运行中，请等待或取消。')
-    const ids = readSelection(rawIds), state = await this.store.read()
-    if (state.revision !== revision) throw new LibraryConflict('文献库已更新，请刷新后重新选择。')
-    const entries = ids.map(id => { const entry = state.entries.find(e => e.id === id); if (!entry) throw new Error('选择中包含不存在的文献，请刷新。'); return entry })
-    const job: RunningJob = { controller: new AbortController(), view: { id: randomUUID(), state: 'running', total: entries.length, completed: 0, saved: 0, results: [] } }
-    if (this.jobs.size >= 10) this.jobs.delete(this.jobs.keys().next().value!)
-    this.jobs.set(job.view.id, job)
-    void this.runEnrichment(job, state.revision, entries)
-    return structuredClone(job.view)
+    if (this.enrichmentActive()) throw new Error('已有补全任务运行中，请等待或取消。')
+    this.startingEnrichment = true
+    try {
+      const ids = readSelection(rawIds), state = await this.store.read()
+      this.live()
+      if (state.revision !== revision) throw new LibraryConflict('文献库已更新，请刷新后重新选择。')
+      const entries = ids.map(id => { const entry = state.entries.find(e => e.id === id); if (!entry) throw new Error('选择中包含不存在的文献，请刷新。'); return entry })
+      const job: RunningJob = { controller: new AbortController(), view: { id: randomUUID(), state: 'running', total: entries.length, completed: 0, saved: 0, results: [] } }
+      if (this.jobs.size >= 10) this.jobs.delete(this.jobs.keys().next().value!)
+      this.jobs.set(job.view.id, job)
+      void this.runEnrichment(job, state.revision, entries)
+      return structuredClone(job.view)
+    } finally { this.startingEnrichment = false }
   }
+  private enrichmentActive(): boolean { return this.startingEnrichment || [...this.jobs.values()].some(j => j.view.state === 'running') }
   private async runEnrichment(job: RunningJob, revision: number, entries: Awaited<ReturnType<CitationStore['read']>>['entries']): Promise<void> {
     const signal = AbortSignal.any([job.controller.signal, this.lifetime.signal]), patches = new Map<string, ReturnType<typeof mergeWork>>()
     let next = 0
@@ -146,7 +158,7 @@ export class CitationWorkbench {
     this.live()
     const effectiveSignal = signal ? AbortSignal.any([signal, this.lifetime.signal]) : this.lifetime.signal
     effectiveSignal.throwIfAborted()
-    if ([...this.jobs.values()].some(j => j.view.state === 'running')) throw new Error('已有补全任务运行中，请等待或取消。')
+    if (this.enrichmentActive()) throw new Error('已有补全任务运行中，请等待或取消。')
     const opts: Record<string, unknown> = rawTarget && typeof rawTarget === 'object' && !Array.isArray(rawTarget)
       ? rawTarget as Record<string, unknown>
       : Array.isArray(rawTarget) ? { ids: rawTarget, expectedRevision: rawRevision } : { id: rawTarget, expectedRevision: rawRevision }
@@ -213,7 +225,7 @@ export class CitationWorkbench {
     this.live()
     const effectiveSignal = signal ? AbortSignal.any([signal, this.lifetime.signal]) : this.lifetime.signal
     effectiveSignal.throwIfAborted()
-    if ([...this.jobs.values()].some(j => j.view.state === 'running')) throw new Error('已有补全任务运行中，请等待或取消。')
+    if (this.enrichmentActive()) throw new Error('已有补全任务运行中，请等待或取消。')
     if (!rawTarget || typeof rawTarget !== 'object' || Array.isArray(rawTarget)) throw new Error('操作参数无效。')
     const opts = rawTarget as Record<string, unknown>
     const expectedRevision = opts.expectedRevision !== undefined ? opts.expectedRevision : (opts.revision !== undefined ? opts.revision : rawRevision)

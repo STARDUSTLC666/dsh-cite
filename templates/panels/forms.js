@@ -39,17 +39,27 @@ function CiteImport({
       label: t('示例文献', 'Sample references'),
     });
   }
+  function hasDraggedFiles(event) {
+    const dt = event?.dataTransfer;
+    if (!dt) return false;
+    if (dt.files && dt.files.length > 0) return true;
+    const types = dt.types ? Array.from(dt.types) : [];
+    return types.includes('Files');
+  }
   function handleDragOver(event) {
-    if (locked || !onUploadFile) return;
+    if (locked || !onUploadFile || !hasDraggedFiles(event)) return;
     event.preventDefault();
     if (!dragOver) setDragOver(true);
   }
-  function handleDragLeave() {
-    if (dragOver) setDragOver(false);
+  function handleDragLeave(event) {
+    if (!dragOver) return;
+    if (event?.currentTarget?.contains && event?.relatedTarget && event.currentTarget.contains(event.relatedTarget)) return;
+    setDragOver(false);
   }
   function handleDrop(event) {
-    event.preventDefault();
     setDragOver(false);
+    if (!hasDraggedFiles(event)) return;
+    event.preventDefault();
     if (locked || !onUploadFile) return;
     const dropped = event.dataTransfer?.files?.[0];
     if (dropped) return onUploadFile(dropped);

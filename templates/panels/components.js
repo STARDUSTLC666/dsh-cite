@@ -372,7 +372,18 @@ function CiteMetadataEditorModal({ entry, revision, uiStyle, uiFont, lang, locke
           variant: 'primary',
           icon: 'refresh',
           disabled: saving,
-          onClick: async () => { setConflict(false); setErr(''); await onRefresh(); },
+          onClick: async () => {
+            setSaving(true);
+            setErr('');
+            try {
+              await onRefresh();
+              setConflict(false);
+            } catch (error) {
+              setErr(error?.message || t('无法刷新文献库。', 'Could not refresh the library.'));
+            } finally {
+              setSaving(false);
+            }
+          },
         }, t('刷新文献库', 'Refresh library'))
         : h(CiteButton, {
           variant: 'primary',

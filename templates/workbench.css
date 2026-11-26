@@ -215,19 +215,52 @@
   justify-content: center;
 }
 
-.cite-workbench .cite-input-wrap {
+.cite-workbench .cite-input-wrap,
+.w-dialog .cite-input-wrap {
   width: 100%;
   min-width: 0;
   min-height: 32px;
-  border: var(--dsh-control-border-width, 0.5px) solid var(--cite-line);
-  border-radius: var(--cite-radius-sm);
-  background: var(--cite-base);
+  border: var(--dsh-control-border-width, 0.5px) solid var(--cite-line, var(--dsw-alias-border-l2, #d8e0ec));
+  border-radius: var(--cite-radius-sm, var(--dsw-radius-sm, 8px));
+  background: var(--cite-base, var(--dsw-alias-bg-base, #ffffff));
 }
 
-.cite-workbench .cite-input-wrap input {
+.cite-workbench .dsh-fallback-input-wrap,
+.w-dialog .dsh-fallback-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-inline: 8px;
+}
+
+.cite-workbench .dsh-fallback-input-icon,
+.w-dialog .dsh-fallback-input-icon {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  color: var(--cite-secondary, var(--dsw-alias-label-secondary, #5b667a));
+}
+
+.cite-workbench.dshw .cite-input-wrap input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.w-dialog .cite-input-wrap input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.cite-meta-form .cite-input-wrap input:not([type="checkbox"]):not([type="radio"]):not([type="file"]) {
+  flex: 1 1 auto;
+  inline-size: 100%;
   min-width: 0;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
   font-size: 12.5px;
   line-height: 1.5;
+}
+
+.cite-workbench .dsh-fallback-input-wrap > input,
+.w-dialog .dsh-fallback-input-wrap > input {
+  color: var(--cite-ink, var(--dsw-alias-label-primary, #1b2230));
+  outline: none;
 }
 
 .cite-workbench .cite-segmented {
@@ -1244,7 +1277,10 @@
 
 @container cite-workbench (max-width: 860px) {
   .cite-workbench .cite-header-actions {
+    flex: 1 1 100%;
+    max-inline-size: 100%;
     flex-wrap: wrap;
+    white-space: normal;
   }
 
   .cite-workbench .cite-library {
@@ -1337,6 +1373,16 @@
 
   .cite-workbench .cite-subpage {
     padding: 15px 12px 24px;
+  }
+}
+
+@container cite-workbench (max-width: 480px) {
+  .cite-workbench .cite-downloads > .cite-result-row {
+    flex-wrap: wrap;
+  }
+
+  .cite-workbench .cite-export-actions {
+    flex-wrap: wrap;
   }
 }
 
@@ -1448,6 +1494,7 @@
   stroke-width: 1.25;
   stroke-linecap: round;
   opacity: 0.44;
+  pointer-events: visibleStroke;
 }
 
 .cite-workbench .cite-filament[data-dimmed="true"] {
@@ -1840,6 +1887,44 @@
   background: var(--cite-layer);
 }
 
+.cite-workbench .cite-zettel-conflicts {
+  padding: 7px 9px;
+  border: 1px solid var(--dsw-alias-state-warn-primary, var(--cite-line));
+  border-radius: var(--cite-radius-sm);
+  background: var(--dsw-alias-state-warn-tertiary, rgba(180, 83, 9, 0.08));
+  font-size: 11.5px;
+}
+
+.cite-workbench .cite-zettel-conflicts > summary {
+  font-weight: 600;
+  color: var(--dsw-alias-state-warn-label, #8c4b08);
+  cursor: pointer;
+}
+
+.cite-workbench .cite-zettel-conflict-list {
+  margin-block-start: 6px;
+}
+
+.cite-workbench .cite-zettel-conflict-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cite-workbench .cite-zettel-conflict-body {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+  flex: 1 1 auto;
+}
+
+.cite-workbench .cite-zettel-conflict-row .cite-button {
+  min-block-size: 24px;
+  padding-inline: 7px;
+  font-size: 11px;
+}
+
 .cite-workbench .cite-zettel-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1958,6 +2043,12 @@
 
   .cite-workbench .cite-node:hover:not([data-active="true"]) {
     border-color: color-mix(in oklab, var(--cite-accent) 60%, var(--cite-line));
+  }
+
+  .cite-workbench .cite-filament:hover {
+    stroke: var(--cite-accent);
+    stroke-width: 2.6;
+    opacity: 0.96;
   }
 }
 

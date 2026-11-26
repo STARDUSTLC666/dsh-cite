@@ -1,5 +1,21 @@
 # 更新记录
 
+## 0.13.1 (2026-11-27)
+
+- **真实 Chromium 实测与星图 500 篇性能彻底修复**：
+  - 将 `computeConstellationLayout` 排斥与收尾扫掠重构为精确空间哈希网格（O(N) 3×3 邻域碰撞），并将 `computeConstellationEdges` 改为作者/刊物/年份倒排桶构建：500 篇密集文献排布从 ~4.05 秒且残留 13 对重叠优化至 ~220ms 且**全视口 0 重叠**（提速约 18 倍）。
+  - 星图滚轮缩放由 React 合成被动 `onWheel` 改为原生非被动 `addEventListener('wheel', ..., { passive: false })`，彻底消除 Chromium `Unable to preventDefault inside passive event listener` 报错；新增触控板微步阻尼与指针锚点缩放（不再因轻滑触控板瞬间顶到 155%）。
+  - 为 `.cite-filament` 补齐 `pointer-events: visibleStroke` 与悬停高亮，修复 `.cite-filaments { pointer-events: none }` 导致 SVG `<title>` 引力线关系提示无法触发的缺陷。
+- **引文格式 CSL 兼容、双视图差异消解与表单/窄屏修复**：
+  - `format.ts` 与 `normalizeWork` 统一识别标准 CSL 文献类型别名（`paper-conference`、`article-journal`、`chapter`、`thesis`、`manuscript`、`webpage`），修复已有库中 CSL 会议论文误落回 `[Z] [引用日期]` 与 `@misc` 的问题；修复纯空白标题及缺失刊名的 `[J]`/`[C]`/`[M]` 误拼 `[引用日期]` 的边界缺陷，并补齐剩余 8 条后端错误英文翻译。
+  - 默认星图的悬浮 Zettelkasten 索引卡新增 Crossref 差异徽章与折叠差异列表，支持在默认视图内直接逐字段 1 键「采用」；列表视图按作者/标题排序时将缺失空值沉底而非置顶。
+  - 修复导入区拖放拦截普通文本拖拽进入 `<textarea>` 以及滑过子元素时高亮闪烁的问题；修复 409 元数据刷新失败时误清冲突提示及条目被他窗删除时的状态同步；修复 390px 窄屏顶栏按钮右溢裁切、英文导出行换行、宿主 `P.Input` 表单双层边框与独立回退模式搜索框半宽折叠问题，并刷新 DSH Web 实拍中英文界面截图。
+- **Live Chromium Audit Fixes, 500-Paper Constellation Scaling & CSL Type Parity**:
+  - Replace O(N²) pairwise sweeps in `computeConstellationLayout` with an exact spatial-hash grid and inverted author/venue/year buckets in `computeConstellationEdges`, cutting 500-paper dense layout from ~4.05s with 13 overlaps to ~220ms with **0 overlaps** across viewports.
+  - Replace React's passive synthetic `onWheel` handler with a native `{ passive: false }` wheel listener, eliminating Chromium passive-event console errors while adding trackpad damping and cursor-anchored zoom; set `pointer-events: visibleStroke` on `.cite-filament` so SVG `<title>` tooltips actually appear on hover.
+  - Normalize CSL-JSON work type aliases (`paper-conference`, `article-journal`, `chapter`, `thesis`, `manuscript`, `webpage`) in `format.ts` and `normalizeWork`, fix whitespace-only titles and empty-container GB/T 7714 fallbacks, and complete missing English error translations.
+  - Surface Crossref conflict badges with collapsible 1-click **Use** resolution directly inside the Constellation Zettelkasten card; push blank authors/titles to the bottom when sorting List view; only intercept file drops (not plain text drops) and stop child-hover flicker in Import; keep 409 refresh errors inside the metadata modal and handle externally deleted entries cleanly; fix 390px header wrapping, English Export row wrapping, host `P.Input` double borders, and fallback input width, and refresh live DSH Web screenshots.
+
 ## 0.13.0 (2026-11-27)
 
 - **外观与字体默认策略刷新**：重绘晴空薄荷（`mint`）、晴昼琉璃（`glass`）与晴空水晶（`frutiger`）皮肤并升级云母流光（`win98`）视觉（同步修复星图卡片残留旧版 bevel 边框）；默认字体切为「跟随风格专属字（`auto`）」，原有幼圆等宽仍可选且保留用户显式偏好。

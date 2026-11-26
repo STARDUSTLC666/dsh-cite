@@ -48,6 +48,7 @@ export interface CitationLibrary {
     entries: LibraryEntry[];
     sources: SourceRecord[];
 }
+export declare function canonicalWorkType(raw: unknown): string;
 export declare function normalizeWork(value: unknown): Work;
 export declare function workWarnings(work: Work): string[];
 export declare function candidateKey(work: Work): string;

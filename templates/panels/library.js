@@ -51,14 +51,27 @@ function CiteLibrary({
   const matches = sortBy === 'added'
     ? filteredMatches
     : [...filteredMatches].sort((a, b) => {
-      if (sortBy === 'year-desc') return (Number(b.entry.work.year) || 0) - (Number(a.entry.work.year) || 0);
+      const titleA = String(a.entry.work.title || a.entry.work.doi || '');
+      const titleB = String(b.entry.work.title || b.entry.work.doi || '');
+      if (sortBy === 'year-desc') {
+        const diff = (Number(b.entry.work.year) || 0) - (Number(a.entry.work.year) || 0);
+        return diff || titleA.localeCompare(titleB);
+      }
       if (sortBy === 'year-asc') {
         const ya = Number(a.entry.work.year) || 99999;
         const yb = Number(b.entry.work.year) || 99999;
-        return ya - yb;
+        return (ya - yb) || titleA.localeCompare(titleB);
       }
-      if (sortBy === 'title') return String(a.entry.work.title || a.entry.work.doi || '').localeCompare(String(b.entry.work.title || b.entry.work.doi || ''));
-      if (sortBy === 'author') return a.byline.localeCompare(b.byline);
+      if (sortBy === 'title') {
+        if (!titleA && titleB) return 1;
+        if (titleA && !titleB) return -1;
+        return titleA.localeCompare(titleB);
+      }
+      if (sortBy === 'author') {
+        if (!a.byline && b.byline) return 1;
+        if (a.byline && !b.byline) return -1;
+        return a.byline.localeCompare(b.byline) || titleA.localeCompare(titleB);
+      }
       return 0;
     });
   const visible = matches.slice(0, limit);
@@ -120,7 +133,7 @@ function CiteLibrary({
       entries, sources, revision, t, lang, uiStyle, uiFont, loading, loaded, locked, running,
       style, setStyle, copiedKey, filter, search, activeId, setActiveId,
       viewMode, setViewMode, onSearch, onFilter, onRefresh, onImport, enrich, copy,
-      onRequestRemove, onEditMetadata, onOpenRawSource,
+      onRequestRemove, onEditMetadata, onOpenRawSource, onApplyCrossrefField,
     });
   }
 

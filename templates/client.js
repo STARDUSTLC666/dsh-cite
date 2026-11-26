@@ -147,13 +147,14 @@ window.__ModuleLoader__.load({
 
       async function refresh(signal) {
         const state = await api({ action: 'list' }, lang, signal);
-        if (signal?.aborted) return;
+        if (signal?.aborted) return state;
         const ids = new Set(state.entries.map(entry => entry.id));
         setLibrary(state);
         setForm(old => ({ ...old, selected: old.selected.filter(id => ids.has(id)) }));
         setJob(old => state.jobs.find(item => item.state === 'running')
           || state.jobs.find(item => item.id === old?.id)
           || state.jobs.at(-1) || null);
+        return state;
       }
 
       useEffect(() => {
@@ -631,7 +632,13 @@ window.__ModuleLoader__.load({
           lang,
           locked,
           onClose: () => setEditModalId(''),
-          onRefresh: () => perform(refresh),
+          onRefresh: async () => {
+            const state = await refresh();
+            if (state && !state.entries.some(entry => entry.id === editModalEntry.id)) {
+              setEditModalId('');
+              setNotice(t('该文献已在另一窗口删除。', 'This reference was removed in another window.'));
+            }
+          },
           onSaved: nextState => {
             setLibrary(nextState);
             setEditModalId('');

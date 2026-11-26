@@ -5,6 +5,10 @@ export function englishCitationError(raw: string): string {
   if (/Crossref.*2 MiB/.test(raw)) return 'Crossref response exceeded the 2 MiB size limit. Narrow the query or check the DOI.'
   if (/^Crossref.*超时/.test(raw)) return 'Crossref timed out. Retry later; your local entries were preserved.'
   if (/^Crossref 请求失败：/.test(raw)) return raw.replace(/^Crossref 请求失败：/, 'Crossref request failed: ')
+  if (/^Crossref 检索失败：/.test(raw)) return raw.replace(/^Crossref 检索失败：/, 'Crossref search failed: ')
+  if (/Crossref 响应不是合法 JSON/.test(raw)) return 'Crossref returned invalid JSON. Retry later; your local entries were preserved.'
+  if (/Crossref 响应缺少 message 字段/.test(raw)) return 'Crossref response is missing metadata. Retry later; your local entries were preserved.'
+  if (/检索词不能为空/.test(raw)) return 'Search query cannot be empty.'
   if (/^DOI 在 Crossref 中不存在：/.test(raw)) return raw.replace(/^DOI 在 Crossref 中不存在：/, 'DOI not found in Crossref: ')
   if (/^Crossref 返回 HTTP/.test(raw)) return 'Crossref returned HTTP ' + (/HTTP (\d+)/.exec(raw)?.[1] || 'error') + '. Check network access or retry later.'
   if (/DOI 格式不正确/.test(raw)) return 'Invalid DOI. Use a DOI such as 10.1038/nature12345, or its https://doi.org/ URL.'
@@ -24,8 +28,11 @@ export function englishCitationError(raw: string): string {
   if (/文献库文件在读取期间已更换/.test(raw)) return 'The library file changed while being read. The original file was preserved; refresh and retry.'
   if (/文献库目录不能是符号链接/.test(raw)) return 'The library directory cannot be a symbolic link.'
   if (/文献库记录损坏|文献库文件无效/.test(raw)) return 'The library file is invalid. It has been preserved. Back it up before investigating.'
-  if (/最多保存 500|超过 8|文献库.*容量限制/.test(raw)) return 'The library capacity has been reached. Back it up before importing more; this operation was not saved.'
+  if (/最多保存 500|超过 8|原始来源已接近容量限制|文献库.*容量限制/.test(raw)) return 'The library capacity has been reached. Back it up before importing more; this operation was not saved.'
   if (/作者列表无效或超过/.test(raw)) return 'Author list is invalid or exceeds 2000 entries.'
+  if (/作者记录无效/.test(raw)) return 'An author record is invalid.'
+  if (/文献记录无效/.test(raw)) return 'The reference record is invalid.'
+  if (/文献字段不是文本/.test(raw)) return 'A metadata field must be text.'
   if (/单个文献字段过长/.test(raw)) return 'A metadata field is too long. Shorten or check the source data.'
   if (/来源名称过长/.test(raw)) return 'Source name must be 160 characters or fewer.'
   if (/文献、预览或任务编号无效/.test(raw)) return 'Invalid reference, preview, or job ID.'
@@ -36,7 +43,7 @@ export function englishCitationError(raw: string): string {
   if (/解析超过/.test(raw)) return 'Local parsing took more than five seconds. Split the input and retry.'
   if (/正在解析|已有补全/.test(raw)) return 'A job is already running. Wait for it or cancel it before continuing.'
   if (/所选原始来源已不存在/.test(raw)) return 'The requested original source is no longer available. Refresh the library and try again.'
-  if (/不存在或 DSH|所选文献已不存在|不存在的文献/.test(raw)) return 'The selection or job is no longer available. Saved entries are retained; refresh the library.'
+  if (/任务不存在|不存在或 DSH|所选文献已不存在|不存在的文献/.test(raw)) return 'The selection or job is no longer available. Saved entries are retained; refresh the library.'
   if (/输入类型/.test(raw)) return 'Input type must be DOI or BibTeX.'
   if (/请先粘贴|请提供 DOI/.test(raw)) return 'Paste DOI / BibTeX input, or choose a .bib file first.'
   if (/完整备份/.test(raw)) return 'A full backup includes every entry and original source, independent of selection.'

@@ -215,10 +215,30 @@ function createMiniEnv({ withPrimitives = false, initialStyle = null, initialLib
     for (const [k, v] of Object.entries(vnode.props || {})) {
       if (k !== 'children' && k !== 'ref' && v !== undefined) attrs[k] = v
     }
+    const nodeListeners = new Map()
     const node = {
       tag: vnode.type === React.Fragment ? 'fragment' : String(vnode.type),
       attrs,
       children: [],
+      _listeners: nodeListeners,
+      addEventListener(type, fn, opts) {
+        if (!nodeListeners.has(type)) nodeListeners.set(type, [])
+        nodeListeners.get(type).push({ fn, opts })
+      },
+      removeEventListener(type, fn) {
+        const list = nodeListeners.get(type)
+        if (!list) return
+        const idx = list.findIndex(item => item.fn === fn)
+        if (idx >= 0) list.splice(idx, 1)
+      },
+      dispatchEvent(event) {
+        for (const item of [...(nodeListeners.get(event.type) || [])]) item.fn(event)
+        return true
+      },
+      contains(target) {
+        if (target === this) return true
+        return this.children.some(child => typeof child === 'object' && child?.contains?.(target))
+      },
       setAttribute(name, val) {
         this.attrs[name] = String(val)
         if (name === 'data-dsh-portal-synced') syncedNodes.add(this)
@@ -1198,57 +1218,72 @@ test('Raw source modal loads real text from CitationWorkbench backend (end-to-en
   }
 })
 
-test('Constellation caps edge explosion at 100 papers, supports wheel zoom & filament titles, and Mica Fluent removes Retro 98 bevel', async () => {
+test('Constellation scales cleanly to 500 papers with zero overlaps, binds non-passive wheel zoom, exposes filament hit-testing, and Mica Fluent removes Retro 98 bevel', async () => {
   const env = createMiniEnv({ withPrimitives: false })
   const { computeConstellationEdges, computeConstellationLayout } = env.client.__internals
 
-  // 100 papers all within 2 years (would produce 4,950 edges without degree capping)
-  const dense100 = Array.from({ length: 100 }, (_, idx) => ({
-    id: 'dense-' + String(idx + 1).padStart(3, '0'),
-    bibKey: 'p' + idx,
-    sourceIds: ['src-1'],
-    warnings: [],
-    crossref: null,
-    work: {
-      title: 'Dense Paper ' + (idx + 1),
-      doi: '10.1000/dense-' + idx,
-      year: 2024 + (idx % 2),
-      containerTitle: ['NeurIPS', 'ICML', 'ICLR'][idx % 3],
-      authors: [{ family: 'Author' + (idx % 10), given: 'A', name: '' }],
-    },
-  }))
-  const { edges } = computeConstellationEdges(dense100)
-  assert.ok(edges.length > 0 && edges.length <= 280, 'edge count must stay bounded for dense 100-paper library, got ' + edges.length)
-  assert.ok(edges.some(e => e.kind === 'author'), 'shared-author edges must be prioritized')
+  // 100 and 500 papers all within 2 years (previously caused O(N^2) 4s freeze and 13 overlaps at N=500)
+  for (const count of [100, 500]) {
+    const dense = Array.from({ length: count }, (_, idx) => ({
+      id: 'dense-' + String(idx + 1).padStart(4, '0'),
+      bibKey: 'p' + idx,
+      sourceIds: ['src-1'],
+      warnings: [],
+      crossref: null,
+      work: {
+        title: 'Dense Paper ' + (idx + 1),
+        doi: '10.1000/dense-' + idx,
+        year: 2024 + (idx % 2),
+        containerTitle: ['NeurIPS', 'ICML', 'ICLR'][idx % 3],
+        authors: [{ family: 'Author' + (idx % 10), given: 'A', name: '' }],
+      },
+    }))
+    const { edges } = computeConstellationEdges(dense)
+    assert.ok(edges.length > 0 && edges.length <= 280, `edge count must stay bounded for N=${count}, got ${edges.length}`)
+    assert.ok(edges.some(e => e.kind === 'author'), 'shared-author edges must be prioritized')
 
-  const layout = computeConstellationLayout(dense100, edges, { width: 1440, height: 820 })
-  for (let i = 0; i < dense100.length; i++) {
-    for (let j = i + 1; j < dense100.length; j++) {
-      const a = layout.positions[dense100[i].id]
-      const b = layout.positions[dense100[j].id]
-      const overlaps = Math.abs(a.x - b.x) < layout.nodeWidth && Math.abs(a.y - b.y) < layout.nodeHeight
-      assert.equal(overlaps, false, `overlap in 100-paper constellation between ${dense100[i].id} and ${dense100[j].id}`)
+    const layout = computeConstellationLayout(dense, edges, { width: 1440, height: 820 })
+    for (let i = 0; i < dense.length; i++) {
+      for (let j = i + 1; j < dense.length; j++) {
+        const a = layout.positions[dense[i].id]
+        const b = layout.positions[dense[j].id]
+        const overlaps = Math.abs(a.x - b.x) < layout.nodeWidth && Math.abs(a.y - b.y) < layout.nodeHeight
+        assert.equal(overlaps, false, `overlap in ${count}-paper constellation between ${dense[i].id} and ${dense[j].id}`)
+      }
     }
   }
 
-  // Mount workbench and verify wheel zoom, Center button, and Mica Fluent CSS fix
+  // Mount workbench and verify non-passive wheel listener, trackpad damping, filament pointer-events, Center button, and Mica Fluent CSS fix
   const mounted = await env.mountWorkbench(true, 'en-US')
   try {
     let root = mounted.tree
     const cssText = findNodes(root, n => n.tag === 'style').map(textOf).join('\n')
     assert.doesNotMatch(cssText, /\[data-dsh-style="win98"\]\s*:is\(\.cite-node[^}]*2px outset #ffffff/, 'Mica Fluent (win98) must not apply legacy Retro 98 bevel to Constellation cards')
+    assert.match(cssText, /\.cite-workbench\s+\.cite-filament\s*\{[^}]*pointer-events:\s*visibleStroke/, 'SVG filaments must enable visibleStroke pointer-events so <title> tooltips work')
 
     const starfield = findNodes(root, n => n.attrs?.['data-tour'] === 'cite-starfield')[0]
-    assert.ok(starfield && typeof starfield.attrs.onWheel === 'function', 'starfield must support wheel zoom')
+    assert.ok(starfield, 'starfield must render')
+    assert.equal(starfield.attrs.onWheel, undefined, 'starfield must not use synthetic passive onWheel')
+    const wheelBindings = starfield._listeners.get('wheel') || []
+    assert.equal(wheelBindings.length, 1, 'starfield must bind native wheel listener via addEventListener')
+    assert.equal(wheelBindings[0].opts?.passive, false, 'native wheel listener must be { passive: false }')
+
     let prevented = false
-    starfield.attrs.onWheel({ deltaY: -120, preventDefault() { prevented = true }, target: { closest: () => null } })
+    starfield.dispatchEvent({ type: 'wheel', deltaY: -120, deltaMode: 0, clientX: 220, clientY: 60, preventDefault() { prevented = true }, target: { closest: () => null } })
     root = mounted.rerender()
     assert.equal(prevented, true)
     assert.match(textOf(root), /110%/)
 
+    // Tiny trackpad deltaY ticks must zoom gently instead of jumping to 155%
+    for (let i = 0; i < 4; i++) {
+      starfield.dispatchEvent({ type: 'wheel', deltaY: -5, deltaMode: 0, preventDefault() {}, target: { closest: () => null } })
+    }
+    root = mounted.rerender()
+    assert.doesNotMatch(textOf(root), /155%/, 'trackpad micro-ticks must not slam zoom to max')
+
     // Wheel inside Zettelkasten card must NOT hijack card scroll
     prevented = false
-    starfield.attrs.onWheel({ deltaY: -120, preventDefault() { prevented = true }, target: { closest: sel => sel.includes('.cite-zettelkasten') ? {} : null } })
+    starfield.dispatchEvent({ type: 'wheel', deltaY: -120, deltaMode: 0, preventDefault() { prevented = true }, target: { closest: sel => sel.includes('.cite-zettelkasten') ? {} : null } })
     assert.equal(prevented, false)
 
     const centerBtn = findNodes(root, n => n.tag === 'button' && n.attrs?.['aria-label'] === 'Center active node')[0]
@@ -1476,13 +1511,20 @@ test('Import preview supports Select all valid / Deselect all & .bib drag-and-dr
   const mounted = await env.mountWorkbench(true, 'en-US')
   try {
     let root = mounted.tree
-    // 1. Import tab: drag-and-drop .bib file -> Preview -> Deselect all -> Select all valid (selects 0 & 1, skips duplicate 2)
+    // 1. Import tab: plain text drop is NOT intercepted; drag-and-drop .bib file -> Preview -> Select all valid / Deselect all
     findNodes(root, n => n.attrs?.role === 'tab' && textOf(n).includes('Import'))[0].attrs.onClick()
     root = mounted.rerender()
     const importForm = findNodes(root, n => n.tag === 'form')[0]
+    let textDropPrevented = false
+    importForm.attrs.onDrop({
+      preventDefault() { textDropPrevented = true },
+      dataTransfer: { types: ['text/plain'], files: [] },
+    })
+    assert.equal(textDropPrevented, false, 'plain text drops must not be intercepted by the .bib drop zone')
+
     await importForm.attrs.onDrop({
       preventDefault() {},
-      dataTransfer: { files: [{ name: 'dropped.bib', size: 128, async text() { return '@article{ok1,title={Paper One},year={2024}}' } }] },
+      dataTransfer: { types: ['Files'], files: [{ name: 'dropped.bib', size: 128, async text() { return '@article{ok1,title={Paper One},year={2024}}' } }] },
     })
     root = mounted.rerender()
     assert.match(findNodes(root, n => n.tag === 'textarea')[0].attrs.value, /Paper One/)
@@ -1514,6 +1556,133 @@ test('Import preview supports Select all valid / Deselect all & .bib drag-and-dr
     assert.ok(copyFailedBtn, 'Copy failed DOIs button must render when any lookup fails')
     await copyFailedBtn.attrs.onClick()
     assert.equal(env.copiedClipboard, '10.1000/missing-one')
+  } finally {
+    mounted.cleanup()
+  }
+})
+
+test('Constellation Zettelkasten resolves Crossref conflicts in 1 click, List sort pushes blank authors last, and 409 refresh handles failures & deleted entries', async () => {
+  let failRefreshOnce = false
+  let deleteOnRefresh = false
+  let state = {
+    revision: 5,
+    jobs: [],
+    sources: [{ id: 'src-1', kind: 'bibtex', label: 'refs.bib', createdAt: '2026-11-26T00:00:00Z' }],
+    entries: [
+      {
+        id: 'c-1',
+        bibKey: 'noauthor2024',
+        sourceIds: ['src-1'],
+        warnings: ['missing_authors'],
+        crossref: {
+          doi: '10.1000/c1',
+          fetchedAt: '2026-11-26T00:00:00Z',
+          filled: [],
+          conflicts: [{ field: 'title', local: 'Draft Title', crossref: 'Verified Title' }],
+        },
+        work: { title: 'Draft Title', doi: '10.1000/c1', year: 2024, containerTitle: 'Nature', type: 'journal-article', authors: [] },
+      },
+      {
+        id: 'c-2',
+        bibKey: 'adams2025',
+        sourceIds: ['src-1'],
+        warnings: [],
+        crossref: null,
+        work: { title: 'Adams Study', doi: '10.1000/c2', year: 2025, containerTitle: 'Science', type: 'journal-article', authors: [{ family: 'Adams', given: 'Alan', name: '' }] },
+      },
+    ],
+  }
+
+  const env = createMiniEnv({
+    withPrimitives: false,
+    initialLibrary: state,
+    onApi: async body => {
+      if (body.action === 'list') {
+        if (failRefreshOnce) {
+          failRefreshOnce = false
+          return { ok: false, status: 500, json: async () => ({ ok: false, message: '网络错误', messageEn: 'Temporary list failure.' }) }
+        }
+        if (deleteOnRefresh) {
+          deleteOnRefresh = false
+          state = { ...state, revision: state.revision + 1, entries: state.entries.filter(e => e.id !== 'c-1') }
+        }
+        return { ok: true, status: 200, json: async () => ({ ok: true, value: state }) }
+      }
+      if (body.action === 'update') {
+        if (body.work?.publisher === 'Trigger409') {
+          return { ok: false, status: 409, json: async () => ({ ok: false, message: '冲突', messageEn: 'The library changed elsewhere, so metadata edits were not saved. Refresh the library and try again.' }) }
+        }
+        state = {
+          ...state,
+          revision: state.revision + 1,
+          entries: state.entries.map(e => {
+            if (e.id !== body.id) return e
+            const nextWork = { ...e.work, ...body.work }
+            const nextCrossref = e.crossref
+              ? { ...e.crossref, conflicts: e.crossref.conflicts.filter(c => nextWork[c.field] !== c.crossref) }
+              : null
+            return { ...e, work: nextWork, crossref: nextCrossref }
+          }),
+        }
+        return { ok: true, status: 200, json: async () => ({ ok: true, value: state }) }
+      }
+      return null
+    },
+  })
+
+  const mounted = await env.mountWorkbench(true, 'en-US')
+  try {
+    let root = mounted.tree
+    // 1. Constellation Zettelkasten card shows Crossref conflict badge & 1-click Use button
+    const zettel = findNodes(root, n => String(n.attrs?.className || '').includes('cite-zettelkasten'))[0]
+    assert.match(textOf(zettel), /1 diff/)
+    assert.match(textOf(zettel), /Crossref differences \(1\)/)
+    const zettelApplyBtn = findNodes(zettel, n => n.tag === 'button' && n.attrs?.['data-apply-crossref-field'] === 'title')[0]
+    assert.ok(zettelApplyBtn, 'Zettelkasten card must expose 1-click Use for Crossref conflicts')
+    await zettelApplyBtn.attrs.onClick()
+    root = mounted.rerender()
+    assert.match(textOf(findNodes(root, n => String(n.attrs?.className || '').includes('cite-zettelkasten'))[0]), /Verified Title/)
+    assert.equal(findNodes(root, n => n.attrs?.['data-apply-crossref-field'] === 'title').length, 0)
+
+    // 2. Metadata editor 409 -> failed refresh keeps conflict UI & shows error inside modal -> next refresh sees deleted entry & closes modal with notice
+    findNodes(root, n => n.tag === 'button' && textOf(n).includes('Edit metadata'))[0].attrs.onClick()
+    root = mounted.rerender()
+    findNodes(root, n => n.tag === 'input' && String(n.attrs?.id || '').endsWith('-publisher'))[0].attrs.onChange({ target: { value: 'Trigger409' } })
+    root = mounted.rerender()
+    await findNodes(root, n => n.tag === 'button' && textOf(n).includes('Save metadata'))[0].attrs.onClick({ preventDefault() {} })
+    root = mounted.rerender()
+
+    failRefreshOnce = true
+    await findNodes(root, n => n.tag === 'button' && textOf(n).includes('Refresh library'))[0].attrs.onClick()
+    root = mounted.rerender()
+    let dialog = findNodes(root, n => n.attrs?.role === 'dialog')[0]
+    assert.ok(dialog, 'modal stays open after failed refresh')
+    assert.match(textOf(dialog), /Temporary list failure/, 'refresh error must appear inside the modal')
+    assert.ok(findNodes(dialog, n => n.tag === 'button' && textOf(n).includes('Refresh library')).length === 1, 'conflict refresh button remains available on refresh failure')
+
+    deleteOnRefresh = true
+    await findNodes(dialog, n => n.tag === 'button' && textOf(n).includes('Refresh library'))[0].attrs.onClick()
+    root = mounted.rerender()
+    assert.equal(findNodes(root, n => n.attrs?.role === 'dialog').length, 0, 'modal closes cleanly when entry was removed in another window')
+    assert.match(textOf(root), /removed in another window/i)
+
+    // 3. List view sort by author puts entries with missing authors LAST, not first
+    state = {
+      ...state,
+      entries: [
+        { id: 'u-1', bibKey: 'blank', sourceIds: ['src-1'], warnings: ['missing_authors'], crossref: null, work: { title: 'No Author Paper', doi: '', year: 2024, containerTitle: '', type: 'other', authors: [] } },
+        { id: 'u-2', bibKey: 'adams', sourceIds: ['src-1'], warnings: [], crossref: null, work: { title: 'Adams Paper', doi: '', year: 2025, containerTitle: '', type: 'other', authors: [{ family: 'Adams', given: 'Alan', name: '' }] } },
+      ],
+    }
+    findNodes(root, n => n.tag === 'button' && n.attrs?.['data-view-mode'] === 'list')[0].attrs.onClick()
+    root = mounted.rerender()
+    await findNodes(root, n => n.tag === 'button' && n.attrs?.['aria-label'] === 'Refresh library')[0].attrs.onClick()
+    root = mounted.rerender()
+    findNodes(root, n => n.tag === 'select' && String(n.attrs?.className || '').includes('cite-sort-select'))[0].attrs.onChange({ target: { value: 'author' } })
+    root = mounted.rerender()
+    const sortedRows = findNodes(root, n => n.tag === 'li' && String(n.attrs?.className || '').includes('cite-reference-row'))
+    assert.match(textOf(sortedRows[0]), /Adams Paper/, 'author A-Z sort must put authored entries ahead of blank-author entries')
+    assert.match(textOf(sortedRows[1]), /No Author Paper/)
   } finally {
     mounted.cleanup()
   }

@@ -88,8 +88,24 @@ function ieeeAuthors(authors: CiteAuthor[]): string {
   return names[0] + ' et al.'
 }
 
+const TYPE_ALIASES: Record<string, string> = {
+  'article-journal': 'journal-article',
+  article: 'journal-article',
+  'paper-conference': 'proceedings-article',
+  chapter: 'book-chapter',
+  thesis: 'dissertation',
+  manuscript: 'posted-content',
+  webpage: 'posted-content',
+}
+
+function canonicalType(type: string): string {
+  const cleaned = type.trim()
+  if (cleaned === '') return 'other'
+  return TYPE_ALIASES[cleaned] ?? cleaned
+}
+
 function gbtTypeLabel(type: string, work: Work): string {
-  switch (type) {
+  switch (canonicalType(type)) {
     case 'journal-article': return '[J]'
     case 'book': case 'monograph': case 'edited-book': case 'book-chapter': return '[M]'
     case 'proceedings-article': case 'proceedings': return '[C]'
@@ -118,40 +134,44 @@ function cleanupTitle(title: string): string {
 }
 
 function titleOf(work: Work): string {
-  return cleanupTitle(work.title !== '' ? work.title : '(无标题)')
+  const cleaned = cleanupTitle(work.title)
+  return cleaned !== '' ? cleaned : '(无标题)'
 }
 
 /** 生成基本 GB/T 7714 参考文献条目。 */
 function buildGbt(work: Work, lang: string): string {
+  const type = canonicalType(work.type)
   const authors = gbtAuthors(work.authors, lang)
   const authorLead = authors + (authors.endsWith('.') ? ' ' : '. ')
   const title = titleOf(work)
-  const label = gbtTypeLabel(work.type, work)
-  if (work.type === 'journal-article' && work.containerTitle !== '') {
-    let tail = work.containerTitle + ', ' + yearText(work)
+  const label = gbtTypeLabel(type, work)
+  if (type === 'journal-article') {
+    let tail = (work.containerTitle !== '' ? work.containerTitle + ', ' : '') + yearText(work)
     const vip = volumeIssuePages(work)
     if (vip !== '') tail += ', ' + vip
-    return authorLead + title + label + '. ' + tail + '.'
+    return authorLead + title + '[J]. ' + tail + '.'
   }
-  if (work.type === 'book-chapter' && work.containerTitle !== '') {
+  if (type === 'book-chapter') {
     let tail = work.publisher !== '' ? work.publisher + ', ' : ''
     tail += yearText(work)
     if (work.page !== '') tail += ': ' + work.page
-    return authorLead + title + '[M]//' + work.containerTitle + '. ' + tail + '.'
+    const container = work.containerTitle !== '' ? '//' + work.containerTitle : ''
+    return authorLead + title + '[M]' + container + '. ' + tail + '.'
   }
-  if (work.type === 'book' || work.type === 'monograph' || work.type === 'edited-book') {
+  if (type === 'book' || type === 'monograph' || type === 'edited-book') {
     let tail = work.publisher !== '' ? work.publisher + ', ' : ''
     tail += yearText(work)
     if (work.isbn !== '') tail += '. ISBN ' + work.isbn
     return authorLead + title + '[M]. ' + tail + '.'
   }
-  if (work.containerTitle !== '' && work.type === 'proceedings-article') {
+  if (type === 'proceedings-article') {
     let tail = work.publisher !== '' ? work.publisher + ', ' : ''
     tail += yearText(work)
     if (work.page !== '') tail += ': ' + work.page
-    return authorLead + title + '[C]//' + work.containerTitle + '. ' + tail + '.'
+    const container = work.containerTitle !== '' ? '//' + work.containerTitle : ''
+    return authorLead + title + '[C]' + container + '. ' + tail + '.'
   }
-  if (work.type === 'proceedings' || work.type === 'dissertation' || work.type === 'report' || work.type === 'standard' || work.type === 'patent') {
+  if (type === 'proceedings' || type === 'dissertation' || type === 'report' || type === 'standard' || type === 'patent') {
     let tail = work.publisher !== '' ? work.publisher + ', ' : (work.containerTitle !== '' ? work.containerTitle + ', ' : '')
     tail += yearText(work)
     if (work.page !== '') tail += ': ' + work.page
@@ -164,26 +184,27 @@ function buildGbt(work: Work, lang: string): string {
 
 /** 生成基本 APA 参考文献条目。 */
 function buildApa(work: Work): string {
+  const type = canonicalType(work.type)
   const authors = apaAuthors(work.authors)
   const title = titleOf(work)
   const year = yearText(work)
   const link = work.doi !== '' ? 'https://doi.org/' + work.doi : work.url
   const linkTail = link !== '' ? ' ' + link : ''
-  if (work.type === 'journal-article' && work.containerTitle !== '') {
+  if (type === 'journal-article' && work.containerTitle !== '') {
     let text = authors + ' (' + year + '). ' + title + '. ' + work.containerTitle
     if (work.volume !== '') text += ', ' + work.volume
     if (work.issue !== '') text += '(' + work.issue + ')'
     if (work.page !== '') text += ', ' + work.page
     return text + '.' + linkTail
   }
-  if ((work.type === 'proceedings-article' || work.type === 'book-chapter') && work.containerTitle !== '') {
+  if ((type === 'proceedings-article' || type === 'book-chapter') && work.containerTitle !== '') {
     let text = authors + ' (' + year + '). ' + title + '. In ' + work.containerTitle
     if (work.page !== '') text += ' (pp. ' + work.page + ')'
     text += '.'
     if (work.publisher !== '') text += ' ' + work.publisher + '.'
     return text + linkTail
   }
-  if (work.type === 'book' || work.type === 'monograph' || work.type === 'edited-book') {
+  if (type === 'book' || type === 'monograph' || type === 'edited-book') {
     return authors + ' (' + year + '). ' + title + '.' + (work.publisher !== '' ? ' ' + work.publisher + '.' : '') + linkTail
   }
   let text = authors + ' (' + year + '). ' + title + '.'
@@ -228,11 +249,12 @@ function buildChicago(work: Work): string {
 
 /** 生成基本 IEEE 参考文献条目。 */
 function buildIeee(work: Work): string {
+  const type = canonicalType(work.type)
   const authors = ieeeAuthors(work.authors)
   const title = titleOf(work)
   const parts: string[] = [authors + ', "' + title + ',"']
   if (work.containerTitle !== '') {
-    parts.push(work.type === 'proceedings-article' || work.type === 'book-chapter' ? 'in ' + work.containerTitle : work.containerTitle)
+    parts.push(type === 'proceedings-article' || type === 'book-chapter' ? 'in ' + work.containerTitle : work.containerTitle)
   } else if (work.publisher !== '') {
     parts.push(work.publisher)
   }
@@ -249,7 +271,7 @@ function buildIeee(work: Work): string {
 
 /** 按样式生成引文。 */
 export function buildCitation(work: Work, style: CiteStyle, lang = 'zh'): string {
-  if (!work.title && lang === 'en') work = { ...work, title: '(Untitled)' }
+  if (cleanupTitle(work.title) === '' && lang === 'en') work = { ...work, title: '(Untitled)' }
   switch (style) {
     case 'gb-t-7714': return buildGbt(work, lang)
     case 'apa': return buildApa(work)
@@ -284,7 +306,7 @@ function sanitizeBibtexKey(value: string): string {
 }
 
 function bibtexType(work: Work): string {
-  switch (work.type) {
+  switch (canonicalType(work.type)) {
     case 'journal-article': return 'article'
     case 'book': case 'monograph': case 'edited-book': return 'book'
     case 'book-chapter': return 'incollection'

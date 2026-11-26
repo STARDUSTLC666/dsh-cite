@@ -15,12 +15,28 @@ export interface LibraryEntry {
 }
 export interface CitationLibrary { version: 1; revision: number; entries: LibraryEntry[]; sources: SourceRecord[] }
 
+const WORK_TYPE_ALIASES: Record<string, string> = {
+  'article-journal': 'journal-article',
+  article: 'journal-article',
+  'paper-conference': 'proceedings-article',
+  chapter: 'book-chapter',
+  thesis: 'dissertation',
+  manuscript: 'posted-content',
+  webpage: 'posted-content',
+}
+
+export function canonicalWorkType(raw: unknown): string {
+  const text = plainText(raw)
+  if (!text) return 'other'
+  return WORK_TYPE_ALIASES[text] || text
+}
+
 export function normalizeWork(value: unknown): Work {
   if (!value || typeof value !== 'object') throw new Error('文献记录无效。')
   const raw = value as Record<string, unknown>, authors = raw.authors ?? []
   if (!Array.isArray(authors) || authors.length > 2000) throw new Error('作者列表无效或超过 2000 人。')
   const work: Work = {
-    doi: literalText(raw.doi), type: plainText(raw.type) || 'other', title: plainText(raw.title),
+    doi: literalText(raw.doi), type: canonicalWorkType(raw.type), title: plainText(raw.title),
     authors: authors.map(a => { if (!a || typeof a !== 'object') throw new Error('作者记录无效。'); return { given: plainText(a.given), family: plainText(a.family), name: plainText(a.name) } }).filter(a => a.given || a.family || a.name),
     containerTitle: plainText(raw.containerTitle), publisher: plainText(raw.publisher), year: typeof raw.year === 'number' && Number.isInteger(raw.year) && raw.year > 0 && raw.year <= 9999 ? raw.year : 0,
     language: plainText(raw.language), volume: plainText(raw.volume), issue: plainText(raw.issue), page: plainText(raw.page), url: literalText(raw.url), isbn: plainText(raw.isbn),

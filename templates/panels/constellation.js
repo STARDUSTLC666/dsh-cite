@@ -31,77 +31,158 @@ function computeConstellationEdges(entries) {
     return { entry, authorNames, authorFamilies, venue, year, cluster };
   });
 
-  const candidates = [];
+  const edges = [];
   const connectedSet = new Set();
   const degree = new Map(entries.map(e => [e.id, 0]));
+  const compactGraph = entries.length > 15;
 
-  for (let i = 0; i < prepared.length; i++) {
-    for (let j = i + 1; j < prepared.length; j++) {
-      const a = prepared[i];
-      const b = prepared[j];
+  if (!compactGraph) {
+    for (let i = 0; i < prepared.length; i++) {
+      for (let j = i + 1; j < prepared.length; j++) {
+        const a = prepared[i];
+        const b = prepared[j];
 
-      let sharedAuthor = '';
-      for (const name of a.authorNames) {
-        if (b.authorNames.has(name)) {
-          sharedAuthor = name;
-          break;
-        }
-      }
-      if (!sharedAuthor) {
-        for (const fam of a.authorFamilies) {
-          if (b.authorFamilies.has(fam)) {
-            sharedAuthor = fam;
+        let sharedAuthor = '';
+        for (const name of a.authorNames) {
+          if (b.authorNames.has(name)) {
+            sharedAuthor = name;
             break;
           }
         }
-      }
-      const sameVenue = Boolean(a.venue && b.venue && a.venue === b.venue);
-      const yearGap = a.year > 0 && b.year > 0 ? Math.abs(a.year - b.year) : 99;
-      const sameEra = yearGap <= 2;
+        if (!sharedAuthor) {
+          for (const fam of a.authorFamilies) {
+            if (b.authorFamilies.has(fam)) {
+              sharedAuthor = fam;
+              break;
+            }
+          }
+        }
+        const sameVenue = Boolean(a.venue && b.venue && a.venue === b.venue);
+        const yearGap = a.year > 0 && b.year > 0 ? Math.abs(a.year - b.year) : 99;
+        const sameEra = yearGap <= 2;
 
-      if (sharedAuthor || sameVenue || sameEra) {
-        const kind = sharedAuthor ? 'author' : sameVenue ? 'venue' : 'era';
-        const weight = sharedAuthor ? 4 : sameVenue ? 3 : 2;
-        const score = sharedAuthor ? 400 : sameVenue ? 300 : (200 - yearGap * 20);
-        const pairKey = a.entry.id + '__' + b.entry.id;
-        candidates.push({
-          id: pairKey,
-          source: a.entry.id,
-          target: b.entry.id,
-          kind,
-          weight,
-          score,
-          detail: sharedAuthor || (sameVenue ? a.entry.work.containerTitle : String(a.year)),
-        });
+        if (sharedAuthor || sameVenue || sameEra) {
+          const kind = sharedAuthor ? 'author' : sameVenue ? 'venue' : 'era';
+          const weight = sharedAuthor ? 4 : sameVenue ? 3 : 2;
+          const pairKey = a.entry.id + '__' + b.entry.id;
+          connectedSet.add(pairKey);
+          degree.set(a.entry.id, (degree.get(a.entry.id) || 0) + 1);
+          degree.set(b.entry.id, (degree.get(b.entry.id) || 0) + 1);
+          edges.push({
+            id: pairKey,
+            source: a.entry.id,
+            target: b.entry.id,
+            kind,
+            weight,
+            detail: sharedAuthor || (sameVenue ? a.entry.work.containerTitle : String(a.year)),
+          });
+        }
       }
-    }
-  }
-
-  const edges = [];
-  const compactGraph = entries.length > 15;
-  if (!compactGraph) {
-    for (const edge of candidates) {
-      connectedSet.add(edge.id);
-      degree.set(edge.source, (degree.get(edge.source) || 0) + 1);
-      degree.set(edge.target, (degree.get(edge.target) || 0) + 1);
-      edges.push({
-        id: edge.id,
-        source: edge.source,
-        target: edge.target,
-        kind: edge.kind,
-        weight: edge.weight,
-        detail: edge.detail,
-      });
     }
   } else {
-    // Cap edge density deterministically for medium/large libraries (16–500 papers)
-    // so SVG filaments stay legible and dragging remains smooth.
+    // Use inverted author/venue/year buckets with bounded local windows so dense
+    // libraries up to 500 papers compute priority-ranked filaments in O(N).
     const maxDegree = entries.length > 80 ? 3 : entries.length > 35 ? 4 : 5;
     const maxEdges = Math.min(240, Math.max(48, entries.length * 3));
+    const bestByPair = new Map();
+    const recordCandidate = (i, j, kind, weight, score, detail) => {
+      const lo = i < j ? i : j;
+      const hi = i < j ? j : i;
+      const pairIdx = lo * prepared.length + hi;
+      const existing = bestByPair.get(pairIdx);
+      if (existing && existing.score >= score) return;
+      const a = prepared[lo];
+      const b = prepared[hi];
+      bestByPair.set(pairIdx, {
+        id: a.entry.id + '__' + b.entry.id,
+        source: a.entry.id,
+        target: b.entry.id,
+        kind,
+        weight,
+        score,
+        detail,
+      });
+    };
+
+    const authorBuckets = new Map();
+    const venueBuckets = new Map();
+    const yearBuckets = new Map();
+    for (let i = 0; i < prepared.length; i++) {
+      const item = prepared[i];
+      for (const name of item.authorNames) {
+        let bucket = authorBuckets.get(name);
+        if (!bucket) { bucket = []; authorBuckets.set(name, bucket); }
+        bucket.push(i);
+      }
+      for (const fam of item.authorFamilies) {
+        const key = 'fam:' + fam;
+        let bucket = authorBuckets.get(key);
+        if (!bucket) { bucket = []; authorBuckets.set(key, bucket); }
+        bucket.push(i);
+      }
+      if (item.venue) {
+        let bucket = venueBuckets.get(item.venue);
+        if (!bucket) { bucket = []; venueBuckets.set(item.venue, bucket); }
+        bucket.push(i);
+      }
+      if (item.year > 0) {
+        let bucket = yearBuckets.get(item.year);
+        if (!bucket) { bucket = []; yearBuckets.set(item.year, bucket); }
+        bucket.push(i);
+      }
+    }
+
+    const authorWindow = maxDegree + 6;
+    for (const [token, bucket] of authorBuckets) {
+      if (bucket.length < 2) continue;
+      const label = token.startsWith('fam:') ? token.slice(4) : token;
+      const score = token.startsWith('fam:') ? 390 : 400;
+      for (let aIdx = 0; aIdx < bucket.length; aIdx++) {
+        const end = Math.min(bucket.length, aIdx + 1 + authorWindow);
+        for (let bIdx = aIdx + 1; bIdx < end; bIdx++) {
+          recordCandidate(bucket[aIdx], bucket[bIdx], 'author', 4, score, label);
+        }
+      }
+    }
+
+    const venueWindow = maxDegree + 4;
+    for (const bucket of venueBuckets.values()) {
+      if (bucket.length < 2) continue;
+      const venueLabel = prepared[bucket[0]].entry.work.containerTitle;
+      for (let aIdx = 0; aIdx < bucket.length; aIdx++) {
+        const end = Math.min(bucket.length, aIdx + 1 + venueWindow);
+        for (let bIdx = aIdx + 1; bIdx < end; bIdx++) {
+          recordCandidate(bucket[aIdx], bucket[bIdx], 'venue', 3, 300, venueLabel);
+        }
+      }
+    }
+
+    const eraWindow = maxDegree + 2;
+    for (const [year, bucket] of yearBuckets) {
+      for (let aIdx = 0; aIdx < bucket.length; aIdx++) {
+        const end = Math.min(bucket.length, aIdx + 1 + eraWindow);
+        for (let bIdx = aIdx + 1; bIdx < end; bIdx++) {
+          recordCandidate(bucket[aIdx], bucket[bIdx], 'era', 2, 200, String(year));
+        }
+      }
+      for (const gap of [1, 2]) {
+        const nextBucket = yearBuckets.get(year + gap);
+        if (!nextBucket) continue;
+        const score = 200 - gap * 20;
+        for (let aIdx = 0; aIdx < bucket.length; aIdx++) {
+          const limit = Math.min(nextBucket.length, eraWindow);
+          for (let bIdx = 0; bIdx < limit; bIdx++) {
+            recordCandidate(bucket[aIdx], nextBucket[bIdx], 'era', 2, score, String(year));
+          }
+        }
+      }
+    }
+
+    const candidates = [...bestByPair.values()];
     candidates.sort((left, right) => {
       if (left.score !== right.score) return right.score - left.score;
-      if (left.source !== right.source) return left.source.localeCompare(right.source);
-      return left.target.localeCompare(right.target);
+      if (left.source !== right.source) return left.source < right.source ? -1 : 1;
+      return left.target < right.target ? -1 : left.target > right.target ? 1 : 0;
     });
     for (const edge of candidates) {
       if (edges.length >= maxEdges) break;
@@ -179,7 +260,8 @@ function computeConstellationLayout(entries, edges, viewport = { width: 1200, he
   const halfW = nodeWidth / 2;
   const halfH = nodeHeight / 2;
   const aspect = Math.max(1.25, viewW / Math.max(1, viewH));
-  const requiredUsableArea = count * minSepX * minSepY * 2.15;
+  const areaFactor = count > 150 ? 2.6 : 2.15;
+  const requiredUsableArea = count * minSepX * minSepY * areaFactor;
 
   let stageWidth = viewW;
   let stageHeight = viewH;
@@ -275,8 +357,87 @@ function computeConstellationLayout(entries, edges, viewport = { width: 1200, he
     return true;
   }
 
+  // Exact spatial-hash grid for O(N) collision checks when count > 24.
+  // Because cellW === minSepX and cellH === minSepY, any colliding pair must
+  // reside within the 3x3 cell neighborhood.
+  const useGrid = count > 24;
+  function separatePair(i, j, pushFactor, extraPush, doClamp) {
+    const a = nodes[i];
+    const b = nodes[j];
+    let dx = b.x - a.x;
+    let dy = b.y - a.y;
+    if (dx === 0 && dy === 0) {
+      const theta = ((i * 7 + j * 13) % 360) * (Math.PI / 180);
+      dx = Math.cos(theta) * 2;
+      dy = Math.sin(theta) * 2;
+    }
+    const ox = minSepX - Math.abs(dx);
+    const oy = minSepY - Math.abs(dy);
+    if (ox > 0 && oy > 0) {
+      if (ox * minSepY < oy * minSepX) {
+        const sign = dx >= 0 ? 1 : -1;
+        const push = ox * pushFactor + extraPush;
+        a.x -= sign * push;
+        b.x += sign * push;
+      } else {
+        const sign = dy >= 0 ? 1 : -1;
+        const push = oy * pushFactor + extraPush;
+        a.y -= sign * push;
+        b.y += sign * push;
+      }
+      if (doClamp) {
+        clamp(a);
+        clamp(b);
+      }
+      return true;
+    }
+    return false;
+  }
+
+  function sweepNonOverlap(pushFactor, extraPush, doClamp) {
+    let collided = false;
+    if (!useGrid) {
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          if (separatePair(i, j, pushFactor, extraPush, doClamp)) collided = true;
+        }
+      }
+      return collided;
+    }
+    const grid = new Map();
+    const cellX = new Int32Array(nodes.length);
+    const cellY = new Int32Array(nodes.length);
+    for (let i = 0; i < nodes.length; i++) {
+      const gx = Math.floor(nodes[i].x / minSepX);
+      const gy = Math.floor(nodes[i].y / minSepY);
+      cellX[i] = gx;
+      cellY[i] = gy;
+      const key = gy * 100003 + gx;
+      let bucket = grid.get(key);
+      if (!bucket) { bucket = []; grid.set(key, bucket); }
+      bucket.push(i);
+    }
+    for (let i = 0; i < nodes.length; i++) {
+      const gx = cellX[i];
+      const gy = cellY[i];
+      for (let dy = -1; dy <= 1; dy++) {
+        const rowOffset = (gy + dy) * 100003;
+        for (let dx = -1; dx <= 1; dx++) {
+          const bucket = grid.get(rowOffset + gx + dx);
+          if (!bucket) continue;
+          for (let k = 0; k < bucket.length; k++) {
+            const j = bucket[k];
+            if (j <= i) continue;
+            if (separatePair(i, j, pushFactor, extraPush, doClamp)) collided = true;
+          }
+        }
+      }
+    }
+    return collided;
+  }
+
   // Iterative force relaxation: edge gravity + non-overlap repulsion + HUD clearance.
-  const iterations = count > 160 ? 22 : count > 80 ? 40 : Math.min(96, 40 + count * 2);
+  const iterations = count > 160 ? 28 : count > 80 ? 40 : Math.min(96, 40 + count * 2);
 
   for (let iter = 0; iter < iterations; iter++) {
     // 1. Gentle attraction along relationship filaments
@@ -306,34 +467,7 @@ function computeConstellationLayout(entries, edges, viewport = { width: 1200, he
     }
 
     // 3. Hard axis-aligned non-overlap separation
-    for (let i = 0; i < nodes.length; i++) {
-      for (let j = i + 1; j < nodes.length; j++) {
-        const a = nodes[i];
-        const b = nodes[j];
-        let dx = b.x - a.x;
-        let dy = b.y - a.y;
-        if (dx === 0 && dy === 0) {
-          const theta = ((i * 7 + j * 13) % 360) * (Math.PI / 180);
-          dx = Math.cos(theta) * 2;
-          dy = Math.sin(theta) * 2;
-        }
-        const ox = minSepX - Math.abs(dx);
-        const oy = minSepY - Math.abs(dy);
-        if (ox > 0 && oy > 0) {
-          if (ox * minSepY < oy * minSepX) {
-            const sign = dx >= 0 ? 1 : -1;
-            const push = ox * 0.52;
-            a.x -= sign * push;
-            b.x += sign * push;
-          } else {
-            const sign = dy >= 0 ? 1 : -1;
-            const push = oy * 0.52;
-            a.y -= sign * push;
-            b.y += sign * push;
-          }
-        }
-      }
-    }
+    sweepNonOverlap(0.52, 0, false);
 
     // 4. Keep nodes cleanly clear of floating capsules & Zettelkasten HUD
     if (hudClearance) {
@@ -346,32 +480,9 @@ function computeConstellationLayout(entries, edges, viewport = { width: 1200, he
   }
 
   // Final guaranteed overlap-free + HUD-clear sweep
-  for (let pass = 0; pass < 110; pass++) {
-    let collided = false;
-    for (let i = 0; i < nodes.length; i++) {
-      for (let j = i + 1; j < nodes.length; j++) {
-        const a = nodes[i];
-        const b = nodes[j];
-        const dx = b.x - a.x;
-        const dy = b.y - a.y;
-        const ox = minSepX - Math.abs(dx);
-        const oy = minSepY - Math.abs(dy);
-        if (ox > 0 && oy > 0) {
-          collided = true;
-          if (ox * minSepY < oy * minSepX) {
-            const sign = dx >= 0 ? 1 : -1;
-            a.x -= sign * (ox * 0.55 + 1);
-            b.x += sign * (ox * 0.55 + 1);
-          } else {
-            const sign = dy >= 0 ? 1 : -1;
-            a.y -= sign * (oy * 0.55 + 1);
-            b.y += sign * (oy * 0.55 + 1);
-          }
-          clamp(a);
-          clamp(b);
-        }
-      }
-    }
+  const maxSweepPasses = count > 150 ? 180 : 110;
+  for (let pass = 0; pass < maxSweepPasses; pass++) {
+    let collided = sweepNonOverlap(0.55, 1, true);
     if (hudClearance && pass < 90) {
       for (const node of nodes) {
         for (const rect of hudRects) {
@@ -383,9 +494,9 @@ function computeConstellationLayout(entries, edges, viewport = { width: 1200, he
       }
     }
     if (!collided) break;
-    if (pass === 44 || pass === 80) {
-      stageWidth += Math.round(minSepX * 1.1);
-      stageHeight += Math.round(minSepY * 1.1);
+    if (pass === 44 || pass === 80 || pass === 115 || pass === 145) {
+      stageWidth += Math.round(minSepX * 1.25);
+      stageHeight += Math.round(minSepY * 1.25);
     }
   }
 
@@ -413,7 +524,7 @@ function filamentPath(a, b, edgeId) {
 
 function CiteZettelkastenHud({
   entry, sources, style, lang, revision, locked, running, copiedKey,
-  neighborCount, enrich, copy, onEditMetadata, onOpenRawSource, onRequestRemove, t,
+  neighborCount, enrich, copy, onEditMetadata, onOpenRawSource, onRequestRemove, onApplyCrossrefField, t,
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const { id, work, bibKey, warnings, crossref } = entry;
@@ -422,6 +533,7 @@ function CiteZettelkastenHud({
   const matchedSources = entry.sourceIds.map(sourceId => sources.find(source => source.id === sourceId)).filter(Boolean);
   const authorLine = authors(work) || t('佚名作者', 'Unknown authors');
   const venueLine = [work.year || '', work.containerTitle || work.publisher || ''].filter(Boolean).join(' · ');
+  const conflictList = crossref?.conflicts || [];
 
   return h('aside', {
     className: 'cite-zettelkasten',
@@ -438,6 +550,9 @@ function CiteZettelkastenHud({
           : warnings.length
             ? h(CiteChip, { tone: 'warn', title: warnings.map(code => warningLabel(code, t)).join(' · ') }, t('有字段缺失', 'Missing fields'))
             : h(CiteChip, null, t('字段完整', 'Complete')),
+        conflictList.length
+          ? h(CiteChip, { tone: 'warn' }, t(conflictList.length + ' 项差异', conflictList.length + (conflictList.length === 1 ? ' diff' : ' diffs')))
+          : null,
         h(CiteChip, null, t('关联 ' + neighborCount + ' 篇', neighborCount + (neighborCount === 1 ? ' link' : ' links'))),
       ),
       h(CiteIconButton, {
@@ -461,6 +576,22 @@ function CiteZettelkastenHud({
         ),
         h(CiteOutput, { output: citation, label: t('引文预览', 'Citation preview'), t }),
       ),
+      conflictList.length ? h('details', { className: 'cite-zettel-conflicts' },
+        h('summary', null, t('Crossref 字段差异 (' + conflictList.length + ')', 'Crossref differences (' + conflictList.length + ')')),
+        h('ul', { className: 'cite-plain-list cite-zettel-conflict-list' }, conflictList.map(item => h('li', { key: item.field, className: 'cite-zettel-conflict-row' },
+          h('div', { className: 'cite-zettel-conflict-body' },
+            h('strong', null, fieldName(item.field, t)),
+            h('span', { className: 'cite-muted' }, valueText(item.crossref)),
+          ),
+          onApplyCrossrefField ? h(CiteButton, {
+            variant: 'outline',
+            icon: 'check',
+            disabled: locked,
+            'data-apply-crossref-field': item.field,
+            onClick: () => onApplyCrossrefField(entry, item),
+          }, t('采用', 'Use')) : null,
+        ))),
+      ) : null,
       h('div', { className: 'cite-zettel-actions', 'data-tour': 'cite-copy-actions' },
         h(CiteButton, {
           variant: 'primary',
@@ -512,7 +643,7 @@ function CiteZettelkastenHud({
 function CiteConstellation({
   entries, sources, revision, t, lang, uiStyle, uiFont, loading, loaded, locked, running,
   style, setStyle, copiedKey, filter, search, activeId, setActiveId,
-  viewMode, setViewMode, onSearch, onFilter, onRefresh, onImport, enrich, copy, onRequestRemove, onEditMetadata, onOpenRawSource,
+  viewMode, setViewMode, onSearch, onFilter, onRefresh, onImport, enrich, copy, onRequestRemove, onEditMetadata, onOpenRawSource, onApplyCrossrefField,
 }) {
   const starfieldRef = useRef(null);
   const dragRef = useRef(null);
@@ -726,13 +857,36 @@ function CiteConstellation({
     setZoom(prev => Math.max(0.55, Math.min(1.55, Math.round((prev + delta) * 100) / 100)));
   }
 
-  function handleWheel(event) {
+  const wheelHandlerRef = useRef(null);
+  wheelHandlerRef.current = event => {
     if (event?.target?.closest?.('.cite-zettelkasten, .cite-capsule, .cite-constellation-empty')) return;
-    const dy = Number(event?.deltaY ?? 0);
-    if (!dy) return;
+    const rawDy = Number(event?.deltaY ?? 0);
+    if (!rawDy) return;
     event?.preventDefault?.();
-    adjustZoom(dy < 0 ? 0.1 : -0.1);
-  }
+    const modeScale = event?.deltaMode === 1 ? 24 : event?.deltaMode === 2 ? 240 : 1;
+    const normalizedDy = rawDy * modeScale;
+    const step = Math.max(-0.12, Math.min(0.12, -normalizedDy * 0.00085));
+    const nextZoom = Math.max(0.55, Math.min(1.55, Math.round((zoom + step) * 1000) / 1000));
+    if (nextZoom === zoom) return;
+    const el = starfieldRef.current;
+    const rect = el && typeof el.getBoundingClientRect === 'function' ? el.getBoundingClientRect() : null;
+    if (rect && rect.width > 0 && Number.isFinite(event?.clientX) && Number.isFinite(event?.clientY)) {
+      const px = event.clientX - rect.left;
+      const py = event.clientY - rect.top;
+      const stageX = (px - pan.x) / zoom;
+      const stageY = (py - pan.y) / zoom;
+      setPan({ x: Math.round(px - stageX * nextZoom), y: Math.round(py - stageY * nextZoom) });
+    }
+    setZoom(nextZoom);
+  };
+
+  useEffect(() => {
+    const el = starfieldRef.current;
+    if (!el || typeof el.addEventListener !== 'function') return undefined;
+    const onNativeWheel = event => wheelHandlerRef.current?.(event);
+    el.addEventListener('wheel', onNativeWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onNativeWheel);
+  }, []);
 
   function filamentLabel(edge) {
     if (edge.kind === 'author') return t('同作者：' + edge.detail, 'Shared author: ' + edge.detail);
@@ -767,7 +921,6 @@ function CiteConstellation({
       onPointerMove: moveDrag,
       onPointerUp: endDrag,
       onPointerCancel: endDrag,
-      onWheel: handleWheel,
     },
       h('div', { className: 'cite-starfield-halo', 'aria-hidden': 'true' }),
       h('div', {
@@ -983,6 +1136,7 @@ function CiteConstellation({
         onEditMetadata,
         onOpenRawSource,
         onRequestRemove,
+        onApplyCrossrefField,
         t,
       }) : null,
     ),

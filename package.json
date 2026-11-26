@@ -1,7 +1,7 @@
 {
   "name": "dsh-cite",
-  "version": "0.13.0",
-  "description": "DeepSeek Harness 学术引文工作台与 6 个 AI 智能体工具：默认「文献引力星图」可拖拽/滚轮缩放画布与悬浮 Zettelkasten 索引卡（1 键切经典列表排序视图），支持离线 DOI/BibTeX 拖放去重预览、Crossref 核查补全与 1 键差异采用、全字段原子编辑、GB/T 7714 / APA / IEEE / MLA / Chicago 5 格式 14 类文献导出与 1 键复制，内置 13 套明亮风格 × 8 套字体。",
+  "version": "0.13.1",
+  "description": "DeepSeek Harness 学术引文工作台与 6 个 AI 智能体工具：默认「文献引力星图」支持拖拽/指针锚点滚轮缩放、悬停关系提示、500 篇无重叠排布与悬浮 Zettelkasten 索引卡（1 键切排序列表），支持离线 DOI/BibTeX 拖放去重预览、Crossref 核查补全与双视图 1 键差异采用、全字段原子编辑、5 格式 14 类文献导出与 1 键复制，内置 13 套明亮风格 × 8 套字体。",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",

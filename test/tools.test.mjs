@@ -150,6 +150,16 @@ test('多文献类型（会议论文、图书章节、专著、学位论文、�
   assert.match(unsafeBib, /volume=\{12\\\{a\\\}\}/)
   assert.match(unsafeBib, /number=\{3\\%4\}/)
   assert.match(unsafeBib, /pages=\{10\\_12\}/)
+
+  // CSL standard type aliases (paper-conference, article-journal, chapter, thesis) & empty-container / whitespace-title edge cases
+  const cslConf = { ...conf, type: 'paper-conference' }
+  assert.equal(buildCitation(cslConf, 'gb-t-7714', 'zh'), 'Li Wei. Fast Indexing[C]//Proceedings of SIGIR. ACM, 2025: 101-110.')
+  assert.match(buildBibtex(cslConf), /^@inproceedings\{/)
+  const cslJournalNoVenue = { ...work, type: 'article-journal', containerTitle: '', title: '   ' }
+  assert.match(buildCitation(cslJournalNoVenue, 'gb-t-7714', 'en'), /\(Untitled\)\[J\]\. 2024, 600\(12\): 1-9\.$/)
+  assert.doesNotMatch(buildCitation(cslJournalNoVenue, 'gb-t-7714', 'en'), /cited|引用日期/)
+  assert.match(buildBibtex({ ...chapter, type: 'chapter' }), /^@incollection\{/)
+  assert.match(buildBibtex({ ...thesis, type: 'thesis' }), /^@phdthesis\{/)
 })
 
 test('lookupDoi 兼容 www.doi.org 链接', async () => {

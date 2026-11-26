@@ -97,14 +97,66 @@ test('cite_lookup 按 DOI 与 query 检索', async () => {
   assert.ok(calls.some((url) => url.includes('10.1038%2Fnature12345')))
 })
 
-test('cite_format 输出四种格式', async () => {
+test('cite_format 输出五种格式（含 IEEE）', async () => {
   const { fn } = fakeFetch()
   const tool = buildCiteTools(cfg, fn).find(t => t.name === 'cite_format')
-  for (const style of ['gb-t-7714', 'apa', 'mla', 'chicago']) {
+  for (const style of ['gb-t-7714', 'apa', 'ieee', 'mla', 'chicago']) {
     const value = await tool.execute({ doi: '10.1038/nature12345', style }, {})
     assert.equal(value.style, style)
     assert.ok(value.citation.length > 10)
   }
+})
+
+test('多文献类型（会议论文、图书章节、专著、学位论文、报告、标准、专利）五种引文与 BibTeX 格式', () => {
+  const chapter = {
+    doi: '10.1000/chap-1', type: 'book-chapter', title: 'Spatial Libraries',
+    authors: [{ given: 'Lin', family: 'Chen', name: '' }],
+    containerTitle: 'Handbook of Knowledge Tools', publisher: 'Academic Press',
+    year: 2026, language: 'en', volume: '', issue: '', page: '45-68', url: 'https://doi.org/10.1000/chap-1', isbn: '978-0-12-345678-9',
+  }
+  assert.equal(buildCitation(chapter, 'gb-t-7714', 'zh'), 'Chen Lin. Spatial Libraries[M]//Handbook of Knowledge Tools. Academic Press, 2026: 45-68.')
+  assert.match(buildCitation(chapter, 'apa', 'en'), /In Handbook of Knowledge Tools \(pp\. 45-68\)\. Academic Press\. https:\/\/doi\.org\/10\.1000\/chap-1/)
+  assert.match(buildCitation(chapter, 'ieee', 'en'), /in Handbook of Knowledge Tools, pp\. 45-68, 2026\. doi: 10\.1000\/chap-1\./)
+  const chapBib = buildBibtex(chapter)
+  assert.match(chapBib, /^@incollection\{/)
+  assert.match(chapBib, /booktitle=\{Handbook of Knowledge Tools\}/)
+  assert.match(chapBib, /isbn=\{978-0-12-345678-9\}/)
+
+  const conf = {
+    doi: '10.1000/conf-1', type: 'proceedings-article', title: 'Fast Indexing',
+    authors: [{ given: 'Wei', family: 'Li', name: '' }],
+    containerTitle: 'Proceedings of SIGIR', publisher: 'ACM',
+    year: 2025, language: 'en', volume: '', issue: '', page: '101-110', url: '', isbn: '',
+  }
+  assert.equal(buildCitation(conf, 'gb-t-7714', 'zh'), 'Li Wei. Fast Indexing[C]//Proceedings of SIGIR. ACM, 2025: 101-110.')
+  assert.match(buildCitation(conf, 'apa', 'en'), /In Proceedings of SIGIR \(pp\. 101-110\)\. ACM\. https:\/\/doi\.org\/10\.1000\/conf-1/)
+
+  const thesis = {
+    doi: '', type: 'dissertation', title: 'Neural Citations',
+    authors: [{ given: 'Mei', family: 'Zhou', name: '' }],
+    containerTitle: '', publisher: 'Tsinghua University',
+    year: 2024, language: 'zh', volume: '', issue: '', page: '', url: 'https://example.org/thesis', isbn: '',
+  }
+  assert.equal(buildCitation(thesis, 'gb-t-7714', 'zh'), 'Zhou Mei. Neural Citations[D]. Tsinghua University, 2024.')
+  assert.doesNotMatch(buildCitation(thesis, 'gb-t-7714', 'zh'), /引用日期/)
+  assert.match(buildCitation(thesis, 'mla', 'en'), /Tsinghua University, 2024\. https:\/\/example\.org\/thesis/)
+  assert.match(buildCitation(thesis, 'chicago', 'en'), /\(Tsinghua University, 2024\)\. https:\/\/example\.org\/thesis/)
+
+  const proc = { ...conf, type: 'proceedings', containerTitle: '', page: '' }
+  assert.match(buildBibtex(proc), /^@proceedings\{/)
+  assert.equal(buildCitation(proc, 'gb-t-7714', 'zh'), 'Li Wei. Fast Indexing[C]. ACM, 2025.')
+
+  const unsafeBib = buildBibtex({ ...work, volume: '12{a}', issue: '3%4', page: '10_12' })
+  assert.match(unsafeBib, /volume=\{12\\\{a\\\}\}/)
+  assert.match(unsafeBib, /number=\{3\\%4\}/)
+  assert.match(unsafeBib, /pages=\{10\\_12\}/)
+})
+
+test('lookupDoi 兼容 www.doi.org 链接', async () => {
+  const { fn, calls } = fakeFetch()
+  const result = await lookupDoi('https://www.doi.org/10.1038/nature12345', cfg, fn)
+  assert.equal(result.doi, '10.1038/nature12345')
+  assert.ok(calls[0].includes('10.1038%2Fnature12345'))
 })
 
 test('cite_bibtex 生成条目', async () => {

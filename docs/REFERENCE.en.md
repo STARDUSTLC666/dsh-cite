@@ -18,11 +18,11 @@ Open the workbench from the native DSH sidebar. See the [workbench guide](WORKBE
 
 ## What it does
 
-- Arrange references on the default **Spatial Citation Constellation** canvas with pointer-draggable orbital nodes, live SVG relationship filaments, and a floating Zettelkasten card for 1-click citation copy, Crossref enrichment, and metadata editing—with a 1-click toggle back to the classic 3-pane **List** view.
-- Paste DOI lists or upload `.bib` files. Preview locally before choosing entries to save, with duplicate and missing-field warnings.
-- Explicitly enrich empty fields through Crossref. Keep existing values, inspect differences and retry failed entries.
-- Switch between basic GB/T 7714, APA, IEEE, MLA and Chicago formats; download BibTeX, reference text or a full backup with original sources.
-- Existing DOI lookup, bibliographic search and DOI-checking tools remain available.
+- Arrange references on the default **Spatial Citation Constellation** canvas with pointer-draggable orbital nodes, wheel zoom, center-on-active (`◎`), density-capped live SVG relationship filaments (smooth up to 500 papers), and a floating Zettelkasten card for 1-click citation copy, Crossref enrichment, and full metadata editing—with a 1-click toggle back to the classic sortable 3-pane **List** view.
+- Paste DOI lists or upload/drag-and-drop `.bib` files. Preview locally with **Select all valid / Deselect all** before choosing entries to save, with duplicate and missing-field warnings.
+- Explicitly enrich empty fields through Crossref. Keep existing values, inspect differences with 1-click per-field **Use** resolution, and retry failed entries.
+- Switch between GB/T 7714, APA, IEEE, MLA, and Chicago formats across 14 academic work types; copy all citations/BibTeX in 1 click or download BibTeX, reference text, and a full backup with original sources.
+- Existing DOI lookup, bibliographic search, DOI-checking (with 1-click failed-DOI copy and verified-DOI handoff), and health tools remain available, alongside full `cite_batch` `update` / `source` / `remove` atomic parity.
 
 ## Install
 

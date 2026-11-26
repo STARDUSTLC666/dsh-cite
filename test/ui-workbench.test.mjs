@@ -1197,3 +1197,324 @@ test('Raw source modal loads real text from CitationWorkbench backend (end-to-en
     mounted.cleanup()
   }
 })
+
+test('Constellation caps edge explosion at 100 papers, supports wheel zoom & filament titles, and Mica Fluent removes Retro 98 bevel', async () => {
+  const env = createMiniEnv({ withPrimitives: false })
+  const { computeConstellationEdges, computeConstellationLayout } = env.client.__internals
+
+  // 100 papers all within 2 years (would produce 4,950 edges without degree capping)
+  const dense100 = Array.from({ length: 100 }, (_, idx) => ({
+    id: 'dense-' + String(idx + 1).padStart(3, '0'),
+    bibKey: 'p' + idx,
+    sourceIds: ['src-1'],
+    warnings: [],
+    crossref: null,
+    work: {
+      title: 'Dense Paper ' + (idx + 1),
+      doi: '10.1000/dense-' + idx,
+      year: 2024 + (idx % 2),
+      containerTitle: ['NeurIPS', 'ICML', 'ICLR'][idx % 3],
+      authors: [{ family: 'Author' + (idx % 10), given: 'A', name: '' }],
+    },
+  }))
+  const { edges } = computeConstellationEdges(dense100)
+  assert.ok(edges.length > 0 && edges.length <= 280, 'edge count must stay bounded for dense 100-paper library, got ' + edges.length)
+  assert.ok(edges.some(e => e.kind === 'author'), 'shared-author edges must be prioritized')
+
+  const layout = computeConstellationLayout(dense100, edges, { width: 1440, height: 820 })
+  for (let i = 0; i < dense100.length; i++) {
+    for (let j = i + 1; j < dense100.length; j++) {
+      const a = layout.positions[dense100[i].id]
+      const b = layout.positions[dense100[j].id]
+      const overlaps = Math.abs(a.x - b.x) < layout.nodeWidth && Math.abs(a.y - b.y) < layout.nodeHeight
+      assert.equal(overlaps, false, `overlap in 100-paper constellation between ${dense100[i].id} and ${dense100[j].id}`)
+    }
+  }
+
+  // Mount workbench and verify wheel zoom, Center button, and Mica Fluent CSS fix
+  const mounted = await env.mountWorkbench(true, 'en-US')
+  try {
+    let root = mounted.tree
+    const cssText = findNodes(root, n => n.tag === 'style').map(textOf).join('\n')
+    assert.doesNotMatch(cssText, /\[data-dsh-style="win98"\]\s*:is\(\.cite-node[^}]*2px outset #ffffff/, 'Mica Fluent (win98) must not apply legacy Retro 98 bevel to Constellation cards')
+
+    const starfield = findNodes(root, n => n.attrs?.['data-tour'] === 'cite-starfield')[0]
+    assert.ok(starfield && typeof starfield.attrs.onWheel === 'function', 'starfield must support wheel zoom')
+    let prevented = false
+    starfield.attrs.onWheel({ deltaY: -120, preventDefault() { prevented = true }, target: { closest: () => null } })
+    root = mounted.rerender()
+    assert.equal(prevented, true)
+    assert.match(textOf(root), /110%/)
+
+    // Wheel inside Zettelkasten card must NOT hijack card scroll
+    prevented = false
+    starfield.attrs.onWheel({ deltaY: -120, preventDefault() { prevented = true }, target: { closest: sel => sel.includes('.cite-zettelkasten') ? {} : null } })
+    assert.equal(prevented, false)
+
+    const centerBtn = findNodes(root, n => n.tag === 'button' && n.attrs?.['aria-label'] === 'Center active node')[0]
+    assert.ok(centerBtn, 'Center active node button must render')
+  } finally {
+    mounted.cleanup()
+  }
+})
+
+test('Metadata editor validates year, supports isbn/language, preserves draft across 409 refresh, and inspector resolves Crossref conflicts + Export copies all', async () => {
+  const apiCalls = []
+  let failOnce409 = true
+  let state = {
+    revision: 3,
+    jobs: [],
+    sources: [{ id: 'src-1', kind: 'bibtex', label: 'refs.bib', createdAt: '2026-11-26T00:00:00Z' }],
+    entries: [
+      {
+        id: 'e-1',
+        bibKey: 'alpha2024',
+        sourceIds: ['src-1'],
+        warnings: [],
+        crossref: {
+          doi: '10.1000/alpha',
+          fetchedAt: '2026-11-26T00:00:00Z',
+          filled: ['year'],
+          conflicts: [{ field: 'title', local: 'Local Alpha Title', crossref: 'Official Crossref Alpha Title' }],
+        },
+        work: {
+          title: 'Local Alpha Title',
+          doi: '10.1000/alpha',
+          year: 2024,
+          containerTitle: 'Nature',
+          type: 'journal-article',
+          isbn: '',
+          language: 'en',
+          authors: [{ family: 'Smith', given: 'Jane', name: '' }],
+        },
+      },
+      {
+        id: 'e-2',
+        bibKey: 'beta2026',
+        sourceIds: ['src-1'],
+        warnings: [],
+        crossref: null,
+        work: {
+          title: 'Beta Newer Paper',
+          doi: '10.1000/beta',
+          year: 2026,
+          containerTitle: 'Science',
+          type: 'journal-article',
+          isbn: '',
+          language: 'en',
+          authors: [{ family: 'Adams', given: 'Alan', name: '' }],
+        },
+      },
+    ],
+  }
+
+  const env = createMiniEnv({
+    withPrimitives: false,
+    initialLibrary: state,
+    onApi: async body => {
+      apiCalls.push(body)
+      if (body.action === 'list') {
+        return { ok: true, status: 200, json: async () => ({ ok: true, value: state }) }
+      }
+      if (body.action === 'update') {
+        if (failOnce409 && body.work?.isbn) {
+          failOnce409 = false
+          state = { ...state, revision: state.revision + 1 }
+          return {
+            ok: false,
+            status: 409,
+            json: async () => ({
+              ok: false,
+              message: '文献库已在另一窗口更新，未保存元数据修改。请刷新文献库后重试。',
+              messageEn: 'The library changed elsewhere, so metadata edits were not saved. Refresh the library and try again.',
+            }),
+          }
+        }
+        state = {
+          ...state,
+          revision: state.revision + 1,
+          entries: state.entries.map(e => {
+            if (e.id !== body.id) return e
+            const nextWork = { ...e.work, ...body.work }
+            const nextCrossref = e.crossref
+              ? { ...e.crossref, conflicts: e.crossref.conflicts.filter(c => nextWork[c.field] !== c.crossref) }
+              : null
+            return { ...e, bibKey: body.bibKey || e.bibKey, work: nextWork, crossref: nextCrossref }
+          }),
+        }
+        return { ok: true, status: 200, json: async () => ({ ok: true, value: state }) }
+      }
+      if (body.action === 'export') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            ok: true,
+            value: { content: body.kind === 'bibtex' ? '@article{alpha2024}\n\n@article{beta2026}' : '[1] Smith. Local Alpha Title.\n\n[2] Adams. Beta Newer Paper.' },
+          }),
+        }
+      }
+      return null
+    },
+  })
+
+  const mounted = await env.mountWorkbench(true, 'en-US')
+  try {
+    let root = mounted.tree
+    // 1. Metadata Editor: invalid year rejected without API call; isbn/language edited; 409 refresh keeps unsaved draft!
+    findNodes(root, n => n.tag === 'button' && textOf(n).includes('Edit metadata'))[0].attrs.onClick()
+    root = mounted.rerender()
+    let dialog = findNodes(root, n => n.attrs?.role === 'dialog')[0]
+    assert.ok(dialog)
+
+    const yearInput = findNodes(dialog, n => n.tag === 'input' && String(n.attrs?.id || '').endsWith('-year'))[0]
+    const isbnInput = findNodes(dialog, n => n.tag === 'input' && String(n.attrs?.id || '').endsWith('-isbn'))[0]
+    const langInput = findNodes(dialog, n => n.tag === 'input' && String(n.attrs?.id || '').endsWith('-language'))[0]
+    assert.ok(yearInput && isbnInput && langInput, 'metadata editor must include year, isbn, and language inputs')
+
+    yearInput.attrs.onChange({ target: { value: '202x' } })
+    root = mounted.rerender()
+    await findNodes(root, n => n.tag === 'button' && textOf(n).includes('Save metadata'))[0].attrs.onClick({ preventDefault() {} })
+    root = mounted.rerender()
+    assert.equal(apiCalls.filter(c => c.action === 'update').length, 0, 'invalid year must block submit instead of zeroing')
+    assert.match(textOf(findNodes(root, n => n.attrs?.role === 'dialog')[0]), /1 and 9999/)
+
+    // Fix year & enter isbn -> first save gets 409 -> Refresh library preserves isbn draft -> retry save succeeds!
+    findNodes(root, n => n.tag === 'input' && String(n.attrs?.id || '').endsWith('-year'))[0].attrs.onChange({ target: { value: '2025' } })
+    findNodes(root, n => n.tag === 'input' && String(n.attrs?.id || '').endsWith('-isbn'))[0].attrs.onChange({ target: { value: '978-0-12-345678-9' } })
+    root = mounted.rerender()
+    await findNodes(root, n => n.tag === 'button' && textOf(n).includes('Save metadata'))[0].attrs.onClick({ preventDefault() {} })
+    root = mounted.rerender()
+    const refreshBtn = findNodes(root, n => n.tag === 'button' && textOf(n).includes('Refresh library'))[0]
+    assert.ok(refreshBtn, '409 conflict must present Refresh library button')
+    await refreshBtn.attrs.onClick()
+    root = mounted.rerender()
+    const preservedIsbn = findNodes(root, n => n.tag === 'input' && String(n.attrs?.id || '').endsWith('-isbn'))[0]
+    assert.equal(preservedIsbn.attrs.value, '978-0-12-345678-9', 'Refresh after 409 must preserve unsaved metadata edits')
+    await findNodes(root, n => n.tag === 'button' && textOf(n).includes('Save metadata'))[0].attrs.onClick({ preventDefault() {} })
+    root = mounted.rerender()
+    assert.equal(findNodes(root, n => n.attrs?.role === 'dialog').length, 0, 'modal closes after retry save succeeds')
+
+    // 2. Switch to List view, test sorting & 1-click Crossref conflict "Use" button
+    findNodes(root, n => n.tag === 'button' && n.attrs?.['data-view-mode'] === 'list')[0].attrs.onClick()
+    root = mounted.rerender()
+    const sortSelect = findNodes(root, n => n.tag === 'select' && String(n.attrs?.className || '').includes('cite-sort-select'))[0]
+    assert.ok(sortSelect, 'List view sort select must render')
+    sortSelect.attrs.onChange({ target: { value: 'year-desc' } })
+    root = mounted.rerender()
+    const rowsAfterSort = findNodes(root, n => n.tag === 'li' && String(n.attrs?.className || '').includes('cite-reference-row'))
+    assert.match(textOf(rowsAfterSort[0]), /Beta Newer Paper/, 'year-desc sort puts 2026 entry first')
+
+    // Select e-1 and click "Use" on the Crossref title conflict
+    findNodes(root, n => n.tag === 'button' && String(n.attrs?.className || '').includes('cite-reference-button') && textOf(n).includes('Local Alpha Title'))[0].attrs.onClick({ currentTarget: {} })
+    root = mounted.rerender()
+    const applyBtn = findNodes(root, n => n.tag === 'button' && n.attrs?.['data-apply-crossref-field'] === 'title')[0]
+    assert.ok(applyBtn, 'Crossref conflict row must render 1-click Use button')
+    await applyBtn.attrs.onClick()
+    root = mounted.rerender()
+    assert.equal(findNodes(root, n => n.attrs?.['data-apply-crossref-field'] === 'title').length, 0, 'resolved conflict disappears after applying Crossref value')
+    assert.match(textOf(root), /Official Crossref Alpha Title/)
+
+    // 3. Switch to Export tab and test 1-click Copy all for References & BibTeX
+    findNodes(root, n => n.attrs?.role === 'tab' && textOf(n).includes('Export'))[0].attrs.onClick()
+    root = mounted.rerender()
+    const copyRefsBtn = findNodes(root, n => n.tag === 'button' && n.attrs?.['data-export-copy'] === 'references')[0]
+    const copyBibBtn = findNodes(root, n => n.tag === 'button' && n.attrs?.['data-export-copy'] === 'bibtex')[0]
+    assert.ok(copyRefsBtn && copyBibBtn, 'Export tab must render 1-click Copy all buttons')
+    await copyRefsBtn.attrs.onClick()
+    assert.match(env.copiedClipboard, /Beta Newer Paper/)
+    await copyBibBtn.attrs.onClick()
+    assert.match(env.copiedClipboard, /@article\{beta2026\}/)
+  } finally {
+    mounted.cleanup()
+  }
+})
+
+test('Import preview supports Select all valid / Deselect all & .bib drag-and-drop, and DOI check copies failed DOIs', async () => {
+  const env = createMiniEnv({
+    withPrimitives: false,
+    onApi: async body => {
+      if (body.action === 'preview') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            ok: true,
+            value: {
+              id: 'prev-1',
+              revision: 2,
+              label: 'dropped.bib',
+              rows: [
+                { index: 0, key: 'ok1', work: { title: 'Paper One', authors: [], year: 2024, doi: '10.1000/ok1' }, warnings: [], selectedDefault: true },
+                { index: 1, key: 'cand', work: { title: 'Possible Dup', authors: [], year: 2024, doi: '' }, warnings: ['missing_doi'], candidate: true, selectedDefault: false },
+                { index: 2, key: 'dup', work: { title: 'Existing', authors: [], year: 2024, doi: '10.1000/dup' }, warnings: [], duplicate: 'library', selectedDefault: false },
+              ],
+            },
+          }),
+        }
+      }
+      if (body.action === 'check') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            ok: true,
+            value: {
+              count: 2,
+              results: [
+                { doi: '10.1038/nature14539', ok: true, title: 'Deep learning' },
+                { doi: '10.1000/missing-one', ok: false, error: 'DOI 在 Crossref 中不存在：10.1000/missing-one', errorEn: 'DOI not found in Crossref: 10.1000/missing-one' },
+              ],
+            },
+          }),
+        }
+      }
+      return null
+    },
+  })
+
+  const mounted = await env.mountWorkbench(true, 'en-US')
+  try {
+    let root = mounted.tree
+    // 1. Import tab: drag-and-drop .bib file -> Preview -> Deselect all -> Select all valid (selects 0 & 1, skips duplicate 2)
+    findNodes(root, n => n.attrs?.role === 'tab' && textOf(n).includes('Import'))[0].attrs.onClick()
+    root = mounted.rerender()
+    const importForm = findNodes(root, n => n.tag === 'form')[0]
+    await importForm.attrs.onDrop({
+      preventDefault() {},
+      dataTransfer: { files: [{ name: 'dropped.bib', size: 128, async text() { return '@article{ok1,title={Paper One},year={2024}}' } }] },
+    })
+    root = mounted.rerender()
+    assert.match(findNodes(root, n => n.tag === 'textarea')[0].attrs.value, /Paper One/)
+
+    await findNodes(root, n => n.tag === 'form')[0].attrs.onSubmit({ preventDefault() {} })
+    root = mounted.rerender()
+    assert.match(textOf(root), /Selected 1\/3/)
+
+    const selectAllBtn = findNodes(root, n => n.tag === 'button' && Object.hasOwn(n.attrs || {}, 'data-preview-select-all'))[0]
+    assert.ok(selectAllBtn)
+    selectAllBtn.attrs.onClick()
+    root = mounted.rerender()
+    assert.match(textOf(root), /Selected 2\/3/, 'Select all valid selects candidate rows while skipping exact duplicates')
+
+    const clearBtn = findNodes(root, n => n.tag === 'button' && Object.hasOwn(n.attrs || {}, 'data-preview-clear'))[0]
+    assert.ok(clearBtn)
+    clearBtn.attrs.onClick()
+    root = mounted.rerender()
+    assert.match(textOf(root), /Selected 0\/3/)
+
+    // 2. DOI Check tab: Copy failed DOIs copies only failed DOIs
+    findNodes(root, n => n.attrs?.role === 'tab' && textOf(n).includes('DOI check'))[0].attrs.onClick()
+    root = mounted.rerender()
+    findNodes(root, n => n.tag === 'textarea')[0].attrs.onChange({ target: { value: '10.1038/nature14539 10.1000/missing-one' } })
+    root = mounted.rerender()
+    await findNodes(root, n => n.tag === 'form')[0].attrs.onSubmit({ preventDefault() {} })
+    root = mounted.rerender()
+    const copyFailedBtn = findNodes(root, n => n.tag === 'button' && textOf(n).includes('Copy failed DOIs'))[0]
+    assert.ok(copyFailedBtn, 'Copy failed DOIs button must render when any lookup fails')
+    await copyFailedBtn.attrs.onClick()
+    assert.equal(env.copiedClipboard, '10.1000/missing-one')
+  } finally {
+    mounted.cleanup()
+  }
+})

@@ -279,6 +279,8 @@ function CiteMetadataEditorModal({ entry, revision, uiStyle, uiFont, lang, locke
     page: entry.work.page || '',
     doi: entry.work.doi || '',
     publisher: entry.work.publisher || '',
+    isbn: entry.work.isbn || '',
+    language: entry.work.language || '',
     url: entry.work.url || '',
   }));
 
@@ -287,15 +289,27 @@ function CiteMetadataEditorModal({ entry, revision, uiStyle, uiFont, lang, locke
   async function submit(event) {
     event?.preventDefault?.();
     if (saving || locked) return;
+    const rawYear = draftWork.year.trim();
+    let parsedYear = 0;
+    if (rawYear !== '') {
+      if (!/^\d{1,4}$/.test(rawYear)) {
+        setErr(t('年份须为 1–9999 的整数（或留空）。', 'Year must be a whole number between 1 and 9999 (or blank).'));
+        return;
+      }
+      parsedYear = Number.parseInt(rawYear, 10);
+      if (parsedYear <= 0 || parsedYear > 9999) {
+        setErr(t('年份须为 1–9999 的整数（或留空）。', 'Year must be a whole number between 1 and 9999 (or blank).'));
+        return;
+      }
+    }
     setSaving(true);
     setErr('');
     setConflict(false);
     try {
-      const parsedYear = draftWork.year.trim() ? Number.parseInt(draftWork.year.trim(), 10) : 0;
       const workPatch = {
         title: draftWork.title.trim(),
         authors: parseAuthorsInput(draftWork.authorsText),
-        year: Number.isInteger(parsedYear) && parsedYear > 0 && parsedYear <= 9999 ? parsedYear : 0,
+        year: parsedYear,
         containerTitle: draftWork.containerTitle.trim(),
         type: draftWork.type || 'other',
         volume: draftWork.volume.trim(),
@@ -303,6 +317,8 @@ function CiteMetadataEditorModal({ entry, revision, uiStyle, uiFont, lang, locke
         page: draftWork.page.trim(),
         doi: draftWork.doi.trim(),
         publisher: draftWork.publisher.trim(),
+        isbn: draftWork.isbn.trim(),
+        language: draftWork.language.trim(),
         url: draftWork.url.trim(),
       };
       const nextState = await api({
@@ -418,6 +434,14 @@ function CiteMetadataEditorModal({ entry, revision, uiStyle, uiFont, lang, locke
         h('div', null,
           h('label', { className: 'cite-label', htmlFor: fieldId + '-publisher' }, t('出版社', 'Publisher')),
           h(CiteInput, { id: fieldId + '-publisher', value: draftWork.publisher, disabled: saving, onChange: e => setField('publisher', e.target.value) }),
+        ),
+        h('div', null,
+          h('label', { className: 'cite-label', htmlFor: fieldId + '-isbn' }, 'ISBN'),
+          h(CiteInput, { id: fieldId + '-isbn', className: 'cite-mono', value: draftWork.isbn, disabled: saving, placeholder: '978-...', onChange: e => setField('isbn', e.target.value) }),
+        ),
+        h('div', null,
+          h('label', { className: 'cite-label', htmlFor: fieldId + '-language' }, t('语言', 'Language')),
+          h(CiteInput, { id: fieldId + '-language', value: draftWork.language, disabled: saving, placeholder: 'en / zh', onChange: e => setField('language', e.target.value) }),
         ),
         h('div', { className: 'cite-field-wide' },
           h('label', { className: 'cite-label', htmlFor: fieldId + '-url' }, 'URL'),

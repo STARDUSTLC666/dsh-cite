@@ -21,13 +21,17 @@ const CITE_SAMPLE_BIBTEX = [
 
 function CiteImport({
   t, locked, kind, text, label, preview, chosen, dirty, conflict,
-  changeImport, upload, onPreview, onChoose, onRetry, onSave, onBack,
+  changeImport, upload, onUploadFile, onPreview, onChoose, onRetry, onSave, onBack,
 }) {
   const id = typeof React.useId === 'function' ? React.useId() : 'cite-import';
   const file = useRef(null);
+  const [dragOver, setDragOver] = useState(false);
   const inputLabel = t('DOI / BibTeX 输入', 'DOI / BibTeX input');
   const noInput = !text.trim();
   const chosenRows = new Set(chosen);
+  const selectableIndices = preview
+    ? preview.rows.filter(row => !row.error && !row.duplicate).map(row => row.index)
+    : [];
   function fillSample() {
     changeImport({
       kind,
@@ -35,12 +39,33 @@ function CiteImport({
       label: t('示例文献', 'Sample references'),
     });
   }
+  function handleDragOver(event) {
+    if (locked || !onUploadFile) return;
+    event.preventDefault();
+    if (!dragOver) setDragOver(true);
+  }
+  function handleDragLeave() {
+    if (dragOver) setDragOver(false);
+  }
+  function handleDrop(event) {
+    event.preventDefault();
+    setDragOver(false);
+    if (locked || !onUploadFile) return;
+    const dropped = event.dataTransfer?.files?.[0];
+    if (dropped) return onUploadFile(dropped);
+  }
   return h(CiteSubpage, {
     title: t('DOI / BibTeX 导入预览与去重', 'DOI / BibTeX import and deduplication'),
     description: t('先在本地检查重复和缺失字段，再勾选要保存的文献。', 'Review duplicates and missing fields locally, then select entries to save.'),
   },
-    h('form', { onSubmit: event => { event.preventDefault(); if (!locked && !noInput && !conflict) onPreview(); } },
+    h('form', {
+      onSubmit: event => { event.preventDefault(); if (!locked && !noInput && !conflict) return onPreview(); },
+      onDragOver: handleDragOver,
+      onDragLeave: handleDragLeave,
+      onDrop: handleDrop,
+    },
       h(CiteCard, {
+        className: dragOver ? 'cite-drop-active' : '',
         title: t('批量输入', 'Batch input'),
         actions: h('div', { className: 'cite-actions' },
           h(CiteButton, { icon: 'sparkles', disabled: locked, onClick: fillSample }, t('填入示例 DOI / BibTeX', 'Fill sample BibTeX / DOI')),
@@ -87,7 +112,7 @@ function CiteImport({
           h('label', { className: 'cite-sr-only', htmlFor: id + '-file' }, t('上传 BibTeX 文件', 'Upload BibTeX file')),
           h('input', { id: id + '-file', hidden: true, ref: file, type: 'file', accept: '.bib', onChange: upload }),
         ),
-        h('p', { className: 'cite-muted cite-form-note' }, t('每批最多 256 KiB、100 条，文献库最多 500 条。', 'Up to 256 KiB and 100 entries per batch, and 500 entries per library.')),
+        h('p', { className: 'cite-muted cite-form-note' }, t('支持拖放 .bib 文件到此处；每批最多 256 KiB、100 条，文献库最多 500 条。', 'Drop a .bib file here or paste text. Up to 256 KiB and 100 entries per batch, and 500 entries per library.')),
         dirty ? h('p', { className: 'cite-muted' }, t('输入尚未保存入库，切页时会保留。', 'Unsaved input is retained when switching tabs.')) : null,
       ),
     ),
@@ -100,6 +125,18 @@ function CiteImport({
     preview ? h(CiteCard, {
       title: t('导入预览', 'Import preview'),
       actions: h('div', { className: 'cite-actions' },
+        h(CiteButton, {
+          variant: 'ghost',
+          disabled: locked || conflict || selectableIndices.length === 0 || chosen.length === selectableIndices.length,
+          'data-preview-select-all': '',
+          onClick: () => onChoose(selectableIndices),
+        }, t('全选可导项', 'Select all valid')),
+        chosen.length > 0 ? h(CiteButton, {
+          variant: 'ghost',
+          disabled: locked || conflict,
+          'data-preview-clear': '',
+          onClick: () => onChoose([]),
+        }, t('清空勾选', 'Deselect all')) : null,
         h(CiteButton, { variant: 'ghost', icon: 'left', disabled: locked || conflict, onClick: onBack }, t('返回输入', 'Back to input')),
         h(CiteButton, {
           variant: 'primary', icon: 'check', disabled: locked || conflict || chosen.length === 0, onClick: onSave,
@@ -133,7 +170,7 @@ function CiteImport({
   );
 }
 
-function CiteCheck({ t, lang, text, report, onReport, onChange, onSendToImport }) {
+function CiteCheck({ t, lang, text, report, onReport, onChange, onSendToImport, copy, copiedKey }) {
   const id = typeof React.useId === 'function' ? React.useId() : 'cite-check';
   const request = useRef(null);
   const [running, setRunning] = useState(false);
@@ -175,6 +212,7 @@ function CiteCheck({ t, lang, text, report, onReport, onChange, onSendToImport }
   }
 
   const validDois = report ? report.results.filter(row => row.ok).map(row => row.doi) : [];
+  const failedDois = report ? report.results.filter(row => !row.ok).map(row => row.doi) : [];
   const pass = validDois.length;
   return h(CiteSubpage, {
     title: t('文稿 DOI 核查', 'Manuscript DOI check'),
@@ -206,11 +244,18 @@ function CiteCheck({ t, lang, text, report, onReport, onChange, onSendToImport }
     ),
     report ? h(CiteCard, {
       title: t('核查结果', 'Check results'),
-      actions: pass > 0 && onSendToImport ? h(CiteButton, {
-        variant: 'primary',
-        icon: 'right',
-        onClick: () => onSendToImport(validDois),
-      }, t('送入导入预览', 'Send to Import preview') + ' (' + pass + ')') : null,
+      actions: (pass > 0 && onSendToImport) || (failedDois.length > 0 && copy) ? h('div', { className: 'cite-actions' },
+        failedDois.length > 0 && copy ? h(CiteButton, {
+          icon: copiedKey === 'failed-dois' ? 'check' : 'copy',
+          'data-copied': copiedKey === 'failed-dois' ? 'true' : undefined,
+          onClick: () => copy(failedDois.join('\n'), t('失败 DOI', 'failed DOIs'), 'failed-dois'),
+        }, copiedKey === 'failed-dois' ? t('已复制失败 DOI', 'Copied failed DOIs') : t('复制失败 DOI', 'Copy failed DOIs') + ' (' + failedDois.length + ')') : null,
+        pass > 0 && onSendToImport ? h(CiteButton, {
+          variant: 'primary',
+          icon: 'right',
+          onClick: () => onSendToImport(validDois),
+        }, t('送入导入预览', 'Send to Import preview') + ' (' + pass + ')') : null,
+      ) : null,
     },
       h('p', { className: 'cite-muted', role: 'status' }, report.count
         ? t('共 ' + report.count + ' 个 DOI，查到 ' + pass + ' 个。',
@@ -226,8 +271,10 @@ function CiteCheck({ t, lang, text, report, onReport, onChange, onSendToImport }
   );
 }
 
-function CiteExport({ t, lang, entries, selected, style, setStyle, revision, scope, onScope }) {
+function CiteExport({ t, lang, entries, selected, style, setStyle, revision, scope, onScope, copy, copiedKey }) {
   const id = typeof React.useId === 'function' ? React.useId() : 'cite-export';
+  const [copyingKind, setCopyingKind] = useState('');
+  const [copyError, setCopyError] = useState('');
   const selectedIds = new Set(selected);
   const picked = entries.filter(entry => selectedIds.has(entry.id));
   const effectiveScope = scope === 'selected' && picked.length ? 'selected' : 'all';
@@ -239,10 +286,24 @@ function CiteExport({ t, lang, entries, selected, style, setStyle, revision, sco
   const hasMissing = checks.some(check => check.missing > 0);
   const scopedIds = effectiveScope === 'selected' ? picked.map(entry => entry.id) : undefined;
   const items = [
-    { kind: 'references', label: t('参考文献文本', 'Reference text'), detail: styleLabel(style) + ' · .txt', ids: scopedIds },
-    { kind: 'bibtex', label: 'BibTeX', detail: '.bib', ids: scopedIds },
-    { kind: 'backup', label: t('完整备份', 'Full backup'), detail: t('全库及原始导入来源', 'Entire library with original sources') + ' · .json' },
+    { kind: 'references', label: t('参考文献文本', 'Reference text'), detail: styleLabel(style) + ' · .txt', ids: scopedIds, copyable: true },
+    { kind: 'bibtex', label: 'BibTeX', detail: '.bib', ids: scopedIds, copyable: true },
+    { kind: 'backup', label: t('完整备份', 'Full backup'), detail: t('全库及原始导入来源', 'Entire library with original sources') + ' · .json', copyable: false },
   ];
+
+  async function copyExport(item) {
+    if (!copy || copyingKind) return;
+    setCopyingKind(item.kind);
+    setCopyError('');
+    try {
+      const value = await api({ action: 'export', kind: item.kind, style, lang, ...(item.ids ? { ids: item.ids } : {}) }, lang);
+      await copy(String(value?.content || '').trim(), item.label, 'export-' + item.kind);
+    } catch (err) {
+      setCopyError(err?.message || t('导出复制失败。', 'Could not copy export.'));
+    } finally {
+      setCopyingKind('');
+    }
+  }
 
   return h(CiteSubpage, {
     title: t('引文导出与来源备份', 'Citation export and source backup'),
@@ -280,18 +341,29 @@ function CiteExport({ t, lang, entries, selected, style, setStyle, revision, sco
       ) : h('p', { className: 'cite-muted cite-form-note' }, t('当前范围没有文献。可在引文库勾选条目，或切换到全部文献。',
         'This scope is empty. Select entries in the library or choose the entire library.')),
     ),
-    h(CiteCard, { title: t('下载', 'Downloads') },
+    h(CiteCard, { title: t('复制与下载', 'Copy & download') },
+      copyError ? h(W.Status, { tone: 'error' }, copyError) : null,
       h('ul', { className: 'cite-plain-list cite-downloads' }, items.map(item => {
         const available = item.kind === 'backup' ? entries.length > 0 : scoped.length > 0;
+        const isCopied = copiedKey === 'export-' + item.kind;
         return h('li', { key: item.kind, className: 'cite-result-row', 'data-dsh-row': '' },
           h('div', null, h('strong', null, item.label), h('p', { className: 'cite-muted' }, item.detail)),
-          available ? h('a', {
-            className: 'cite-download',
-            'data-primary': String(item.kind === 'backup'),
-            href: download(item.kind, style, lang, item.ids),
-            download: '',
-            'aria-label': t('下载 ', 'Download ') + item.label,
-          }, h(W.Icon, { name: 'download', size: 15 }), t('下载', 'Download')) : null,
+          available ? h('div', { className: 'cite-export-actions' },
+            item.copyable && copy ? h(CiteButton, {
+              icon: isCopied ? 'check' : 'copy',
+              'data-copied': isCopied ? 'true' : undefined,
+              'data-export-copy': item.kind,
+              disabled: Boolean(copyingKind),
+              onClick: () => copyExport(item),
+            }, isCopied ? t('已复制', 'Copied') : t('复制全部', 'Copy all')) : null,
+            h('a', {
+              className: 'cite-download',
+              'data-primary': String(item.kind === 'backup'),
+              href: download(item.kind, style, lang, item.ids),
+              download: '',
+              'aria-label': t('下载 ', 'Download ') + item.label,
+            }, h(W.Icon, { name: 'download', size: 15 }), t('下载', 'Download')),
+          ) : null,
         );
       })),
     ),

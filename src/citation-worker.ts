@@ -5,7 +5,7 @@ import { assertDoi, type Work } from './crossref.js'
 import { MAX_BATCH, normalizeWork, plainText, workWarnings, type ImportRow } from './citation-model.js'
 import { providerText } from './citation-text.js'
 
-const types: Record<string, string> = { 'article-journal': 'journal-article', book: 'book', chapter: 'book-chapter', 'paper-conference': 'proceedings-article', thesis: 'dissertation', report: 'report', dataset: 'dataset', patent: 'patent', standard: 'standard' }
+const types: Record<string, string> = { 'article-journal': 'journal-article', article: 'journal-article', book: 'book', chapter: 'book-chapter', 'paper-conference': 'proceedings-article', proceedings: 'proceedings', thesis: 'dissertation', report: 'report', dataset: 'dataset', patent: 'patent', standard: 'standard', manuscript: 'posted-content', webpage: 'posted-content' }
 // Citation.js treats BibTeX's publisher "and" separator as a list. The local
 // Work model is plain text; preserve these names and retain the original source.
 const cslText = (value: unknown): string => Array.isArray(value) ? value.map(providerText).join(' and ') : providerText(value)
@@ -21,7 +21,17 @@ try {
   let records: Array<{ key: string; getWork(): Work }>
   if (kind === 'doi') {
     const lines = text.split(/\r?\n/).map(s => s.trim()).filter(Boolean)
-    records = lines.map(line => ({ key: line, getWork: () => normalizeWork({ doi: assertDoi(line), url: 'https://doi.org/' + assertDoi(line).toLowerCase() }) }))
+    records = lines.map(line => {
+      let clean = ''
+      try { clean = assertDoi(line) } catch {}
+      return {
+        key: clean || line,
+        getWork: () => {
+          const doi = assertDoi(line)
+          return normalizeWork({ doi, url: 'https://doi.org/' + doi.toLowerCase() })
+        },
+      }
+    })
   } else {
     // Force the local parser. Incomplete metadata is allowed; malformed syntax is not.
     const data = new Cite(text, { forceType: '@bibtex/text', generateGraph: false, maxChainLength: 10, strict: false, target: '@csl/list+object' }).data

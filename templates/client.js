@@ -72,8 +72,8 @@ window.__ModuleLoader__.load({
       const [notice, setNotice] = useState('');
       const [copiedKey, setCopiedKey] = useState('');
       const [removeModal, setRemoveModal] = useState(null);
-      const [editModalEntry, setEditModalEntry] = useState(null);
-      const [rawSourceEntry, setRawSourceEntry] = useState(null);
+      const [editModalId, setEditModalId] = useState('');
+      const [rawSourceId, setRawSourceId] = useState('');
       const [tour, setTour] = useState({ open: false, step: 0, manual: false });
       const [tourLayout, setTourLayout] = useState(null);
       const [search, setSearch] = useState('');
@@ -85,6 +85,9 @@ window.__ModuleLoader__.load({
       const [checkReport, setCheckReport] = useState(null);
       const [form, setForm] = useState(draft);
       const { kind, text, label, preview, chosen, selected, style, dirty, conflict } = form;
+      const { entries, sources, revision } = library || emptyLibrary;
+      const editModalEntry = editModalId ? entries.find(entry => entry.id === editModalId) || null : null;
+      const rawSourceEntry = rawSourceId ? entries.find(entry => entry.id === rawSourceId) || null : null;
 
       const rootRef = useRef(null);
       const triggerRef = useRef(null);
@@ -220,13 +223,12 @@ window.__ModuleLoader__.load({
         });
       }
 
-      const { entries, sources, revision } = library || emptyLibrary;
       async function save() {
         const oldIds = new Set(entries.map(entry => entry.id));
         const result = await api({ action: 'import', preview: preview.id, selection: chosen }, lang);
         const imported = result.entries.filter(entry => !oldIds.has(entry.id)).map(entry => entry.id);
         setLibrary(result);
-        updateForm({ preview: null, chosen: [], selected: imported, dirty: false, conflict: false });
+        updateForm({ text: '', label: '', preview: null, chosen: [], selected: imported, dirty: false, conflict: false });
         setActiveId(imported[0] || '');
         setFilter('all');
         setSearch('');
@@ -241,16 +243,36 @@ window.__ModuleLoader__.load({
         return perform(async () => setJob(await api({ action: 'enrich', ids, revision }, lang)));
       }
 
-      async function upload(event) {
-        const input = event.currentTarget;
-        const file = input.files?.[0];
-        input.value = '';
+      function applyCrossrefField(entry, conflictItem) {
+        return perform(async () => {
+          const nextState = await api({
+            action: 'update',
+            id: entry.id,
+            expectedRevision: revision,
+            work: { [conflictItem.field]: conflictItem.crossref },
+          }, lang);
+          setLibrary(nextState);
+          setNotice(t(
+            '已采用 Crossref 的「' + fieldName(conflictItem.field, t) + '」。',
+            'Applied Crossref ' + fieldName(conflictItem.field, t) + '.',
+          ));
+        });
+      }
+
+      async function uploadFile(file) {
         if (!file) return;
         await perform(async () => {
           if (!/\.bib$/i.test(file.name)) throw new Error(t('请选择 .bib 文件。', 'Choose a .bib file.'));
           if (file.size > 256 * 1024) throw new Error(t('文件超过 256 KiB，请拆分导入。', 'File exceeds 256 KiB. Split it before importing.'));
           changeImport({ kind: 'bibtex', text: await file.text(), label: file.name.slice(0, 160) });
         });
+      }
+
+      async function upload(event) {
+        const input = event.currentTarget;
+        const file = input.files?.[0];
+        input.value = '';
+        await uploadFile(file);
       }
 
       async function writeClipboardText(value) {
@@ -415,11 +437,11 @@ window.__ModuleLoader__.load({
 
       const onEditMetadata = entry => {
         setTour(prev => (prev.open ? { ...prev, open: false } : prev));
-        setEditModalEntry(entry);
+        setEditModalId(entry?.id || '');
       };
       const onOpenRawSource = entry => {
         setTour(prev => (prev.open ? { ...prev, open: false } : prev));
-        setRawSourceEntry(entry);
+        setRawSourceId(entry?.id || '');
       };
       const switchLibraryView = nextView => {
         setViewMode(nextView);
@@ -430,7 +452,7 @@ window.__ModuleLoader__.load({
       switch (activeTab) {
         case 'import':
           panel = h(CiteImport, {
-            t, locked, kind, text, label, preview, chosen, dirty, conflict, changeImport, upload,
+            t, locked, kind, text, label, preview, chosen, dirty, conflict, changeImport, upload, onUploadFile: uploadFile,
             onPreview: () => perform(parse),
             onRetry: () => perform(async () => { await refresh(); await parse(); }),
             onSave: () => perform(save, true),
@@ -440,7 +462,7 @@ window.__ModuleLoader__.load({
           break;
         case 'check':
           panel = h(CiteCheck, {
-            t, lang, text: checkText, report: checkReport, onReport: setCheckReport,
+            t, lang, text: checkText, report: checkReport, onReport: setCheckReport, copy, copiedKey,
             onChange: value => { setCheckText(value); setCheckReport(null); },
             onSendToImport: validDois => {
               changeImport({
@@ -458,7 +480,7 @@ window.__ModuleLoader__.load({
           break;
         case 'export':
           panel = h(CiteExport, {
-            t, lang, entries, selected, style, setStyle, revision, scope: exportScope, onScope: setExportScope,
+            t, lang, entries, selected, style, setStyle, revision, scope: exportScope, onScope: setExportScope, copy, copiedKey,
           });
           break;
         default:
@@ -466,7 +488,7 @@ window.__ModuleLoader__.load({
             t, lang, uiStyle, uiFont, entries, sources, revision, loading, loaded: !!library, locked, running,
             selected, setSelected, style, setStyle, copiedKey, viewMode, setViewMode,
             filter, search, limit, activeId, setActiveId, onImport, enrich, copy, onRequestRemove,
-            onEditMetadata, onOpenRawSource,
+            onEditMetadata, onOpenRawSource, onApplyCrossrefField: applyCrossrefField,
             onModalOpen: () => setTour(prev => (prev.open ? { ...prev, open: false } : prev)),
             onSearch: value => { setSearch(value); setActiveId(''); setLimit(pageSize); },
             onFilter: value => { setFilter(value); setActiveId(''); setLimit(pageSize); },
@@ -601,18 +623,18 @@ window.__ModuleLoader__.load({
           onCopyPrompt: copyTourPrompt,
         }) : null,
         editModalEntry ? h(CiteMetadataEditorModal, {
-          key: editModalEntry.id + ':' + revision,
+          key: editModalEntry.id,
           entry: editModalEntry,
           revision,
           uiStyle,
           uiFont,
           lang,
           locked,
-          onClose: () => setEditModalEntry(null),
+          onClose: () => setEditModalId(''),
           onRefresh: () => perform(refresh),
           onSaved: nextState => {
             setLibrary(nextState);
-            setEditModalEntry(null);
+            setEditModalId('');
             setNotice(t('已保存文献元数据修改。', 'Saved reference metadata updates.'));
           },
           t,
@@ -627,7 +649,7 @@ window.__ModuleLoader__.load({
           lang,
           copiedKey,
           copy,
-          onClose: () => setRawSourceEntry(null),
+          onClose: () => setRawSourceId(''),
           t,
         }) : null,
         removeModal ? h(W.Dialog, {

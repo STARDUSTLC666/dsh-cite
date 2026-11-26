@@ -39,7 +39,7 @@ class CrossrefResponseLimit extends Error {
 }
 
 export function assertDoi(value: string): string {
-  const doi = value.trim().replace(/^https?:\/\/(dx\.)?doi\.org\//i, '').replace(/^doi:\s*/i, '')
+  const doi = value.trim().replace(/^https?:\/\/(www\.|dx\.)?doi\.org\//i, '').replace(/^doi:\s*/i, '')
   if (!DOI_PATTERN.test(doi)) throw new Error('DOI 格式不正确：' + value + '（示例：10.1038/nature12345）。')
   return doi
 }

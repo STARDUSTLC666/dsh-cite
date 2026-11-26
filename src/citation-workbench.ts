@@ -28,14 +28,7 @@ function mergeWork(local: Work, incoming: Work): { work: Work; filled: string[];
   }
   return { work, filled, conflicts }
 }
-const fetchCrossref: FetchLike = async (url, init) => {
-  const response = await fetch(url, { ...init, redirect: 'error' })
-  if (!response.ok || !response.body) return response
-  const reader = response.body.getReader(), chunks: Uint8Array[] = []; let bytes = 0
-  try { while (true) { init?.signal?.throwIfAborted(); const item = await reader.read(); if (item.done) break; bytes += item.value.length; if (bytes > 2 * 1024 * 1024) throw new Error('Crossref 记录超过 2 MiB，请检查该 DOI。'); chunks.push(item.value) } }
-  finally { await reader.cancel().catch(() => {}) }
-  return new Response(Buffer.concat(chunks), { status: response.status, headers: { 'content-type': 'application/json' } })
-}
+const fetchCrossref: FetchLike = (url, init) => fetch(url, { ...init, redirect: 'error' })
 
 export class CitationWorkbench {
   readonly route = '/api/dsh-cite/library'
@@ -252,6 +245,16 @@ export class CitationWorkbench {
           throw new Error('该 DOI 已存在于另一条文献中。')
         }
         entry.work = merged
+        if (entry.crossref) {
+          if (!merged.doi || merged.doi !== entry.crossref.doi.toLowerCase()) {
+            delete entry.crossref
+          } else if (entry.crossref.conflicts.length) {
+            const recordWork = merged as unknown as Record<string, unknown>
+            entry.crossref.conflicts = entry.crossref.conflicts
+              .filter(c => !equivalent(recordWork[c.field], c.crossref))
+              .map(c => ({ ...c, local: recordWork[c.field] }))
+          }
+        }
         if (nextBibKey !== undefined) entry.bibKey = nextBibKey
         entry.updatedAt = new Date().toISOString()
       }, effectiveSignal)
@@ -327,8 +330,8 @@ export class CitationWorkbench {
 }
 export function buildBatchTool(workbench: CitationWorkbench): CiteToolDefinition {
   return {
-    name: 'cite_batch', description: '本地文献库：显式 preview 解析 DOI 列表/BibTeX（不联网），import 选择预览条目保存，list 读取，enrich 才联网从 Crossref 补空字段且保留冲突原值，remove 按 id/citekey/ids 与 expectedRevision 冲突保护原子删除条目，job/cancel 查进度或取消，export 导出基本引文/BibTeX/完整原始来源备份。单批最多100条、库最多500条；不得捏造缺失数据。',
-    parameters: { type: 'object', properties: { action: { type: 'string', enum: ['list', 'preview', 'import', 'enrich', 'remove', 'job', 'cancel', 'export'] }, operation: { type: 'string', enum: ['list', 'preview', 'import', 'enrich', 'remove', 'job', 'cancel', 'export'], description: 'action 的兼容别名（如 remove）。' }, kind: { type: 'string', enum: ['doi', 'bibtex', 'references', 'backup'] }, text: { type: 'string', description: 'DOI 每行一条；或 BibTeX 文本，最大256KiB。' }, label: { type: 'string' }, preview: { type: 'string' }, selection: { type: 'array', items: { type: 'integer' }, description: 'preview 返回的零起始 index（1–100个）。' }, id: { type: 'string', description: '要删除的单条已保存文献 id。' }, citekey: { type: 'string', description: '要删除的单条文献引用键 bibKey（唯一匹配时生效）。' }, ids: { type: 'array', items: { type: 'string' }, description: '已保存文献 id（1–100个）。' }, expectedRevision: { type: 'integer', description: '期望的当前文献库修订号（冲突保护）。' }, revision: { type: 'integer', description: '当前文献库修订号。' }, job: { type: 'string' }, style: { type: 'string', enum: ['gb-t-7714', 'apa', 'ieee', 'mla', 'chicago'] }, lang: { type: 'string', enum: ['zh', 'en'] } } },
+    name: 'cite_batch', description: '本地文献库：显式 preview 解析 DOI 列表/BibTeX（不联网），import 选择预览条目保存，list 读取，source 按需读取原始导入文本，enrich 才联网从 Crossref 补空字段且保留冲突原值，update 配合 expectedRevision 冲突保护原子修订文献元数据/引用键，remove 按 id/citekey/ids 与 expectedRevision 冲突保护原子删除条目，job/cancel 查进度或取消，export 导出基本引文/BibTeX/完整原始来源备份。单批最多100条、库最多500条；不得捏造缺失数据。',
+    parameters: { type: 'object', properties: { action: { type: 'string', enum: ['list', 'source', 'preview', 'import', 'enrich', 'update', 'remove', 'job', 'cancel', 'export'] }, operation: { type: 'string', enum: ['list', 'source', 'preview', 'import', 'enrich', 'update', 'remove', 'job', 'cancel', 'export'], description: 'action 的兼容别名（如 remove / update / source）。' }, kind: { type: 'string', enum: ['doi', 'bibtex', 'references', 'backup'] }, text: { type: 'string', description: 'DOI 每行一条；或 BibTeX 文本，最大256KiB。' }, label: { type: 'string' }, preview: { type: 'string' }, selection: { type: 'array', items: { type: 'integer' }, description: 'preview 返回的零起始 index（1–100个）。' }, id: { type: 'string', description: '单条已保存文献 id 或原始来源 id（用于 update / remove / source）。' }, sourceId: { type: 'string', description: '原始导入来源 id（用于 source）。' }, citekey: { type: 'string', description: '单条文献引用键 bibKey（用于 remove 唯一匹配，或 update 时修改引用键）。' }, bibKey: { type: 'string', description: 'update 时新的文献引用键 bibKey（1–160 字符）。' }, work: { type: 'object', description: 'update 时要合并保存的文献元数据字段（如 title / authors / year / type / containerTitle / publisher / volume / issue / page / doi / url / isbn / language）。' }, ids: { type: 'array', items: { type: 'string' }, description: '已保存文献 id 或来源 id 列表（1–100个）。' }, expectedRevision: { type: 'integer', description: '期望的当前文献库修订号（冲突保护）。' }, revision: { type: 'integer', description: '当前文献库修订号。' }, job: { type: 'string' }, style: { type: 'string', enum: ['gb-t-7714', 'apa', 'ieee', 'mla', 'chicago'] }, lang: { type: 'string', enum: ['zh', 'en'] } } },
     output: { schema: { type: 'object', additionalProperties: true }, render(_args, value) { return [{ type: 'text', text: JSON.stringify(value, null, 2) }] } },
     async execute(args, exec) { const signal = typeof exec === 'object' && exec && (exec as any).signal instanceof AbortSignal ? (exec as any).signal as AbortSignal : undefined; signal?.throwIfAborted(); return workbench.dispatch(args, signal) }, timeoutMs: 15000,
   }

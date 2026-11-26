@@ -31,7 +31,7 @@ function computeConstellationEdges(entries) {
     return { entry, authorNames, authorFamilies, venue, year, cluster };
   });
 
-  const edges = [];
+  const candidates = [];
   const connectedSet = new Set();
   const degree = new Map(entries.map(e => [e.id, 0]));
 
@@ -56,30 +56,79 @@ function computeConstellationEdges(entries) {
         }
       }
       const sameVenue = Boolean(a.venue && b.venue && a.venue === b.venue);
-      const sameEra = Boolean(a.year > 0 && b.year > 0 && Math.abs(a.year - b.year) <= 2);
+      const yearGap = a.year > 0 && b.year > 0 ? Math.abs(a.year - b.year) : 99;
+      const sameEra = yearGap <= 2;
 
       if (sharedAuthor || sameVenue || sameEra) {
         const kind = sharedAuthor ? 'author' : sameVenue ? 'venue' : 'era';
         const weight = sharedAuthor ? 4 : sameVenue ? 3 : 2;
+        const score = sharedAuthor ? 400 : sameVenue ? 300 : (200 - yearGap * 20);
         const pairKey = a.entry.id + '__' + b.entry.id;
-        connectedSet.add(pairKey);
-        degree.set(a.entry.id, (degree.get(a.entry.id) || 0) + 1);
-        degree.set(b.entry.id, (degree.get(b.entry.id) || 0) + 1);
-        edges.push({
+        candidates.push({
           id: pairKey,
           source: a.entry.id,
           target: b.entry.id,
           kind,
           weight,
+          score,
           detail: sharedAuthor || (sameVenue ? a.entry.work.containerTitle : String(a.year)),
         });
       }
     }
   }
 
+  const edges = [];
+  const compactGraph = entries.length > 15;
+  if (!compactGraph) {
+    for (const edge of candidates) {
+      connectedSet.add(edge.id);
+      degree.set(edge.source, (degree.get(edge.source) || 0) + 1);
+      degree.set(edge.target, (degree.get(edge.target) || 0) + 1);
+      edges.push({
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+        kind: edge.kind,
+        weight: edge.weight,
+        detail: edge.detail,
+      });
+    }
+  } else {
+    // Cap edge density deterministically for medium/large libraries (16–500 papers)
+    // so SVG filaments stay legible and dragging remains smooth.
+    const maxDegree = entries.length > 80 ? 3 : entries.length > 35 ? 4 : 5;
+    const maxEdges = Math.min(240, Math.max(48, entries.length * 3));
+    candidates.sort((left, right) => {
+      if (left.score !== right.score) return right.score - left.score;
+      if (left.source !== right.source) return left.source.localeCompare(right.source);
+      return left.target.localeCompare(right.target);
+    });
+    for (const edge of candidates) {
+      if (edges.length >= maxEdges) break;
+      const degA = degree.get(edge.source) || 0;
+      const degB = degree.get(edge.target) || 0;
+      const cap = edge.kind === 'author' ? maxDegree + 2 : maxDegree;
+      if (degA >= cap || degB >= cap) continue;
+      connectedSet.add(edge.id);
+      degree.set(edge.source, degA + 1);
+      degree.set(edge.target, degB + 1);
+      edges.push({
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+        kind: edge.kind,
+        weight: edge.weight,
+        detail: edge.detail,
+      });
+    }
+  }
+
+  const minClusterDegree = entries.length > 40 ? 1 : 2;
+  const maxTotalEdges = compactGraph ? Math.min(280, Math.max(64, entries.length * 3 + 20)) : Infinity;
   for (let i = 0; i < prepared.length; i++) {
+    if (edges.length >= maxTotalEdges) break;
     const a = prepared[i];
-    if ((degree.get(a.entry.id) || 0) >= 2) continue;
+    if ((degree.get(a.entry.id) || 0) >= minClusterDegree) continue;
     for (let j = 0; j < prepared.length; j++) {
       if (i === j) continue;
       const b = prepared[j];
@@ -98,7 +147,7 @@ function computeConstellationEdges(entries) {
         weight: 1,
         detail: a.cluster,
       });
-      if ((degree.get(a.entry.id) || 0) >= 2) break;
+      if ((degree.get(a.entry.id) || 0) >= minClusterDegree || edges.length >= maxTotalEdges) break;
     }
   }
 
@@ -227,7 +276,7 @@ function computeConstellationLayout(entries, edges, viewport = { width: 1200, he
   }
 
   // Iterative force relaxation: edge gravity + non-overlap repulsion + HUD clearance.
-  const iterations = Math.min(96, 40 + count * 2);
+  const iterations = count > 160 ? 22 : count > 80 ? 40 : Math.min(96, 40 + count * 2);
 
   for (let iter = 0; iter < iterations; iter++) {
     // 1. Gentle attraction along relationship filaments
@@ -538,11 +587,21 @@ function CiteConstellation({
 
   const effectivePositions = useMemo(() => {
     const next = {};
+    const halfW = Math.ceil(layout.nodeWidth / 2) + 12;
+    const halfH = Math.ceil(layout.nodeHeight / 2) + 12;
     for (const entry of visibleEntries) {
-      next[entry.id] = nodePositions[entry.id] || layout.positions[entry.id] || { x: 240, y: 200 };
+      const manual = nodePositions[entry.id];
+      if (manual) {
+        next[entry.id] = {
+          x: Math.round(Math.max(halfW, Math.min(layout.stageWidth - halfW, manual.x))),
+          y: Math.round(Math.max(halfH, Math.min(layout.stageHeight - halfH, manual.y))),
+        };
+      } else {
+        next[entry.id] = layout.positions[entry.id] || { x: 240, y: 200 };
+      }
     }
     return next;
-  }, [visibleEntries, nodePositions, layout.positions]);
+  }, [visibleEntries, nodePositions, layout.positions, layout.nodeWidth, layout.nodeHeight, layout.stageWidth, layout.stageHeight]);
 
   const activeEntry = useMemo(() => {
     if (!visibleEntries.length) return null;
@@ -557,6 +616,32 @@ function CiteConstellation({
 
   const selectedId = activeEntry?.id || '';
   const connectedNeighbors = selectedId ? (adjacency.get(selectedId) || new Set()) : new Set();
+  const lastSearchFocusRef = useRef('');
+
+  function centerOnEntry(entryId) {
+    const pos = effectivePositions[entryId];
+    if (!pos) return;
+    const targetX = Math.round(viewport.width * 0.46 - pos.x * zoom);
+    const targetY = Math.round(viewport.height * 0.46 - pos.y * zoom);
+    setPan({ x: targetX, y: targetY });
+  }
+
+  useEffect(() => {
+    if (!query || !selectedId || !matchedSearchIds?.has(selectedId)) {
+      lastSearchFocusRef.current = '';
+      return;
+    }
+    const token = query + ':' + selectedId;
+    if (lastSearchFocusRef.current === token) return;
+    lastSearchFocusRef.current = token;
+    const pos = effectivePositions[selectedId];
+    if (!pos) return;
+    const screenX = pos.x * zoom + pan.x;
+    const screenY = pos.y * zoom + pan.y;
+    if (screenX < 90 || screenX > viewport.width - 90 || screenY < 90 || screenY > viewport.height - 90) {
+      centerOnEntry(selectedId);
+    }
+  }, [query, selectedId, matchedSearchIds, effectivePositions, viewport.width, viewport.height, zoom, pan.x, pan.y]);
 
   function beginNodeDrag(entry, event) {
     if (event?.button !== undefined && event.button !== 0) return;
@@ -638,7 +723,22 @@ function CiteConstellation({
   }
 
   function adjustZoom(delta) {
-    setZoom(prev => Math.max(0.65, Math.min(1.45, Math.round((prev + delta) * 100) / 100)));
+    setZoom(prev => Math.max(0.55, Math.min(1.55, Math.round((prev + delta) * 100) / 100)));
+  }
+
+  function handleWheel(event) {
+    if (event?.target?.closest?.('.cite-zettelkasten, .cite-capsule, .cite-constellation-empty')) return;
+    const dy = Number(event?.deltaY ?? 0);
+    if (!dy) return;
+    event?.preventDefault?.();
+    adjustZoom(dy < 0 ? 0.1 : -0.1);
+  }
+
+  function filamentLabel(edge) {
+    if (edge.kind === 'author') return t('同作者：' + edge.detail, 'Shared author: ' + edge.detail);
+    if (edge.kind === 'venue') return t('同刊物：' + edge.detail, 'Same venue: ' + edge.detail);
+    if (edge.kind === 'era') return t('同期文献（' + edge.detail + ' ±2 年）', 'Same era (' + edge.detail + ' ±2y)');
+    return t('文献状态聚类', 'Status cluster');
   }
 
   function resetConstellationView() {
@@ -667,6 +767,7 @@ function CiteConstellation({
       onPointerMove: moveDrag,
       onPointerUp: endDrag,
       onPointerCancel: endDrag,
+      onWheel: handleWheel,
     },
       h('div', { className: 'cite-starfield-halo', 'aria-hidden': 'true' }),
       h('div', {
@@ -697,8 +798,8 @@ function CiteConstellation({
               'data-active': String(isActive),
               'data-dimmed': String(isDimmed),
               d: filamentPath(p1, p2, edge.id),
-              strokeDasharray: isActive ? undefined : '4 5',
-            });
+              strokeDasharray: isActive ? undefined : (edge.kind === 'author' ? '6 4' : '4 5'),
+            }, h('title', null, filamentLabel(edge)));
           }),
         ),
         visibleEntries.map(entry => {
@@ -839,6 +940,13 @@ function CiteConstellation({
           h('button', { type: 'button', className: 'cite-zoom-btn', 'aria-label': t('缩小星图', 'Zoom out'), onClick: () => adjustZoom(-0.15) }, '−'),
           h('span', { className: 'cite-zoom-readout cite-mono' }, Math.round(zoom * 100) + '%'),
           h('button', { type: 'button', className: 'cite-zoom-btn', 'aria-label': t('放大星图', 'Zoom in'), onClick: () => adjustZoom(0.15) }, '+'),
+          selectedId ? h('button', {
+            type: 'button',
+            className: 'cite-zoom-btn cite-zoom-fit',
+            'aria-label': t('居中选中节点', 'Center active node'),
+            title: t('居中选中节点', 'Center active node'),
+            onClick: () => centerOnEntry(selectedId),
+          }, '◎') : null,
         ),
       ) : null,
       loading ? h('div', { className: 'cite-constellation-empty cite-skeleton-wrap', role: 'status', 'aria-busy': 'true', 'aria-label': t('正在读取文献库…', 'Loading library…') },

@@ -1,7 +1,7 @@
 {
   "name": "dsh-cite",
-  "version": "0.12.5",
-  "description": "DeepSeek Harness 引文工作台：默认「文献引力星图画布」支持指针拖拽排布、SVG 文献引力连线、悬浮 Zettelkasten 索引卡、Crossref 核查补全、元数据原子编辑与 GB/T 7714 / APA / IEEE / MLA / Chicago 导出，并可一键切回经典三栏「列表」视图；内置 13 套明亮工作台风格与 8 套字体搭配。",
+  "version": "0.13.0",
+  "description": "DeepSeek Harness 学术引文工作台与 6 个 AI 智能体工具：默认「文献引力星图」可拖拽/滚轮缩放画布与悬浮 Zettelkasten 索引卡（1 键切经典列表排序视图），支持离线 DOI/BibTeX 拖放去重预览、Crossref 核查补全与 1 键差异采用、全字段原子编辑、GB/T 7714 / APA / IEEE / MLA / Chicago 5 格式 14 类文献导出与 1 键复制，内置 13 套明亮风格 × 8 套字体。",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -59,6 +59,10 @@
     "bibtex",
     "doi",
     "bibliography",
+    "reference-manager",
+    "zettelkasten",
+    "academic",
+    "research-tools",
     "文献",
     "引文"
   ],

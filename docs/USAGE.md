@@ -13,10 +13,10 @@ BibTeX 导入、导出保留 URL 与 DOI；数学比较符不作为任意 HTML �
 ## 文献工作台
 
 1. 从原生侧栏打开「引文库」（或打开「设置 → Cite」），默认进入**「文献引力星图」**画布；顶部与左上悬浮控制台均支持 1 键在**「星图 / 列表」**之间切换。
-2. 切到「导入预览」，选择 DOI 列表或 BibTeX（每行一条 DOI，或上传 `.bib` 文件，也可点击「填入示例 DOI / BibTeX」）；点击「本地预览」核对缺失字段与重复提示，确认无误后点击「保存所选」。上传不会改写原文件。
-3. 在「文献引力星图」画布中，可自由拖拽任意文献节点调整排布（SVG 引力连线实时追踪同作者、同刊物、同期 ±2 年与 Crossref 聚类），左上悬浮控制台支持切换 `GB/T 7714 / APA / IEEE / MLA / Chicago` 格式、即时高亮搜索节点与按「有字段缺失 / 已查询 Crossref」筛选。
-4. 点击节点点亮 `✦` 邻域后，在右下角**悬浮 Zettelkasten 索引卡**一键执行「复制引文」「复制 BibTeX」「Crossref 补全」（只补空字段并保留本地差异）或「编辑元数据」（带修订冲突保护与重复 DOI 校验的原子修改），也可查看「原始输入」或安全删除。需要批量勾选补全/删除时，1 键切回经典三栏「列表」视图即可。
-5. 「导出备份」页先给出导出前检查：可切换「全部文献」或「仅所选」范围，并列出范围条数、引文格式、缺标题 / 作者 / 年份的条目数，以及「完整备份始终包含全库与原始输入」。确认无误后再下载 BibTeX、参考文献文本或完整备份。
+2. 切到「导入预览」，选择 DOI 列表或 BibTeX（每行一条 DOI、上传或直接**拖放 `.bib` 文件**，也可点击「填入示例 DOI / BibTeX」）；点击「本地预览」核对缺失字段与重复提示，可「全选可导项 / 清空勾选」，确认无误后点击「保存所选」。上传不会改写原文件。
+3. 在「文献引力星图」画布中，可自由拖拽任意文献节点、滚轮缩放或点击 `◎` 居中选中节点（SVG 引力连线实时追踪同作者、同刊物、同期 ±2 年与状态聚类，中大型文献库自动控制连线密度以保持流畅），左上悬浮控制台支持切换 `GB/T 7714 / APA / IEEE / MLA / Chicago` 格式、即时高亮搜索节点（离屏命中自动平移）与按「有字段缺失 / 已查询 Crossref」筛选。
+4. 点击节点点亮 `✦` 邻域后，在右下角**悬浮 Zettelkasten 索引卡**一键执行「复制引文」「复制 BibTeX」「Crossref 补全」（只补空字段并保留本地差异）或「编辑元数据」（含 ISBN / 语言、年份校验、修订冲突刷新保留草稿与重复 DOI 校验的原子修改），也可按需查看「原始输入」或安全删除。需要批量勾选补全/删除、多维排序或在 Crossref 差异表中逐字段 1 键「采用」时，1 键切回经典三栏「列表」视图即可。
+5. 「导出备份」页先给出导出前检查：可切换「全部文献」或「仅所选」范围，并列出范围条数、引文格式、缺标题 / 作者 / 年份的条目数，以及「完整备份始终包含全库与原始输入」。支持 1 键「复制全部」参考文献或 BibTeX，也可下载 `.bib`、`.txt` 或完整 `.json` 备份。
 
 多窗口冲突不会被静默覆盖：提示会说明库已在别处更新、当前输入仍然保留，并提供「重新预览当前输入」这一条恢复路径；冲突期间「保存所选」保持禁用并给出原因。导出前检查里的范围、条数与缺失字段来自当前本地数据，切换范围会立即重新计算。
 
@@ -35,9 +35,9 @@ BibTeX 解析使用 Citation.js 的本地解析器，支持宏、嵌套括号、
 | `cite_bibtex` | 生成 BibTeX 条目 | `doi` 必填；`key` 可选 |
 | `cite_check` | 从文本提取 DOI 并并发校验是否存在（并发 3，保持输入顺序） | `text` 必填；`maxChecks` 1-50 默认 10 |
 | `cite_health` | 自检：探测 Crossref 连通性并报告延迟 | 无 |
-| `cite_batch` | 本地文献工作台，与设置页共用文献库 | `action`（或 `operation`）：list / preview / import / enrich / remove / job / cancel / export |
+| `cite_batch` | 本地文献工作台，与设置页共用文献库 | `action`（或 `operation`）：list / source / preview / import / enrich / update / remove / job / cancel / export |
 
-`cite_batch` 的 `preview` 接受 `kind: doi / bibtex`、`text` 和可选 `label`；返回预览编号和零起始行编号。`import` 接受 `preview` 与 `selection` 数组。`enrich` 接受已保存条目的 `ids` 与当前 `revision`，返回 `job` 编号；用 `job` / `cancel` 操作查询或取消。`remove` 支持按单条 `id`、`citekey`（唯一匹配时生效）或批量 `ids` 配合 `expectedRevision` 冲突保护原子删除条目。`export` 的 `kind` 为 bibtex / references / backup，可指定 `style`、`lang`；条目选择为可选 `ids`，完整备份不得附带选择。
+`cite_batch` 的 `preview` 接受 `kind: doi / bibtex`、`text` 和可选 `label`；返回预览编号和零起始行编号。`import` 接受 `preview` 与 `selection` 数组。`source` 按 `id`/`sourceId` 或 `ids` 按需读取原始导入文本。`enrich` 接受已保存条目的 `ids` 与当前 `revision`，返回 `job` 编号；用 `job` / `cancel` 操作查询或取消。`update` 接受 `id`、`work`（可选 `bibKey`/`citekey`）与 `expectedRevision` 冲突保护原子修订元数据（自动清理已消解的 Crossref 差异，变更 DOI 时重置过期 Crossref 标记）。`remove` 支持按单条 `id`、`citekey`（唯一匹配时生效）或批量 `ids` 配合 `expectedRevision` 冲突保护原子删除条目。`export` 的 `kind` 为 bibtex / references / backup，可指定 `style`、`lang`；条目选择为可选 `ids`，完整备份不得附带选择。
 
 ## 安装
 

@@ -1,5 +1,27 @@
 # 更新记录
 
+## 0.13.0 (2026-11-27)
+
+- **外观与字体默认策略刷新**：重绘晴空薄荷（`mint`）、晴昼琉璃（`glass`）与晴空水晶（`frutiger`）皮肤并升级云母流光（`win98`）视觉（同步修复星图卡片残留旧版 bevel 边框）；默认字体切为「跟随风格专属字（`auto`）」，原有幼圆等宽仍可选且保留用户显式偏好。
+- **引文与 BibTeX 全文献类型增强**：
+  - `GB/T 7714`、`APA`、`IEEE`、`MLA`、`Chicago` 完整补齐图书章节（`book-chapter`）、会议论文（`proceedings-article` 含出版社/页码）、会议论文集（`proceedings`）、学位论文（`[D]`）、报告（`[R]`）、标准（`[S]`）与专利（`[P]`）格式，不再误落回网页 `[引用日期]` 模板，并补齐非期刊条目的 DOI/URL 输出。
+  - `buildBibtex` 支持 `@incollection`、`@proceedings` 与 `isbn` 导出，并对 `volume`/`number`/`pages`/`isbn` 做安全 LaTeX 转义；`assertDoi` 兼容 `https://www.doi.org/...`；DOI 列表导入自动清洗 `bibKey` 去除 URL/`DOI:` 前缀。
+- **星图性能与交互升级**：
+  - 为 16–500 篇中大型文献库增加确定性引力线优先级与节点度上限（同作者 > 同刊物 > 同期），消除大图 SVG 路径 O(N²) 爆炸并保持流畅拖拽；拖拽节点坐标随筛选/视口自动夹紧防止越界。
+  - 星图画布新增滚轮缩放（自动跳过索引卡滚动）、`◎` 居中选中节点按钮、搜索命中离屏自动平移以及 SVG 引力线关系 `<title>` 提示。
+- **工作台效率、冲突消解与工具契约补齐**：
+  - `cite_batch` 模型工具参数与描述补齐 `update` / `source` 动作，与后端 `dispatch()` 及 UI 工作台完全对齐。
+  - 列表详情的 Crossref 差异表新增逐字段 1 键「采用 / Use」按钮；元数据更新时自动清理已消解的 Crossref 差异，并在变更/清空 DOI 时清除过期的 Crossref 核查标记。
+  - 元数据编辑弹窗补齐 `isbn` / `language` 字段与严格年份校验（1–9999），并修复 409 冲突刷新时重建弹窗丢失未保存草稿的问题。
+  - 「导出备份」页新增参考文献与 BibTeX 1 键「复制全部」；「导入预览」新增 `.bib` 拖放导入与「全选可导项 / 清空勾选」；「DOI 核查」新增失败 DOI 1 键复制；「列表」视图新增多维排序。
+  - 修复 `englishCitationError` 中重复 DOI 编辑错误被前置正则吞掉的死代码缺陷并补齐安全/容量边界英文提示；移除 `fetchCrossref` 冗余双缓冲以保留 `crossref.ts` 对卡死流的即时取消与 2 MiB 上限保护。
+- **Theme Refresh, Full Document-Type Citations, Constellation Scaling & Workbench Boost**:
+  - Refresh Mint, Glass, Aqua Crystal, and Mica Fluent skins (removing stale Retro 98 bevel overrides on Constellation cards) and switch the default font pairing to style-matched (`auto`).
+  - Expand `GB/T 7714`, `APA`, `IEEE`, `MLA`, `Chicago`, and `BibTeX` (`@incollection`, `@proceedings`, `isbn`, LaTeX-escaped fields) across book chapters, conference papers/proceedings, dissertations, reports, standards, and patents; support `www.doi.org` links and clean DOI-list citation keys.
+  - Cap dense Constellation filament graphs deterministically for 16–500 paper libraries, clamp dragged node positions across filter/viewport changes, and add wheel zoom, center-on-active (`◎`), off-screen search auto-pan, and filament `<title>` tooltips.
+  - Expose `update` and `source` in the `cite_batch` tool schema; add 1-click Crossref conflict resolution (**Use**), automatic conflict pruning / stale-Crossref cleanup on DOI change, `isbn`/`language` + year validation + draft-preserving 409 refresh in the metadata editor, 1-click **Copy all** on Export, `.bib` drag-and-drop & bulk preview selection on Import, **Copy failed DOIs** on DOI Check, and List sorting.
+  - Fix dead-code duplicate-DOI English error translation ordering in `englishCitationError` and remove redundant double-buffering in `fetchCrossref` so stalled-stream abort handling remains effective.
+
 ## 0.12.5 (2026-11-25)
 
 - 为文献库读取设置字节上限，并在解析前核对已打开文件的身份。

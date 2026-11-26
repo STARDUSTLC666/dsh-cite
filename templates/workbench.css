@@ -476,6 +476,35 @@
   font-size: 11.5px;
 }
 
+.cite-workbench .cite-sort-select {
+  min-block-size: 26px;
+  padding: 2px 7px;
+  border: var(--dsh-control-border-width, 0.5px) solid var(--cite-line);
+  border-radius: var(--cite-radius-sm);
+  background: var(--cite-base);
+  color: var(--cite-secondary);
+  font-size: 11.5px;
+  line-height: 1.3;
+  cursor: pointer;
+}
+
+.cite-workbench .cite-drop-active {
+  border-color: var(--cite-accent);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--cite-accent) 22%, transparent);
+}
+
+.cite-workbench .cite-export-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.cite-workbench .cite-diff-table .cite-diff-action-col {
+  inline-size: 84px;
+  text-align: end;
+}
+
 .cite-workbench :is(.cite-list-scroll, .cite-inspector-scroll, .cite-subpage) {
   flex: 1 1 auto;
   min-block-size: 0;
@@ -1872,9 +1901,16 @@
 }
 
 .cite-workbench[data-dsh-style="win98"] :is(.cite-node, .cite-capsule, .cite-zettelkasten) {
-  border-radius: 0px;
-  border: 2px outset #ffffff;
-  backdrop-filter: none;
+  border-radius: var(--cite-radius-md);
+  border: 1px solid color-mix(in oklab, var(--cite-line) 76%, #ffffff 24%);
+  background: color-mix(in oklab, var(--dsw-alias-bg-overlay, var(--cite-base)) 94%, transparent);
+  backdrop-filter: blur(16px) saturate(130%);
+  box-shadow: var(--dsw-elevation-panel, 0 8px 24px rgba(15, 23, 42, 0.08));
+}
+
+.cite-workbench .cite-zoom-fit {
+  margin-inline-start: 2px;
+  font-size: 12px;
 }
 
 @media (prefers-reduced-motion: no-preference) {

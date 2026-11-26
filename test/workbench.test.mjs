@@ -284,3 +284,83 @@ test('action: source fetches raw import text on demand while summary() omits tex
   assert.equal(missingJson.ok, false)
   assert.match(missingJson.messageEn, /original source is no longer available/i)
 })
+
+test('cite_batch schema exposes update and source actions and executes them end-to-end', async t => {
+  const w = await workbench(t), tool = buildBatchTool(w)
+  assert.ok(tool.parameters.properties.action.enum.includes('update'))
+  assert.ok(tool.parameters.properties.action.enum.includes('source'))
+  assert.ok(tool.parameters.properties.operation.enum.includes('update'))
+  assert.ok(tool.parameters.properties.operation.enum.includes('source'))
+  assert.ok(tool.parameters.properties.work)
+  assert.ok(tool.parameters.properties.bibKey)
+
+  const bib = '@article{k2024,title={Original},author={Lin, Wei},year={2024},doi={10.1000/tool-test}}'
+  const s1 = await save(w, bib, 'bibtex')
+  const updated = await tool.execute({
+    action: 'update',
+    id: s1.entries[0].id,
+    expectedRevision: s1.revision,
+    bibKey: 'k2026',
+    work: { title: 'Updated via tool', isbn: '978-0-12-345678-9' },
+  }, {})
+  assert.equal(updated.entries[0].bibKey, 'k2026')
+  assert.equal(updated.entries[0].work.title, 'Updated via tool')
+  assert.equal(updated.entries[0].work.isbn, '978-0-12-345678-9')
+
+  const fetchedSource = await tool.execute({ action: 'source', sourceId: s1.sources[0].id }, {})
+  assert.equal(fetchedSource.source.text, bib)
+})
+
+test('action: update prunes resolved Crossref conflicts and clears stale crossref metadata when DOI changes', async t => {
+  const w = await workbench(t, async url => payload(decodeURIComponent(url.split('/').at(-1))))
+  const s1 = await save(w, '@article{local,title={Local Title},publisher={Local Pub},doi={10.1000/conf}}', 'bibtex')
+  const j = await finish(w, (await w.enrich([s1.entries[0].id], s1.revision)).id)
+  assert.equal(j.state, 'done')
+  const enriched = await w.list()
+  assert.equal(enriched.entries[0].crossref.conflicts.length, 2)
+
+  // Accepting Crossref's title removes only the title conflict and keeps publisher conflict
+  const afterTitle = await w.dispatch({
+    action: 'update',
+    id: enriched.entries[0].id,
+    expectedRevision: enriched.revision,
+    work: { title: 'Provider title' },
+  })
+  assert.equal(afterTitle.entries[0].crossref.conflicts.length, 1)
+  assert.equal(afterTitle.entries[0].crossref.conflicts[0].field, 'publisher')
+
+  // Updating publisher to a different local value updates conflict.local
+  const afterPub = await w.dispatch({
+    action: 'update',
+    id: enriched.entries[0].id,
+    expectedRevision: afterTitle.revision,
+    work: { publisher: 'Edited Local Pub' },
+  })
+  assert.equal(afterPub.entries[0].crossref.conflicts[0].local, 'Edited Local Pub')
+
+  // Changing DOI clears stale crossref record
+  const afterDoi = await w.dispatch({
+    action: 'update',
+    id: enriched.entries[0].id,
+    expectedRevision: afterPub.revision,
+    work: { doi: '10.1000/different-doi' },
+  })
+  assert.equal(afterDoi.entries[0].crossref, undefined)
+})
+
+test('englishCitationError translates duplicate-DOI metadata edits and security/limit errors accurately', async t => {
+  assert.equal(englishCitationError('该 DOI 已存在于另一条文献中。'), 'Another reference in the library already uses this DOI.')
+  assert.match(englishCitationError('文献库文件在读取期间已更换，原文件已保留。'), /changed while being read/i)
+  assert.match(englishCitationError('文献库目录不能是符号链接。'), /symbolic link/i)
+  assert.match(englishCitationError('Crossref 响应超过 2 MiB 大小上限，请缩小查询范围。'), /2 MiB/i)
+  assert.match(englishCitationError('作者列表无效或超过 2000 人。'), /2000/)
+  assert.match(englishCitationError('单个文献字段过长，请拆分或检查原始数据。'), /too long/i)
+  assert.match(englishCitationError('来源名称过长。'), /160/)
+  assert.match(englishCitationError('文献、预览或任务编号无效。'), /Invalid reference, preview, or job ID/i)
+
+  const w = await workbench(t)
+  const p = await w.preview({ kind: 'doi', text: 'https://doi.org/10.1038/nature14539\nDOI: 10.1145/3368089.3409749\nnot-a-doi' })
+  assert.equal(p.rows[0].key, '10.1038/nature14539')
+  assert.equal(p.rows[1].key, '10.1145/3368089.3409749')
+  assert.equal(p.rows[2].key, 'not-a-doi')
+})

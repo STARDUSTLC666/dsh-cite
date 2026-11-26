@@ -6,13 +6,15 @@ function CiteLibrary({
   entries, sources, revision, t, lang, uiStyle, uiFont, loading, loaded, locked, running,
   selected, setSelected, style, setStyle, copiedKey, viewMode = 'graph', setViewMode,
   filter, search, limit, activeId, setActiveId, onSearch, onFilter, onMore, onRefresh, onImport,
-  enrich, copy, onRequestRemove, onModalOpen, onEditMetadata, onOpenRawSource,
+  enrich, copy, onRequestRemove, onModalOpen, onEditMetadata, onOpenRawSource, onApplyCrossrefField,
 }) {
   const [openedId, setOpenedId] = useState('');
+  const [sortBy, setSortBy] = useState('added');
   const lastRow = useRef(null);
   const root = useRef(null);
   const pickerId = typeof React.useId === 'function' ? React.useId() : 'cite-style-picker';
   const searchId = typeof React.useId === 'function' ? React.useId() : 'cite-library-search';
+  const sortId = typeof React.useId === 'function' ? React.useId() : 'cite-library-sort';
   const listId = typeof React.useId === 'function' ? React.useId() : 'cite-list-pane';
   const split = useResizableSplit(React, {
     key: 'dsh-cite:list-width',
@@ -41,11 +43,24 @@ function CiteLibrary({
     { id: 'enriched', label: t('已查询 Crossref', 'Crossref checked'), count: enriched },
   ];
   const query = search.trim().toLowerCase();
-  const matches = indexed.filter(({ entry, query: haystack }) => {
+  const filteredMatches = indexed.filter(({ entry, query: haystack }) => {
     if (filter === 'missing' && !entry.warnings.length) return false;
     if (filter === 'enriched' && !entry.crossref) return false;
     return haystack.includes(query);
   });
+  const matches = sortBy === 'added'
+    ? filteredMatches
+    : [...filteredMatches].sort((a, b) => {
+      if (sortBy === 'year-desc') return (Number(b.entry.work.year) || 0) - (Number(a.entry.work.year) || 0);
+      if (sortBy === 'year-asc') {
+        const ya = Number(a.entry.work.year) || 99999;
+        const yb = Number(b.entry.work.year) || 99999;
+        return ya - yb;
+      }
+      if (sortBy === 'title') return String(a.entry.work.title || a.entry.work.doi || '').localeCompare(String(b.entry.work.title || b.entry.work.doi || ''));
+      if (sortBy === 'author') return a.byline.localeCompare(b.byline);
+      return 0;
+    });
   const visible = matches.slice(0, limit);
   const active = (visible.find(({ entry }) => entry.id === activeId) || visible[0])?.entry;
   const open = !!active && active.id === openedId;
@@ -157,6 +172,20 @@ function CiteLibrary({
           t(matches.length + ' 条 · 已选 ' + selected.length, matches.length + ' results · ' + selected.length + ' selected'),
         ),
         h('div', { className: 'cite-actions' },
+          h('label', { className: 'cite-sr-only', htmlFor: sortId }, t('排序方式', 'Sort references')),
+          h('select', {
+            id: sortId,
+            className: 'cite-sort-select',
+            'aria-label': t('排序方式', 'Sort references'),
+            value: sortBy,
+            onChange: event => setSortBy(event.target.value),
+          },
+            h('option', { value: 'added' }, t('按导入顺序', 'Import order')),
+            h('option', { value: 'year-desc' }, t('年份从新到旧', 'Newest year')),
+            h('option', { value: 'year-asc' }, t('年份从旧到新', 'Oldest year')),
+            h('option', { value: 'title' }, t('按标题 A–Z', 'Title A–Z')),
+            h('option', { value: 'author' }, t('按作者 A–Z', 'Author A–Z')),
+          ),
           h(CiteButton, {
             variant: 'ghost', disabled: locked || !visible.length,
             onClick: () => setSelected(visible.slice(0, 100).map(({ entry }) => entry.id)),
@@ -224,7 +253,7 @@ function CiteLibrary({
       active
         ? h(CiteInspector, {
           key: active.id, entry: active, sources, style, uiStyle, uiFont, lang, revision, locked, running, copiedKey,
-          enrich, copy, onRequestRemove, onModalOpen, onEditMetadata, onOpenRawSource, t,
+          enrich, copy, onRequestRemove, onModalOpen, onEditMetadata, onOpenRawSource, onApplyCrossrefField, t,
         })
         : h('p', { className: 'cite-inspector-empty' }, t('选择文献以查看引文与元数据。', 'Select a reference to view its citation and metadata.')),
     ),
@@ -279,7 +308,7 @@ function CiteReferenceRow({ entry, byline, active, checked, copied, disabled, t,
   );
 }
 
-function CiteInspector({ entry, sources, style, uiStyle, uiFont, lang, revision, locked, running, copiedKey, enrich, copy, onRequestRemove, onModalOpen, onEditMetadata, onOpenRawSource, t }) {
+function CiteInspector({ entry, sources, style, uiStyle, uiFont, lang, revision, locked, running, copiedKey, enrich, copy, onRequestRemove, onModalOpen, onEditMetadata, onOpenRawSource, onApplyCrossrefField, t }) {
   const [sourceOpen, setSourceOpen] = useState(false);
   const { id, work, bibKey, warnings, crossref } = entry;
   const citation = useCitationOutput({ kind: 'references', id, style, lang, revision });
@@ -365,17 +394,25 @@ function CiteInspector({ entry, sources, style, uiStyle, uiFont, lang, revision,
         actions: h('span', { className: 'cite-muted' }, t('提交前请核对引用要求', 'Check submission requirements')),
       }, h(CiteOutput, { output: citation, label: t('引文预览', 'Citation preview'), t })),
       crossref?.conflicts?.length ? h(CiteCard, { className: 'cite-differences', title: t('Crossref 字段差异', 'Crossref differences') },
-        h('p', { className: 'cite-muted' }, t('存在差异的字段已保留本地值。', 'Local values were retained for fields with differences.')),
+        h('p', { className: 'cite-muted' }, t('存在差异的字段已保留本地值；可按字段一键采用 Crossref 值。', 'Local values were retained for fields with differences. Apply any Crossref value in one click.')),
         h('table', { className: 'cite-diff-table' },
           h('thead', null, h('tr', null,
             h('th', { scope: 'col' }, t('字段', 'Field')),
             h('th', { scope: 'col' }, t('本地值', 'Local value')),
             h('th', { scope: 'col' }, 'Crossref'),
+            onApplyCrossrefField ? h('th', { scope: 'col', className: 'cite-diff-action-col' }, t('操作', 'Action')) : null,
           )),
           h('tbody', null, crossref.conflicts.map(item => h('tr', { key: item.field },
             h('th', { scope: 'row' }, fieldName(item.field, t)),
             h('td', null, valueText(item.local)),
             h('td', null, valueText(item.crossref)),
+            onApplyCrossrefField ? h('td', { className: 'cite-diff-action-col' }, h(CiteButton, {
+              variant: 'outline',
+              icon: 'check',
+              disabled: locked,
+              'data-apply-crossref-field': item.field,
+              onClick: () => onApplyCrossrefField(entry, item),
+            }, t('采用', 'Use'))) : null,
           ))),
         ),
       ) : null,

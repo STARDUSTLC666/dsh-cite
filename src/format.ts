@@ -91,7 +91,7 @@ function ieeeAuthors(authors: CiteAuthor[]): string {
 function gbtTypeLabel(type: string, work: Work): string {
   switch (type) {
     case 'journal-article': return '[J]'
-    case 'book': case 'monograph': case 'edited-book': return '[M]'
+    case 'book': case 'monograph': case 'edited-book': case 'book-chapter': return '[M]'
     case 'proceedings-article': case 'proceedings': return '[C]'
     case 'dissertation': return '[D]'
     case 'report': return '[R]'
@@ -133,6 +133,12 @@ function buildGbt(work: Work, lang: string): string {
     if (vip !== '') tail += ', ' + vip
     return authorLead + title + label + '. ' + tail + '.'
   }
+  if (work.type === 'book-chapter' && work.containerTitle !== '') {
+    let tail = work.publisher !== '' ? work.publisher + ', ' : ''
+    tail += yearText(work)
+    if (work.page !== '') tail += ': ' + work.page
+    return authorLead + title + '[M]//' + work.containerTitle + '. ' + tail + '.'
+  }
   if (work.type === 'book' || work.type === 'monograph' || work.type === 'edited-book') {
     let tail = work.publisher !== '' ? work.publisher + ', ' : ''
     tail += yearText(work)
@@ -140,7 +146,16 @@ function buildGbt(work: Work, lang: string): string {
     return authorLead + title + '[M]. ' + tail + '.'
   }
   if (work.containerTitle !== '' && work.type === 'proceedings-article') {
-    return authorLead + title + '[C]//' + work.containerTitle + '. ' + yearText(work) + '.'
+    let tail = work.publisher !== '' ? work.publisher + ', ' : ''
+    tail += yearText(work)
+    if (work.page !== '') tail += ': ' + work.page
+    return authorLead + title + '[C]//' + work.containerTitle + '. ' + tail + '.'
+  }
+  if (work.type === 'proceedings' || work.type === 'dissertation' || work.type === 'report' || work.type === 'standard' || work.type === 'patent') {
+    let tail = work.publisher !== '' ? work.publisher + ', ' : (work.containerTitle !== '' ? work.containerTitle + ', ' : '')
+    tail += yearText(work)
+    if (work.page !== '') tail += ': ' + work.page
+    return authorLead + title + label + '. ' + tail + '.'
   }
   const urlPart = work.url !== '' ? ' ' + work.url + '.' : ''
   const accessed = new Date().toISOString().slice(0, 10)
@@ -152,19 +167,29 @@ function buildApa(work: Work): string {
   const authors = apaAuthors(work.authors)
   const title = titleOf(work)
   const year = yearText(work)
+  const link = work.doi !== '' ? 'https://doi.org/' + work.doi : work.url
+  const linkTail = link !== '' ? ' ' + link : ''
   if (work.type === 'journal-article' && work.containerTitle !== '') {
     let text = authors + ' (' + year + '). ' + title + '. ' + work.containerTitle
     if (work.volume !== '') text += ', ' + work.volume
     if (work.issue !== '') text += '(' + work.issue + ')'
     if (work.page !== '') text += ', ' + work.page
-    const tail = work.doi !== '' ? 'https://doi.org/' + work.doi : work.url
-    if (tail !== '') return text + '. ' + tail
-    return text + '.'
+    return text + '.' + linkTail
+  }
+  if ((work.type === 'proceedings-article' || work.type === 'book-chapter') && work.containerTitle !== '') {
+    let text = authors + ' (' + year + '). ' + title + '. In ' + work.containerTitle
+    if (work.page !== '') text += ' (pp. ' + work.page + ')'
+    text += '.'
+    if (work.publisher !== '') text += ' ' + work.publisher + '.'
+    return text + linkTail
   }
   if (work.type === 'book' || work.type === 'monograph' || work.type === 'edited-book') {
-    return authors + ' (' + year + '). ' + title + '.' + (work.publisher !== '' ? ' ' + work.publisher + '.' : '')
+    return authors + ' (' + year + '). ' + title + '.' + (work.publisher !== '' ? ' ' + work.publisher + '.' : '') + linkTail
   }
-  return authors + ' (' + year + '). ' + title + '.' + (work.url !== '' ? ' ' + work.url : '')
+  let text = authors + ' (' + year + '). ' + title + '.'
+  if (work.containerTitle !== '') text += ' ' + work.containerTitle + '.'
+  else if (work.publisher !== '') text += ' ' + work.publisher + '.'
+  return text + linkTail
 }
 
 /** 生成基本 MLA 参考文献条目。 */
@@ -175,10 +200,12 @@ function buildMla(work: Work): string {
   if (work.containerTitle !== '') text += work.containerTitle + ', '
   if (work.volume !== '') text += 'vol. ' + work.volume + ', '
   if (work.issue !== '') text += 'no. ' + work.issue + ', '
+  if (work.containerTitle === '' && work.publisher !== '') text += work.publisher + ', '
   text += yearText(work)
   if (work.page !== '') text += ', pp. ' + work.page
   text += '.'
   if (work.doi !== '') text += ' https://doi.org/' + work.doi
+  else if (work.url !== '') text += ' ' + work.url
   return text
 }
 
@@ -190,10 +217,12 @@ function buildChicago(work: Work): string {
   if (work.containerTitle !== '') text += ', ' + work.containerTitle
   if (work.volume !== '') text += ' ' + work.volume
   if (work.issue !== '') text += ', no. ' + work.issue
-  text += ' (' + yearText(work) + ')'
+  const pubPart = work.containerTitle === '' && work.publisher !== '' ? work.publisher + ', ' : ''
+  text += ' (' + pubPart + yearText(work) + ')'
   if (work.page !== '') text += ': ' + work.page
   text += '.'
   if (work.doi !== '') text += ' https://doi.org/' + work.doi
+  else if (work.url !== '') text += ' ' + work.url
   return text
 }
 
@@ -203,7 +232,7 @@ function buildIeee(work: Work): string {
   const title = titleOf(work)
   const parts: string[] = [authors + ', "' + title + ',"']
   if (work.containerTitle !== '') {
-    parts.push(work.type === 'proceedings-article' ? 'in ' + work.containerTitle : work.containerTitle)
+    parts.push(work.type === 'proceedings-article' || work.type === 'book-chapter' ? 'in ' + work.containerTitle : work.containerTitle)
   } else if (work.publisher !== '') {
     parts.push(work.publisher)
   }
@@ -258,7 +287,9 @@ function bibtexType(work: Work): string {
   switch (work.type) {
     case 'journal-article': return 'article'
     case 'book': case 'monograph': case 'edited-book': return 'book'
-    case 'proceedings-article': case 'proceedings': return 'inproceedings'
+    case 'book-chapter': return 'incollection'
+    case 'proceedings-article': return 'inproceedings'
+    case 'proceedings': return 'proceedings'
     case 'dissertation': return 'phdthesis'
     case 'report': return 'techreport'
     default: return 'misc'
@@ -283,10 +314,11 @@ export function buildBibtex(work: Work, key?: string): string {
   fields.push('  title={' + escapeLatex(titleOf(work)) + '}')
   if (work.containerTitle !== '') fields.push(type === 'article' ? '  journal={' + escapeLatex(work.containerTitle) + '}' : '  booktitle={' + escapeLatex(work.containerTitle) + '}')
   if (work.year > 0) fields.push('  year={' + work.year + '}')
-  if (work.volume !== '') fields.push('  volume={' + work.volume + '}')
-  if (work.issue !== '') fields.push('  number={' + work.issue + '}')
-  if (work.page !== '') fields.push('  pages={' + work.page + '}')
+  if (work.volume !== '') fields.push('  volume={' + escapeLatex(work.volume) + '}')
+  if (work.issue !== '') fields.push('  number={' + escapeLatex(work.issue) + '}')
+  if (work.page !== '') fields.push('  pages={' + escapeLatex(work.page) + '}')
   if (work.publisher !== '') fields.push('  publisher={' + escapeLatex(work.publisher) + '}')
+  if (work.isbn !== '') fields.push('  isbn={' + escapeLatex(work.isbn) + '}')
   if (work.doi !== '') fields.push('  doi={' + work.doi + '}')
   // BibTeX/biblatex URL fields are verbatim, unlike titles and personal names.
   if (work.url !== '') fields.push('  url={' + work.url.replaceAll('{', '%7B').replaceAll('}', '%7D') + '}')
